@@ -1,7 +1,4 @@
 username = "PoBPreviewBot"
-password = "[redacted]"
-client_id = "[redacted]"
-client_secret = "[redacted]"
 subreddit = "pathofexile"
 
 submission_parse_interval = 60

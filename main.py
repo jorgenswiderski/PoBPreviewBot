@@ -1,6 +1,8 @@
 import praw
 import live_config as config
+import live_secret_config as sconfig
 #import config
+#import secret_config as sconfig
 import time
 import os
 import re
@@ -18,9 +20,9 @@ locale.setlocale(locale.LC_ALL, '')
 def bot_login():
 	print "Logging in..."
 	r = praw.Reddit(username = config.username,
-		password = config.password,
-		client_id = config.client_id,
-		client_secret = config.client_secret,
+		password = sconfig.password,
+		client_id = sconfig.client_id,
+		client_secret = sconfig.client_secret,
 		user_agent = "PoBPreview")
 	print "Successfully logged in."
 		
