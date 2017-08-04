@@ -337,7 +337,7 @@ def check_for_deletions(t):
 def run_bot():
 	t = time.time()
 	
-	if t >= rate_limit_timer and len(reply_queue) > 0:
+	if rate_limit_timer > 0 and t >= rate_limit_timer and len(reply_queue) > 0:
 		t = reply_queue.pop()
 		buffered_reply(t[0], t[1], t[2])
 	
@@ -351,8 +351,10 @@ def run_bot():
 	
 	next_update_time = min( last_time_comments_parsed + config.comment_parse_interval,
 	     last_time_submissions_parsed + config.submission_parse_interval,
-	     next_time_to_check_for_deletions,
-		 rate_limit_timer )
+	     next_time_to_check_for_deletions )
+		 
+	if rate_limit_timer > 0:
+		next_uptime_time = min(rate_limit_timer, next_update_time)
 	
 	if next_update_time > t:
 		#print "Sleeping for {:n}s...".format(next_update_time - t)
