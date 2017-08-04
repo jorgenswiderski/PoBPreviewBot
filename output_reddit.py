@@ -57,6 +57,8 @@ def get_main_gem( build = False, root = False, skill = False ):
 	for gem in skill.findall('Gem'):
 		if not "Support" in gem.attrib['skillId']:
 			return gem
+			
+	raise StatException('mainSocketGroup has no active skill gem!')
 	
 def parse_stats_from_xml(root):
 	build = root.find('Build')
