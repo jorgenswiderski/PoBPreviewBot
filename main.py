@@ -337,6 +337,7 @@ def check_for_deletions(t):
 def run_bot():
 	t = time.time()
 	
+	global rate_limit_timer
 	if t >= rate_limit_timer and len(reply_queue) > 0:
 		t = reply_queue.pop()
 		buffered_reply(t[0], t[1], t[2])
