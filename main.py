@@ -351,7 +351,8 @@ def run_bot():
 	
 	next_update_time = min( last_time_comments_parsed + config.comment_parse_interval,
 	     last_time_submissions_parsed + config.submission_parse_interval,
-	     next_time_to_check_for_deletions )
+	     next_time_to_check_for_deletions,
+		 rate_limit_timer )
 	
 	if next_update_time > t:
 		#print "Sleeping for {:n}s...".format(next_update_time - t)
