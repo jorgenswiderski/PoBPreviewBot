@@ -21,6 +21,7 @@ PlayerStats_to_parse = [
 	"CritMultiplier",
 	"ActiveMinionLimit",
 	"LifeUnreservedPercent",
+	"DecayDPS",
 ]
 
 MinionStats_to_parse = [
@@ -226,7 +227,7 @@ def get_body(root, stats, mstats):
 		if g.attrib['enabled'] == "true" and (gem == g or "Support" in g.attrib['skillId']):
 			links += 1
 
-	dps = max(stats['TotalDPS'], stats['TotalDot'])
+	dps = max(stats['TotalDPS'], stats['TotalDot'] + stats['DecayDPS'])
 	mdps = mstats['TotalDPS'] * stats['ActiveMinionLimit']
 	
 	if dps <= 0 and mdps <= 0:
