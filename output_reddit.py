@@ -140,8 +140,8 @@ def get_header(root, stats, bin_url, author):
 	active_spec = tree.findall('Spec')[int(tree.attrib['activeSpec'])-1]
 	tree_url = active_spec.find('URL').text.strip()
 	
-	line2 = "[^Level {:s}]({:s}) | by /u/{:s}\n*****\n".format(build.attrib['level'], tree_url, author.name)
-	header += line2.replace(' ', ' ^')
+	line2 = "Level {:s} ([Tree]({:s})) | by /u/{:s}\n*****\n".format(build.attrib['level'], tree_url, author.name)
+	header += '^' + line2.replace(' ', ' ^')
 	
 	#print header
 	return header
