@@ -22,10 +22,12 @@ PlayerStats_to_parse = [
 	"ActiveMinionLimit",
 	"LifeUnreservedPercent",
 	"DecayDPS",
+	"WithPoisonDPS",
 ]
 
 MinionStats_to_parse = [
 	"TotalDPS",
+	"WithPoisonDPS",
 ]
 
 class StatException(Exception):
@@ -229,7 +231,7 @@ def get_body(root, stats, mstats):
 		if g.attrib['enabled'] == "true" and (gem == g or "Support" in g.attrib['skillId']):
 			links += 1
 
-	dps = max(stats['TotalDPS'], stats['TotalDot'] + stats['DecayDPS'])
+	dps = max(stats['TotalDPS'], stats['WithPoisonDPS'], stats['TotalDot'] + stats['DecayDPS'])
 	mdps = mstats['TotalDPS'] * stats['ActiveMinionLimit']
 	
 	if dps <= 0 and mdps <= 0:
@@ -237,8 +239,8 @@ def get_body(root, stats, mstats):
 	
 	dps_str = ""
 	if mdps > dps:
-		dps = mstats['TotalDPS']
-		dps_str = "{:s} DPS per minion | {:s} total DPS".format(util.floatToSigFig(mstats['TotalDPS']), util.floatToSigFig(mstats['TotalDPS'] * stats['ActiveMinionLimit']))
+		dps = max(mstats['TotalDPS'], mstats['WithPoisonDPS'])
+		dps_str = "{:s} DPS per minion | {:s} total DPS".format(util.floatToSigFig(dps), util.floatToSigFig(dps * stats['ActiveMinionLimit']))
 	else:
 		dps_str = "{:s} DPS".format(util.floatToSigFig(dps))
 		
