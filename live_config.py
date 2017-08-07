@@ -10,3 +10,4 @@ max_pull_count = 200
 
 max_deletion_check_interval = 86400
 min_deletion_check_interval = 60
+deletion_check_interval_rng = 0.01

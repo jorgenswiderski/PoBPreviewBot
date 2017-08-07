@@ -14,6 +14,7 @@ from output_reddit import StatException
 from output_reddit import get_response_from_xml
 from collections import deque
 import math
+import random
 
 locale.setlocale(locale.LC_ALL, '')
 
@@ -286,11 +287,14 @@ def parse_submissions():
 next_time_to_check_for_deletions = 0
 
 def schedule_next_deletion():
+	global next_time_to_check_for_deletions
+	
 	if len(deletion_check_list):
-		global next_time_to_check_for_deletions
-		next_time_to_check_for_deletions = deletion_check_list[0]['time']
+		next_time_to_check_for_deletions = int(deletion_check_list[0]['time'])
 	else:
 		next_time_to_check_for_deletions = time.time() + 1000000
+		
+	#print "Next deletion scheduled for " + str(next_time_to_check_for_deletions)
 
 def check_for_deletions(t):
 	#print "Checking for deletions..."
@@ -316,8 +320,9 @@ def check_for_deletions(t):
 				deletion_check_list.remove(entry)
 				
 		if entry in deletion_check_list:
-			#print "All good, scheduled for check {:.0f}s from now.".format(calc_deletion_check_time(comment))
-			entry['time'] = t + calc_deletion_check_time(comment)
+			delay = calc_deletion_check_time(comment) * ( 1.0 + config.deletion_check_interval_rng * ( 2.0 * random.random() - 1.0 ) )
+			#print "All good, scheduled for check {:.0f}s from now.".format(delay)
+			entry['time'] = t + delay
 	
 	# sort
 	deletion_check_list.sort(key=deletion_sort)	
