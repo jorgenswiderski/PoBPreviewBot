@@ -23,6 +23,7 @@ PlayerStats_to_parse = [
 	"LifeUnreservedPercent",
 	"DecayDPS",
 	"WithPoisonDPS",
+	"LifeUnreserved",
 ]
 
 MinionStats_to_parse = [
@@ -43,7 +44,7 @@ def isMoM(stats): #FIXME
 	return stats['ManaUnreserved'] >= 1500
 
 def isHybrid(stats):
-	return not isCI(stats) and not isLowLife(stats) and stats['EnergyShield'] >= stats['Life'] * 0.25
+	return not isCI(stats) and not isLowLife(stats) and stats['EnergyShield'] >= stats['LifeUnreserved'] * 0.25
 	
 def get_main_skill( build, root ):
 	main_socket_group = int(build.attrib['mainSocketGroup'])
@@ -164,8 +165,8 @@ def get_body(root, stats, mstats):
 		body = "{:n} **ES**".format(stats['EnergyShield'])
 		total_ehp += stats['EnergyShield']
 	else:
-		body = "{:n} **Life**".format(stats['Life'])
-		total_ehp += stats['Life']
+		body = "{:n} **Life**".format(stats['LifeUnreserved'])
+		total_ehp += stats['LifeUnreserved']
 		
 		if isMoM(stats):
 			body += " | {:n} **Mana**".format(stats['ManaUnreserved'])
