@@ -15,6 +15,7 @@ from output_reddit import get_response_from_xml
 from collections import deque
 import math
 import random
+import traceback
 
 locale.setlocale(locale.LC_ALL, '')
 
@@ -106,17 +107,26 @@ def parse_generic(comment = False, submission = False):
 					if xml.find('Build').find('PlayerStat') is not None:
 						try:
 							response = get_response_from_xml(bin, xml, obj.author)
-						except StatException as e:
-							print repr(e)
-							blacklist_pastebin(paste_key)
-							return
 						except Exception as e:
+							print repr(e)
+						
+							# dump xml for debugging later
 							c = pastebin.get_contents(paste_key)
 							c = c.replace("-", "+").replace("_", "/")
-							with open(paste_key+".xml", "w") as f:
+							
+							if not os.path.exists("error/" + obj.id):
+								os.makedirs("error/" + obj.id)
+							
+							with open("error/" + obj.id + "/pastebin.xml", "w") as f:
 								f.write( pastebin.decode_base64_and_inflate(c) )
-								print "Wrote xml to "+paste_key+".xml"
-							raise e
+							with open("error/" + obj.id + "/info.txt", "w") as f:
+								f.write( "pastebin_url\t{:s}\ncomment_id\t{:s}\ncomment_body:\n{:s}".format( bin, obj.id, body ))
+							with open("error/" + obj.id + "/traceback.txt", "w") as f:
+								traceback.print_exc( file = f )
+							
+							print "Dumped info to error/" + obj.id
+							blacklist_pastebin(paste_key)
+							continue
 							
 						if config.username == "PoBPreviewBot" or config.subreddit != "pathofexile":
 							buffered_reply(obj, response, paste_key)
