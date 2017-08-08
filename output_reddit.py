@@ -50,7 +50,7 @@ def get_main_skill( build, root ):
 	main_socket_group = int(build.attrib['mainSocketGroup'])
 	skills = root.find('Skills')
 	if len(skills) == 0:
-		raise BotException('Build has no skills')
+		raise StatException('Build has no skills')
 	return skills[main_socket_group-1]
 	
 def get_main_gem( build = False, root = False, skill = False ):
