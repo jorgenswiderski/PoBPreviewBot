@@ -120,7 +120,7 @@ def parse_generic(comment = False, submission = False):
 							with open("error/" + obj.id + "/pastebin.xml", "w") as f:
 								f.write( pastebin.decode_base64_and_inflate(c) )
 							with open("error/" + obj.id + "/info.txt", "w") as f:
-								f.write( "pastebin_url\t{:s}\ncomment_id\t{:s}\ncomment_body:\n{:s}".format( bin, obj.id, body ))
+								f.write( "pastebin_url\t{:s}\ncomment_id\t{:s}\nerror_text\t{:s}\ncomment_body:\n{:s}".format( bin, obj.id, repr(e), body ))
 							with open("error/" + obj.id + "/traceback.txt", "w") as f:
 								traceback.print_exc( file = f )
 							
@@ -251,7 +251,22 @@ def parse_comments():
 	
 	while True:
 		#print "Pulling {:.0f} comments from /r/{:s}...".format(num, config.subreddit)
-		for comment in r.subreddit(config.subreddit).comments(limit=num):
+		
+		# Grab comments
+		comments = False
+		
+		while True:
+			try:
+				comments = r.subreddit(config.subreddit).comments(limit=num)
+			except prawcore.exceptions.ServerError as e:
+				# If server error, sleep for x then try again
+				print "Praw {:s}. Sleeping for {:.0f}s...".format(repr(e), config.praw_error_wait_time)
+				time.sleep(config.praw_error_wait_time)
+			else:
+				# If no error, break out of the loop
+				break
+		
+		for comment in comments:
 			if comment.id not in processed_comments_dict:
 				track_comment(comment)
 				if comment.id not in comments_replied_to:
@@ -276,7 +291,22 @@ def parse_submissions():
 	
 	while True:
 		#print "Pulling {:.0f} submissions from /r/{:s}...".format(num, config.subreddit)
-		for submission in r.subreddit(config.subreddit).new(limit=num):
+		
+		# Grab submissions
+		submissions = False
+		
+		while True:
+			try:
+				submissions = r.subreddit(config.subreddit).new(limit=num)
+			except prawcore.exceptions.ServerError as e:
+				# If server error, sleep for x then try again
+				print "Praw {:s}. Sleeping for {:.0f}s...".format(repr(e), config.praw_error_wait_time)
+				time.sleep(config.praw_error_wait_time)
+			else:
+				# If no error, break out of the loop
+				break
+		
+		for submission in submissions:
 			if submission.id not in processed_submissions_dict:
 				track_submission(submission)
 				if submission.id not in submissions_replied_to:
