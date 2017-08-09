@@ -1,8 +1,8 @@
 import praw
-import live_config as config
-import live_secret_config as sconfig
-#import config
-#import secret_config as sconfig
+#import live_config as config
+#import live_secret_config as sconfig
+import config
+import secret_config as sconfig
 import time
 import os
 import re
@@ -16,6 +16,7 @@ from collections import deque
 import math
 import random
 import traceback
+import urllib2
 
 locale.setlocale(locale.LC_ALL, '')
 
@@ -101,7 +102,10 @@ def parse_generic(comment = False, submission = False):
 					print "Pastebin does not decode to XML data."
 					blacklist_pastebin(paste_key)
 					continue
-				
+				except urllib2.HTTPError as e:
+					print "urllib2 {:s}".format(repr(e))
+					blacklist_pastebin(paste_key)
+					continue
 				
 				if xml.tag == "PathOfBuilding":
 					if xml.find('Build').find('PlayerStat') is not None:
@@ -120,7 +124,7 @@ def parse_generic(comment = False, submission = False):
 							with open("error/" + obj.id + "/pastebin.xml", "w") as f:
 								f.write( pastebin.decode_base64_and_inflate(c) )
 							with open("error/" + obj.id + "/info.txt", "w") as f:
-								f.write( "pastebin_url\t{:s}\ncomment_id\t{:s}\ncomment_url\t{:s}\nerror_text\t{:s}\ncomment_body:\n{:s}".format( bin, obj.id, obj.url, repr(e), body ))
+								f.write( "pastebin_url\t{:s}\ncomment_id\t{:s}\ncomment_url\t{:s}\nerror_text\t{:s}\ncomment_body:\n{:s}".format( bin, obj.id, obj.link_url, repr(e), body ))
 							with open("error/" + obj.id + "/traceback.txt", "w") as f:
 								traceback.print_exc( file = f )
 							
