@@ -1,8 +1,8 @@
 import praw
-#import live_config as config
-#import live_secret_config as sconfig
-import config
-import secret_config as sconfig
+import live_config as config
+import live_secret_config as sconfig
+#import config
+#import secret_config as sconfig
 import time
 import os
 import re
