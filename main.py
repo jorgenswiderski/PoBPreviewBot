@@ -124,7 +124,7 @@ def parse_generic(comment = False, submission = False):
 							with open("error/" + obj.id + "/pastebin.xml", "w") as f:
 								f.write( pastebin.decode_base64_and_inflate(c) )
 							with open("error/" + obj.id + "/info.txt", "w") as f:
-								f.write( "pastebin_url\t{:s}\ncomment_id\t{:s}\ncomment_url\t{:s}\nerror_text\t{:s}\ncomment_body:\n{:s}".format( bin, obj.id, obj.link_url, repr(e), body ))
+								f.write( "pastebin_url\t{:s}\ncomment_id\t{:s}\ncomment_url\t{:s}\nerror_text\t{:s}\ncomment_body:\n{:s}".format( bin, obj.id, obj.permalink, repr(e), body ))
 							with open("error/" + obj.id + "/traceback.txt", "w") as f:
 								traceback.print_exc( file = f )
 							
