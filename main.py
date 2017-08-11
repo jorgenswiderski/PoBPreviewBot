@@ -124,7 +124,7 @@ def parse_generic(comment = False, submission = False):
 							with open("error/" + obj.id + "/pastebin.xml", "w") as f:
 								f.write( pastebin.decode_base64_and_inflate(c) )
 							with open("error/" + obj.id + "/info.txt", "w") as f:
-								f.write( "pastebin_url\t{:s}\ncomment_id\t{:s}\ncomment_url\t{:s}\nerror_text\t{:s}\ncomment_body:\n{:s}".format( bin, obj.id, obj.permalink, repr(e), body ))
+								f.write( "pastebin_url\t{:s}\ncomment_id\t{:s}\ncomment_url\t{:s}\nerror_text\t{:s}".format( bin, obj.id, obj.permalink, repr(e) ))
 							with open("error/" + obj.id + "/traceback.txt", "w") as f:
 								traceback.print_exc( file = f )
 							
@@ -179,7 +179,30 @@ def get_deletion_check_list():
 	
 					
 def calc_deletion_check_time(comment):
-	return min(config.max_deletion_check_interval, max(config.min_deletion_check_interval, time.time() - comment.created_utc))
+	comment_age = time.time() - comment.created_utc
+	
+	# 0 < x < 15 minutes
+	# fixed interval of 60s
+	t = 60
+	
+	# 15m < x < 4h
+	if comment_age > 900:
+		# increase linearly up to 15 minutes
+		t *= min( comment_age, 14400 ) / ( 14400 / 15 )
+		
+	# 4h < x < 1w
+	if comment_age > 14400:
+		# increase exponentially up to 6 hours
+		t *= math.pow( 1.0786, min( comment_age, 604800 ) / 14400 )
+		
+	if comment_age > 604800:
+		# 2 weeks: 15.1 hrs
+		# 3 weeks: 24.0 hrs
+		# 4 weeks: 38.1 hrs
+		t *= math.pow( 1.5874, comment_age / 604800 )
+		
+	return t
+		
 					
 def log_reply(comment, parent):
 	check_time = time.time() + calc_deletion_check_time(comment)
@@ -364,7 +387,10 @@ def check_for_deletions(t):
 				deletion_check_list.remove(entry)
 				
 		if entry in deletion_check_list:
-			delay = calc_deletion_check_time(comment) * ( 1.0 + config.deletion_check_interval_rng * ( 2.0 * random.random() - 1.0 ) )
+			delay = calc_deletion_check_time(comment)
+			if delay > 0.0:
+				delay *= 1.0 + config.deletion_check_interval_rng * ( 2.0 * random.random() - 1.0 )
+				
 			#print "All good, scheduled for check {:.0f}s from now.".format(delay)
 			entry['time'] = t + delay
 	
