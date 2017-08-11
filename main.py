@@ -193,13 +193,13 @@ def calc_deletion_check_time(comment):
 	# 4h < x < 1w
 	if comment_age > 14400:
 		# increase exponentially up to 6 hours
-		t *= math.pow( 1.0786, min( comment_age, 604800 ) / 14400 )
+		t *= math.pow( 1.078726, ( min( comment_age, 604800 ) - 900 ) / 14400 )
 		
 	if comment_age > 604800:
 		# 2 weeks: 15.1 hrs
 		# 3 weeks: 24.0 hrs
 		# 4 weeks: 38.1 hrs
-		t *= math.pow( 1.5874, comment_age / 604800 )
+		t *= math.pow( 2, ( comment_age - 604800 ) / 604800 )
 		
 	return t
 		
