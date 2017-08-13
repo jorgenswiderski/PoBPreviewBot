@@ -10,5 +10,5 @@ max_pull_count = 200
 
 deletion_check_interval_rng = 0.01
 
-praw_error_wait_time = 60
+praw_error_wait_time = 5
 urllib_error_wait_time = 60

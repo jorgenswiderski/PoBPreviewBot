@@ -18,6 +18,12 @@ import random
 import traceback
 import urllib2
 
+from prawcore.exceptions import RequestException
+from prawcore.exceptions import ServerError
+from praw.exceptions import APIException
+
+praw_errors = (RequestException, ServerError, APIException)
+
 locale.setlocale(locale.LC_ALL, '')
 
 def bot_login():
@@ -47,7 +53,7 @@ def buffered_reply(obj, response, paste_key):
 	#print "Attempting reply to " + obj.id
 	try:
 		log_reply(obj.reply(response), obj.id)
-	except praw.exceptions.APIException as e:
+	except APIException as e:
 		print "*** Failed to reply " + repr(e) + " ***"
 		print "Buffering reply for later"
 		rate_limit_timer = time.time() + 60
@@ -283,12 +289,14 @@ def parse_comments():
 		comments = False
 		
 		while True:
+			tries = 0
 			try:
 				comments = r.subreddit(config.subreddit).comments(limit=num)
-			except prawcore.exceptions.ServerError as e:
+			except praw_errors as e:
 				# If server error, sleep for x then try again
 				print "Praw {:s}. Sleeping for {:.0f}s...".format(repr(e), config.praw_error_wait_time)
-				time.sleep(config.praw_error_wait_time)
+				time.sleep(config.praw_error_wait_time * ( 2 ** tries ) )
+				tries += 1
 			else:
 				# If no error, break out of the loop
 				break
@@ -323,12 +331,14 @@ def parse_submissions():
 		submissions = False
 		
 		while True:
+			tries = 0
 			try:
 				submissions = r.subreddit(config.subreddit).new(limit=num)
-			except prawcore.exceptions.ServerError as e:
+			except praw_errors as e:
 				# If server error, sleep for x then try again
 				print "Praw {:s}. Sleeping for {:.0f}s...".format(repr(e), config.praw_error_wait_time)
-				time.sleep(config.praw_error_wait_time)
+				time.sleep(config.praw_error_wait_time * ( 2 ** tries ) )
+				tries += 1
 			else:
 				# If no error, break out of the loop
 				break
@@ -372,7 +382,20 @@ def check_for_deletions(t):
 		
 		#print "Checking if parent comment of " + entry['id'] + " is deleted..."
 		comment = praw.models.Comment(r, id=entry['id'])
-		parent = comment.parent()
+		
+		while True:
+			tries = 0
+			try:
+				parent = comment.parent()
+			except praw_errors as e:
+				# If server error, sleep for x then try again
+				print "Praw {:s}. Sleeping for {:.0f}s...".format(repr(e), config.praw_error_wait_time)
+				time.sleep(config.praw_error_wait_time * ( 2 ** tries ) )
+				tries += 1
+			else:
+				# If no error, break out of the loop
+				break
+		
 		if comment.is_root:
 			parent._fetch()
 			if parent.selftext == "[deleted]" or parent.selftext == "[removed]":
