@@ -399,13 +399,13 @@ def check_for_deletions(t):
 		if comment.is_root:
 			parent._fetch()
 			if parent.selftext == "[deleted]" or parent.selftext == "[removed]":
-				print "Deleted comment " + comment.id + " as parent submission " + comment.parent_id + " was deleted."
+				print "Deleted comment {:s} as parent submission {:s} was deleted.".format( comment.id, comment.parent_id )
 				comment.delete()
 				deletion_check_list.remove(entry)
 		else:
 			parent.refresh()
 			if parent.body == "[deleted]":
-				print "Deleted comment " + comment.id + " as parent comment " + comment.parent_id + " was deleted."
+				print "Deleted comment {:s} as parent comment {:s} was deleted.".format( comment.id, comment.parent_id )
 				comment.delete()
 				deletion_check_list.remove(entry)
 				
@@ -436,8 +436,8 @@ def run_bot():
 	t = time.time()
 	
 	if rate_limit_timer > 0 and t >= rate_limit_timer and len(reply_queue) > 0:
-		t = reply_queue.pop()
-		buffered_reply(t[0], t[1], t[2])
+		rep = reply_queue.pop()
+		buffered_reply(rep[0], rep[1], rep[2])
 	
 	if t - last_time_comments_parsed >= config.comment_parse_interval:
 		parse_comments()
