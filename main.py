@@ -33,7 +33,7 @@ def bot_login():
 		client_id = sconfig.client_id,
 		client_secret = sconfig.client_secret,
 		user_agent = "PoBPreview")
-	print "Successfully logged in."
+	print "Successfully logged in as {:s}.".format(config.username)
 		
 	return r
 	
