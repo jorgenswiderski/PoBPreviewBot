@@ -319,7 +319,7 @@ class pob_build:
 				total_ehp += self.stats['player']['ManaUnreserved']
 				show_ehp = True
 				
-			if self.isHybrid():
+			if self.isHybrid() or self.isLowLife():
 				body += " | {:n} **ES**".format(self.stats['player']['EnergyShield'])
 				total_ehp += self.stats['player']['EnergyShield']
 				show_ehp = True
