@@ -57,7 +57,7 @@ def buffered_reply(obj, response, paste_key):
 		print "*** Failed to reply " + repr(e) + " ***"
 		print "Buffering reply for later"
 		rate_limit_timer = time.time() + 60
-		reply_queue.append((obj, response))
+		reply_queue.append((obj, response, paste_key))
 		return
 		
 	print "Replied to {:s} {:s} about pastebin {:s}.".format(obj_type_str(obj), obj.id, paste_key)
