@@ -1,5 +1,5 @@
 username = "aggixxTest"
-subreddit = "pobPreviewTest"
+subreddit = "test"
 
 submission_parse_interval = 30
 comment_parse_interval = 10

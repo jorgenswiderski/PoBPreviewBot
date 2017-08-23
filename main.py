@@ -10,8 +10,8 @@ import defusedxml.ElementTree as ET
 import locale
 import pastebin
 import zlib
-from output_reddit import StatException
-from output_reddit import get_response_from_xml
+from pob_build import StatException
+from pob_build import pob_build
 from collections import deque
 import math
 import random
@@ -116,7 +116,8 @@ def parse_generic(comment = False, submission = False):
 				if xml.tag == "PathOfBuilding":
 					if xml.find('Build').find('PlayerStat') is not None:
 						try:
-							response = get_response_from_xml(bin, xml, obj.author)
+							build = pob_build(xml, bin, obj.author)
+							response = build.get_response()
 						except Exception as e:
 							print repr(e)
 						
