@@ -32,6 +32,7 @@ stats_to_parse = [
 			"WithPoisonDPS",
 			"LifeUnreserved",
 			"BleedDPS",
+			"IgniteDPS",
 		],
 	},
 	{
@@ -192,21 +193,28 @@ class pob_build:
 			if self.stats['player']['TotalDot'] > 0:
 				# Base DoT (doesn't include decay and other shit unlike what the attribute name would imply)
 				dot += self.stats['player']['TotalDot']
+				#print "{:.2f} base DoT".format(self.stats['player']['TotalDot'])
 			else:
 				# Direct DPS
-				direct = self.stats['player']['TotalDPS']
+				direct += self.stats['player']['TotalDPS']
+				#print "{:.2f} direct".format(self.stats['player']['TotalDPS'])
 			
-				# Poison
-				dot += self.stats['player']['WithPoisonDPS'] - self.stats['player']['TotalDPS']
+				if self.stats['player']['WithPoisonDPS'] > 0:
+					# Poison
+					dot += self.stats['player']['WithPoisonDPS'] - self.stats['player']['TotalDPS']
+					#print "{:.2f} poison".format(self.stats['player']['WithPoisonDPS'] - self.stats['player']['TotalDPS'])
 			
 			# Bleed
 			dot += self.get_bleed_dps()
+			#print "{:.2f} bleed".format(self.get_bleed_dps())
 			
 			# Ignite
 			dot += self.stats['player']['IgniteDPS']
+			#print "{:.2f} ignite".format(self.stats['player']['IgniteDPS'])
 			
 			# Decay
 			dot += self.stats['player']['DecayDPS']
+			#print "{:.2f} decay".format(self.stats['player']['DecayDPS'])
 			
 			total = direct + dot
 			
@@ -370,7 +378,7 @@ class pob_build:
 		dps_breakdown = self.get_dps_breakdown()
 		
 		if dps_breakdown[0][0] <= 0:
-			raise StatException('Active skill does no DPS!')
+			raise StatException('Active skill does no DPS! ' + repr(dps_breakdown))
 		
 		dps_str = ""
 		
