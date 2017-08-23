@@ -202,6 +202,9 @@ class pob_build:
 			# Bleed
 			dot += self.get_bleed_dps()
 			
+			# Ignite
+			dot += self.stats['player']['IgniteDPS']
+			
 			# Decay
 			dot += self.stats['player']['DecayDPS']
 			
@@ -216,6 +219,10 @@ class pob_build:
 				# Bleed
 				if self.get_bleed_dps() > 0.01 * total:
 					r.append( ( self.get_bleed_dps(), "bleed DPS" ) )
+					
+				# Ignite
+				if self.stats['player']['IgniteDPS'] > 0.01 * total:
+					r.append( ( self.stats['player']['IgniteDPS'], "ignite DPS" ) )
 				
 				# Poison
 				if self.stats['player']['WithPoisonDPS'] - self.stats['player']['TotalDPS'] > 0.01 * total:
