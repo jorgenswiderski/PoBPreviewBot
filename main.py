@@ -287,20 +287,7 @@ def parse_comments():
 		#print "Pulling {:.0f} comments from /r/{:s}...".format(num, config.subreddit)
 		
 		# Grab comments
-		comments = False
-		
-		while True:
-			tries = 0
-			try:
-				comments = r.subreddit(config.subreddit).comments(limit=num)
-			except praw_errors as e:
-				# If server error, sleep for x then try again
-				print "Praw {:s}. Sleeping for {:.0f}s...".format(repr(e), config.praw_error_wait_time)
-				time.sleep(config.praw_error_wait_time * ( 2 ** tries ) )
-				tries += 1
-			else:
-				# If no error, break out of the loop
-				break
+		comments = r.subreddit(config.subreddit).comments(limit=num)
 		
 		for comment in comments:
 			if comment.id not in processed_comments_dict:
@@ -320,6 +307,20 @@ def parse_comments():
 	
 	save_comment_count()
 	
+def parse_comments_catch():
+	while True:
+		tries = 0
+		try:
+			parse_comments()
+		except praw_errors as e:
+			# If server error, sleep for x then try again
+			print "Praw {:s}. Sleeping for {:.0f}s...".format(repr(e), config.praw_error_wait_time)
+			time.sleep(config.praw_error_wait_time * ( 2 ** tries ) )
+			tries += 1
+		else:
+			# If no error then we're done
+			return
+	
 last_time_submissions_parsed = 0
 
 def parse_submissions():
@@ -329,20 +330,7 @@ def parse_submissions():
 		#print "Pulling {:.0f} submissions from /r/{:s}...".format(num, config.subreddit)
 		
 		# Grab submissions
-		submissions = False
-		
-		while True:
-			tries = 0
-			try:
-				submissions = r.subreddit(config.subreddit).new(limit=num)
-			except praw_errors as e:
-				# If server error, sleep for x then try again
-				print "Praw {:s}. Sleeping for {:.0f}s...".format(repr(e), config.praw_error_wait_time)
-				time.sleep(config.praw_error_wait_time * ( 2 ** tries ) )
-				tries += 1
-			else:
-				# If no error, break out of the loop
-				break
+		submissions = r.subreddit(config.subreddit).new(limit=num)
 		
 		for submission in submissions:
 			if submission.id not in processed_submissions_dict:
@@ -361,6 +349,20 @@ def parse_submissions():
 	last_time_submissions_parsed = time.time()
 	
 	save_submission_count()
+	
+def parse_submissions_catch():
+	while True:
+		tries = 0
+		try:
+			parse_submissions()
+		except praw_errors as e:
+			# If server error, sleep for x then try again
+			print "Praw {:s}. Sleeping for {:.0f}s...".format(repr(e), config.praw_error_wait_time)
+			time.sleep(config.praw_error_wait_time * ( 2 ** tries ) )
+			tries += 1
+		else:
+			# If no error then we're done
+			return
 	
 next_time_to_check_for_deletions = 0
 
@@ -441,9 +443,10 @@ def run_bot():
 		buffered_reply(rep[0], rep[1], rep[2])
 	
 	if t - last_time_comments_parsed >= config.comment_parse_interval:
-		parse_comments()
+		parse_comments_catch()
+		
 	if t - last_time_submissions_parsed >= config.submission_parse_interval:
-		parse_submissions()
+		parse_submissions_catch()
 	
 	if t >= next_time_to_check_for_deletions:
 		check_for_deletions(t)
