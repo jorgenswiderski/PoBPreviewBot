@@ -308,8 +308,8 @@ def parse_comments():
 	save_comment_count()
 	
 def parse_comments_catch():
+	tries = 0
 	while True:
-		tries = 0
 		try:
 			parse_comments()
 		except praw_errors as e:
@@ -351,8 +351,8 @@ def parse_submissions():
 	save_submission_count()
 	
 def parse_submissions_catch():
+	tries = 0
 	while True:
-		tries = 0
 		try:
 			parse_submissions()
 		except praw_errors as e:
