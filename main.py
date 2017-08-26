@@ -20,9 +20,10 @@ import urllib2
 
 from prawcore.exceptions import RequestException
 from prawcore.exceptions import ServerError
+from prawcore.exceptions import ResponseException
 from praw.exceptions import APIException
 
-praw_errors = (RequestException, ServerError, APIException)
+praw_errors = (RequestException, ServerError, APIException, ResponseException)
 
 locale.setlocale(locale.LC_ALL, '')
 
