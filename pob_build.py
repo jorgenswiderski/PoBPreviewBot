@@ -245,7 +245,7 @@ class pob_build:
 	def get_response(self):
 		response = self.get_response_header()
 		response += self.get_response_body()
-		response += self.get_response_footer()
+		#response += self.get_response_footer()
 		
 		return response.replace('\n', '  \n')
 		
@@ -395,11 +395,7 @@ class pob_build:
 		if self.stats['player']['CritChance'] >= 20:
 			line += " | {:.2f}% **Crit** | {:n}% **Multi**".format(self.stats['player']['CritChance'], self.stats['player']['CritMultiplier']*100)
 			
-		body += '^' + line.replace(' ', ' ^') + '\n'
+		body += '^' + line.replace(' ', ' ^')
 		
 		#print body
-		return body + "\n*****\n"
-		
-	def get_response_footer(self):
-		footer = "[^Path of Building](https://github.com/Openarl/PathOfBuilding) | This reply will be automatically removed if its parent comment is deleted. | [Feedback?](https://www.reddit.com/r/PoBPreviewBot/)" 
-		return footer.replace(' ', ' ^')
+		return body

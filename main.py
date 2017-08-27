@@ -1,8 +1,8 @@
 import praw
-import live_config as config
-import live_secret_config as sconfig
-#import config
-#import secret_config as sconfig
+#import live_config as config
+#import live_secret_config as sconfig
+import config
+import secret_config as sconfig
 import time
 import os
 import re
@@ -24,6 +24,8 @@ from prawcore.exceptions import ResponseException
 from praw.exceptions import APIException
 
 praw_errors = (RequestException, ServerError, APIException, ResponseException)
+
+BOT_FOOTER = "[^Path ^of ^Building](https://github.com/Openarl/PathOfBuilding) ^| ^This ^reply ^will ^be ^automatically ^removed ^if ^its ^parent ^comment ^is ^deleted. ^| ^[Feedback?](https://www.reddit.com/r/PoBPreviewBot/)"
 
 locale.setlocale(locale.LC_ALL, '')
 
@@ -66,7 +68,7 @@ def buffered_reply(obj, response, paste_key):
 	with open("{:s}s_replied_to.txt".format(obj_type_str(obj)), "a") as f:
 		f.write(obj.id + "\n")
 
-def parse_generic(comment = False, submission = False):
+def get_response(comment = False, submission = False):
 	if not ( comment or submission ):
 		return
 
@@ -91,6 +93,8 @@ def parse_generic(comment = False, submission = False):
 	comment_found_msg = False
 
 	if "pastebin.com/" in body:
+		responses = []
+	
 		for match in re.finditer('pastebin\.com/\w+', body):
 			bin = "https://" + match.group(0)
 			paste_key = pastebin.strip_url_to_key(bin)
@@ -140,26 +144,49 @@ def parse_generic(comment = False, submission = False):
 							blacklist_pastebin(paste_key)
 							continue
 							
-						if config.username == "PoBPreviewBot" or config.subreddit != "pathofexile":
-							buffered_reply(obj, response, paste_key)
-							
-							if isinstance(obj, praw.models.reddit.comment.Comment):
-								comments_replied_to.append(obj.id)
-							else:
-								submissions_replied_to.append(obj.id)
-						else:
-							#print "Reply body:\n" + response
-							with open("saved_replies.txt", "a") as f:
-								f.write(response + "\n\n\n")
-						
+						responses.append( response )
 					else:
 						print "XML does not contain player stats."
 						blacklist_pastebin(paste_key)
 				else:
 					print "Pastebin does not contain Path of Building XML."
 					blacklist_pastebin(paste_key)
-	#else:
-		#print "No pastebin found"
+		
+		if len(responses) > 0:
+			comment_body = ""
+			if len(responses) > 1:
+				for res in responses:
+					if comment_body != "":
+						comment_body += "\n\n[](#quote_break)  \n"
+					comment_body += '>' + res.replace('\n', "\n>")
+			else:
+				comment_body = responses[0] + "  \n*****"
+				
+			comment_body += '\n\n' + BOT_FOOTER
+			
+			return (comment_body, paste_key)
+			
+def parse_generic( comment = False, submission = False ):
+	# get response text
+	response = get_response( comment = comment, submission = submission )
+	
+	if not response:
+		return
+	
+	# post reply
+	if (config.username == "PoBPreviewBot" or config.subreddit != "pathofexile") and False:
+		buffered_reply(comment or submission, response[0], response[1])
+		
+		if comment:
+			comments_replied_to.append(comment.id)
+		elif submission:
+			submissions_replied_to.append(submission.id)
+		else:
+			raise Exception('parse_generic was passed neither a comment nor submission.')
+	else:
+		#print "Reply body:\n" + response
+		with open("saved_replies.txt", "a") as f:
+			f.write(response[0] + "\n\n\n")
 					
 def deletion_sort(a):
 	return a['time']
@@ -315,7 +342,7 @@ def parse_comments_catch():
 			parse_comments()
 		except praw_errors as e:
 			# If server error, sleep for x then try again
-			print "Praw {:s}. Sleeping for {:.0f}s...".format(repr(e), config.praw_error_wait_time)
+			print "Praw {:s}. Sleeping for {:.0f}s...".format(repr(e), config.praw_error_wait_time * ( 2 ** tries ))
 			time.sleep(config.praw_error_wait_time * ( 2 ** tries ) )
 			tries += 1
 		else:
@@ -358,7 +385,7 @@ def parse_submissions_catch():
 			parse_submissions()
 		except praw_errors as e:
 			# If server error, sleep for x then try again
-			print "Praw {:s}. Sleeping for {:.0f}s...".format(repr(e), config.praw_error_wait_time)
+			print "Praw {:s}. Sleeping for {:.0f}s...".format(repr(e), config.praw_error_wait_time * ( 2 ** tries ))
 			time.sleep(config.praw_error_wait_time * ( 2 ** tries ) )
 			tries += 1
 		else:
@@ -393,7 +420,7 @@ def check_for_deletions(t):
 				parent = comment.parent()
 			except praw_errors as e:
 				# If server error, sleep for x then try again
-				print "Praw {:s}. Sleeping for {:.0f}s...".format(repr(e), config.praw_error_wait_time)
+				print "Praw {:s}. Sleeping for {:.0f}s...".format(repr(e), config.praw_error_wait_time * ( 2 ** tries ))
 				time.sleep(config.praw_error_wait_time * ( 2 ** tries ) )
 				tries += 1
 			else:
