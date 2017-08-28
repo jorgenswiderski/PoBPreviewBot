@@ -485,8 +485,20 @@ def maintain_comments(t):
 	#print "Maintaining comment {:s}.".format(entry['id'])
 	
 	# create a comment object from the id in the entry
-	comment = praw.models.Comment(r, id=entry['id'])
-	parent = comment.parent()
+	tries = 0
+	comment = None
+	parent = None
+	while True:
+		try:
+			comment = praw.models.Comment(r, id=entry['id'])
+			parent = comment.parent()
+		except praw_errors as e:
+			# If server error, sleep for x then try again
+			print "Praw {:s}. Sleeping for {:.0f}s...".format(repr(e), config.praw_error_wait_time)
+			time.sleep(config.praw_error_wait_time * ( 2 ** tries ) )
+			tries += 1
+		else:
+			break
 	
 	deleted = False
 	
