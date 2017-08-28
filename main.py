@@ -403,34 +403,21 @@ def schedule_next_deletion():
 		
 	#print "Next deletion scheduled for " + str(next_time_to_maintain_comments)
 
-def check_comment_for_deletion(comment):
-	while True:
-		tries = 0
-		try:
-			parent = comment.parent()
-	
-			if comment.is_root:
-				parent._fetch()
-				if parent.selftext == "[deleted]" or parent.selftext == "[removed]":
-					comment.delete()
-					print "Deleted comment {:s} as parent submission {:s} was deleted.".format( comment.id, comment.parent_id )
-					
-					return True
-			else:
-				parent.refresh()
-				if parent.body == "[deleted]":
-					comment.delete()
-					print "Deleted comment {:s} as parent comment {:s} was deleted.".format( comment.id, comment.parent_id )
-					
-					return True
-		except praw_errors as e:
-			# If server error, sleep for x then try again
-			print "Praw {:s}. Sleeping for {:.0f}s...".format(repr(e), config.praw_error_wait_time)
-			time.sleep(config.praw_error_wait_time * ( 2 ** tries ) )
-			tries += 1
-		else:
-			# If no error, we're done
-			return False
+def check_comment_for_deletion(parent, comment):
+	if comment.is_root:
+		if parent.selftext == "[deleted]" or parent.selftext == "[removed]":
+			comment.delete()
+			print "Deleted comment {:s} as parent submission {:s} was deleted.".format( comment.id, comment.parent_id )
+			
+			return True
+	else:
+		if parent.body == "[deleted]":
+			comment.delete()
+			print "Deleted comment {:s} as parent comment {:s} was deleted.".format( comment.id, comment.parent_id )
+			
+			return True
+			
+	return False
 			
 def check_comment_for_edit(t, parent, comment):
 	# has the comment been edited recently OR the comment is new (edit tag is not visible so we need to check to be safe)
@@ -479,6 +466,12 @@ def maintenance_list_insert(entry):
 		else:
 			lower = middle
 			
+	#print "Inserting {:s} ({:.0f}) at idx={:.0f}.".format(entry['id'], float(entry['time']), upper)
+	#if lower >= 0:
+	#	print float(deletion_check_list[lower]['time'])
+	#if upper < len(deletion_check_list):
+	#	print float(deletion_check_list[upper]['time'])
+		
 	deletion_check_list.insert(upper, entry)
 	
 def maintain_comments(t):
@@ -495,11 +488,34 @@ def maintain_comments(t):
 	comment = praw.models.Comment(r, id=entry['id'])
 	parent = comment.parent()
 	
-	deleted = check_comment_for_deletion(comment)
+	deleted = False
+	
+	tries = 0
+	while True:
+		try:
+			deleted = check_comment_for_deletion(parent, comment)
+		except praw_errors as e:
+			# If server error, sleep for x then try again
+			print "Praw {:s}. Sleeping for {:.0f}s...".format(repr(e), config.praw_error_wait_time)
+			time.sleep(config.praw_error_wait_time * ( 2 ** tries ) )
+			tries += 1
+		else:
+			break
+	
 	
 	if not deleted:
-		deleted = check_comment_for_edit(t, parent, comment)
-		
+		tries = 0
+		while True:
+			try:
+				deleted = check_comment_for_edit(t, parent, comment)
+			except praw_errors as e:
+				# If server error, sleep for x then try again
+				print "Praw {:s}. Sleeping for {:.0f}s...".format(repr(e), config.praw_error_wait_time)
+				time.sleep(config.praw_error_wait_time * ( 2 ** tries ) )
+				tries += 1
+			else:
+				break
+			
 	if not deleted:
 		# calculate the next time we should perform maintenance on this comment
 		entry['time'] = t + calc_deletion_check_time(comment)
