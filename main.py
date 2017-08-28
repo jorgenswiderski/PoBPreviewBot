@@ -17,13 +17,13 @@ import math
 import random
 import traceback
 import urllib2
+from retrying import retry
 
 from prawcore.exceptions import RequestException
 from prawcore.exceptions import ServerError
 from prawcore.exceptions import ResponseException
 from praw.exceptions import APIException
 
-praw_errors = (RequestException, ServerError, APIException, ResponseException)
 
 BOT_FOOTER = "[^Path ^of ^Building](https://github.com/Openarl/PathOfBuilding) ^| ^This ^reply ^will ^be ^automatically ^removed ^if ^its ^parent ^comment ^is ^deleted. ^| ^[Feedback?](https://www.reddit.com/r/PoBPreviewBot/)"
 
@@ -39,6 +39,12 @@ def bot_login():
 	print "Successfully logged in as {:s}.".format(config.username)
 		
 	return r
+	
+	
+praw_errors = (RequestException, ServerError, APIException, ResponseException)
+
+def is_praw_error(e):
+	return e in praw_errors
 	
 def obj_type_str(obj):
 	if isinstance(obj, praw.models.reddit.comment.Comment):
@@ -307,6 +313,7 @@ def get_num_entries_to_pull(history):
 	
 last_time_comments_parsed = 0
 	
+@retry(retry_on_exception=is_praw_error, wait_exponential_multiplier=config.praw_error_wait_time)
 def parse_comments():
 	num = min(get_num_entries_to_pull(comment_flow_history), config.max_pull_count)
 	
@@ -334,22 +341,9 @@ def parse_comments():
 	
 	save_comment_count()
 	
-def parse_comments_catch():
-	tries = 0
-	while True:
-		try:
-			parse_comments()
-		except praw_errors as e:
-			# If server error, sleep for x then try again
-			print "Praw {:s}. Sleeping for {:.0f}s...".format(repr(e), config.praw_error_wait_time * ( 2 ** tries ))
-			time.sleep(config.praw_error_wait_time * ( 2 ** tries ) )
-			tries += 1
-		else:
-			# If no error then we're done
-			return
-	
 last_time_submissions_parsed = 0
 
+@retry(retry_on_exception=is_praw_error, wait_exponential_multiplier=config.praw_error_wait_time)
 def parse_submissions():
 	num = min(get_num_entries_to_pull(submission_flow_history), config.max_pull_count)
 	
@@ -377,20 +371,6 @@ def parse_submissions():
 	
 	save_submission_count()
 	
-def parse_submissions_catch():
-	tries = 0
-	while True:
-		try:
-			parse_submissions()
-		except praw_errors as e:
-			# If server error, sleep for x then try again
-			print "Praw {:s}. Sleeping for {:.0f}s...".format(repr(e), config.praw_error_wait_time * ( 2 ** tries ))
-			time.sleep(config.praw_error_wait_time * ( 2 ** tries ) )
-			tries += 1
-		else:
-			# If no error then we're done
-			return
-	
 next_time_to_maintain_comments = 0
 
 def schedule_next_deletion():
@@ -403,6 +383,7 @@ def schedule_next_deletion():
 		
 	#print "Next deletion scheduled for " + str(next_time_to_maintain_comments)
 
+@retry(retry_on_exception=is_praw_error, wait_exponential_multiplier=config.praw_error_wait_time)
 def check_comment_for_deletion(parent, comment):
 	if comment.is_root:
 		if parent.selftext == "[deleted]" or parent.selftext == "[removed]":
@@ -418,7 +399,8 @@ def check_comment_for_deletion(parent, comment):
 			return True
 			
 	return False
-			
+
+@retry(retry_on_exception=is_praw_error, wait_exponential_multiplier=config.praw_error_wait_time)		
 def check_comment_for_edit(t, parent, comment):
 	# has the comment been edited recently OR the comment is new (edit tag is not visible so we need to check to be safe)
 	if ( isinstance(parent.edited, float) and parent.edited >= t - calc_deletion_check_time(comment) ) or t - parent.created_utc < 400:
@@ -474,6 +456,14 @@ def maintenance_list_insert(entry):
 		
 	deletion_check_list.insert(upper, entry)
 	
+@retry(retry_on_exception=is_praw_error, wait_exponential_multiplier=config.praw_error_wait_time)		
+def get_praw_comment_by_id(id):
+	return praw.models.Comment(r, id=id)
+	
+@retry(retry_on_exception=is_praw_error, wait_exponential_multiplier=config.praw_error_wait_time)		
+def get_praw_comment_parent(comment):
+	return comment.parent()
+	
 def maintain_comments(t):
 	# confirm that there are any comments that need to be checked
 	if int(deletion_check_list[0]['time']) > t:
@@ -485,48 +475,13 @@ def maintain_comments(t):
 	#print "Maintaining comment {:s}.".format(entry['id'])
 	
 	# create a comment object from the id in the entry
-	tries = 0
-	comment = None
-	parent = None
-	while True:
-		try:
-			comment = praw.models.Comment(r, id=entry['id'])
-			parent = comment.parent()
-		except praw_errors as e:
-			# If server error, sleep for x then try again
-			print "Praw {:s}. Sleeping for {:.0f}s...".format(repr(e), config.praw_error_wait_time)
-			time.sleep(config.praw_error_wait_time * ( 2 ** tries ) )
-			tries += 1
-		else:
-			break
+	comment = get_praw_comment_by_id(entry['id'])
+	parent = get_praw_comment_parent(comment)
 	
-	deleted = False
-	
-	tries = 0
-	while True:
-		try:
-			deleted = check_comment_for_deletion(parent, comment)
-		except praw_errors as e:
-			# If server error, sleep for x then try again
-			print "Praw {:s}. Sleeping for {:.0f}s...".format(repr(e), config.praw_error_wait_time)
-			time.sleep(config.praw_error_wait_time * ( 2 ** tries ) )
-			tries += 1
-		else:
-			break
-	
-	
+	deleted = check_comment_for_deletion(parent, comment)
+
 	if not deleted:
-		tries = 0
-		while True:
-			try:
-				deleted = check_comment_for_edit(t, parent, comment)
-			except praw_errors as e:
-				# If server error, sleep for x then try again
-				print "Praw {:s}. Sleeping for {:.0f}s...".format(repr(e), config.praw_error_wait_time)
-				time.sleep(config.praw_error_wait_time * ( 2 ** tries ) )
-				tries += 1
-			else:
-				break
+		deleted = check_comment_for_edit(t, parent, comment)
 			
 	if not deleted and t - comment.created_utc < config.preserve_comments_after:
 		# calculate the next time we should perform maintenance on this comment
@@ -549,10 +504,10 @@ def run_bot():
 		buffered_reply(rep[0], rep[1], rep[2])
 	
 	if t - last_time_comments_parsed >= config.comment_parse_interval:
-		parse_comments_catch()
+		parse_comments()
 		
 	if t - last_time_submissions_parsed >= config.submission_parse_interval:
-		parse_submissions_catch()
+		parse_submissions()
 	
 	if t >= next_time_to_maintain_comments:
 		maintain_comments(t)
