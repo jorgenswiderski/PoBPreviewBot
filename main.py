@@ -1,8 +1,8 @@
 import praw
-#import live_config as config
-#import live_secret_config as sconfig
-import config
-import secret_config as sconfig
+import live_config as config
+import live_secret_config as sconfig
+#import config
+#import secret_config as sconfig
 import time
 import os
 import re
@@ -89,8 +89,6 @@ def get_response(comment = False, submission = False):
 	if obj.author == r.user.me():
 		#print "Author is self, ignoring"
 		return
-		
-	comment_found_msg = False
 
 	if "pastebin.com/" in body:
 		responses = []
@@ -100,13 +98,6 @@ def get_response(comment = False, submission = False):
 			paste_key = pastebin.strip_url_to_key(bin)
 			
 			if not paste_key_is_blacklisted(paste_key):
-				if not comment_found_msg:
-					if comment:
-						print "Found matching comment " + obj.id + "."
-					elif submission:
-						print "Found matching submission " + obj.id + "."
-					comment_found_msg = True
-				
 				try:
 					xml = pastebin.get_as_xml(paste_key)
 				except (zlib.error, TypeError):
@@ -172,9 +163,14 @@ def parse_generic( comment = False, submission = False ):
 	
 	if not response:
 		return
+		
+	if comment:
+		print "Found matching comment " + comment.id + "."
+	elif submission:
+		print "Found matching submission " + submission.id + "."
 	
 	# post reply
-	if (config.username == "PoBPreviewBot" or config.subreddit != "pathofexile") and False:
+	if config.username == "PoBPreviewBot" or config.subreddit != "pathofexile":
 		buffered_reply(comment or submission, response[0], response[1])
 		
 		if comment:
@@ -235,6 +231,9 @@ def calc_deletion_check_time(comment):
 		# 3 weeks: 24.0 hrs
 		# 4 weeks: 38.1 hrs
 		t *= math.pow( 2, ( comment_age - 604800 ) / 604800 )
+		
+	if config.deletion_check_interval_rng > 0:
+		t *= 1.0 + config.deletion_check_interval_rng * ( 2.0 * random.random() - 1.0 )
 		
 	return t
 		
@@ -392,66 +391,63 @@ def parse_submissions_catch():
 			# If no error then we're done
 			return
 	
-next_time_to_check_for_deletions = 0
+next_time_to_maintain_comments = 0
 
 def schedule_next_deletion():
-	global next_time_to_check_for_deletions
+	global next_time_to_maintain_comments
 	
 	if len(deletion_check_list):
-		next_time_to_check_for_deletions = int(deletion_check_list[0]['time'])
+		next_time_to_maintain_comments = int(deletion_check_list[0]['time'])
 	else:
-		next_time_to_check_for_deletions = time.time() + 1000000
+		next_time_to_maintain_comments = time.time() + 1000000
 		
-	#print "Next deletion scheduled for " + str(next_time_to_check_for_deletions)
+	#print "Next deletion scheduled for " + str(next_time_to_maintain_comments)
 
-def check_for_deletions(t):
-	#print "Checking for deletions..."
-
-	for entry in deletion_check_list:
-		if int(entry['time']) > t:
-			break
-		
-		#print "Checking if parent comment of " + entry['id'] + " is deleted..."
-		comment = praw.models.Comment(r, id=entry['id'])
-		
-		while True:
-			tries = 0
-			try:
-				parent = comment.parent()
-			except praw_errors as e:
-				# If server error, sleep for x then try again
-				print "Praw {:s}. Sleeping for {:.0f}s...".format(repr(e), config.praw_error_wait_time * ( 2 ** tries ))
-				time.sleep(config.praw_error_wait_time * ( 2 ** tries ) )
-				tries += 1
+def check_comment_for_deletion(comment):
+	while True:
+		tries = 0
+		try:
+			parent = comment.parent()
+	
+			if comment.is_root:
+				parent._fetch()
+				if parent.selftext == "[deleted]" or parent.selftext == "[removed]":
+					comment.delete()
+					print "Deleted comment {:s} as parent submission {:s} was deleted.".format( comment.id, comment.parent_id )
+					
+					return True
 			else:
-				# If no error, break out of the loop
-				break
-		
-		if comment.is_root:
-			parent._fetch()
-			if parent.selftext == "[deleted]" or parent.selftext == "[removed]":
-				print "Deleted comment {:s} as parent submission {:s} was deleted.".format( comment.id, comment.parent_id )
-				comment.delete()
-				deletion_check_list.remove(entry)
+				parent.refresh()
+				if parent.body == "[deleted]":
+					comment.delete()
+					print "Deleted comment {:s} as parent comment {:s} was deleted.".format( comment.id, comment.parent_id )
+					
+					return True
+		except praw_errors as e:
+			# If server error, sleep for x then try again
+			print "Praw {:s}. Sleeping for {:.0f}s...".format(repr(e), config.praw_error_wait_time)
+			time.sleep(config.praw_error_wait_time * ( 2 ** tries ) )
+			tries += 1
 		else:
-			parent.refresh()
-			if parent.body == "[deleted]":
-				print "Deleted comment {:s} as parent comment {:s} was deleted.".format( comment.id, comment.parent_id )
-				comment.delete()
-				deletion_check_list.remove(entry)
-				
-		if entry in deletion_check_list:
-			delay = calc_deletion_check_time(comment)
-			if delay > 0.0:
-				delay *= 1.0 + config.deletion_check_interval_rng * ( 2.0 * random.random() - 1.0 )
-				
-			#print "All good, scheduled for check {:.0f}s from now.".format(delay)
-			entry['time'] = t + delay
-	
-	# sort
-	deletion_check_list.sort(key=deletion_sort)	
-	
-	# update file
+			# If no error, we're done
+			return False
+			
+def check_comment_for_edit(t, parent, comment):
+	# has the comment been edited recently OR the comment is new (edit tag is not visible so we need to check to be safe)
+	if ( isinstance(parent.edited, float) and parent.edited >= t - calc_deletion_check_time(comment) ) or t - parent.created_utc < 400:
+		new_comment_body = get_response(parent)
+		
+		if not new_comment_body:
+			comment.delete()
+			print "Parent {:s} no longer links to any builds, deleted response comment {:s}.".format(parent.id, comment.id)
+			return True
+		elif new_comment_body[0] != comment.body:
+			comment.edit(new_comment_body[0])
+			print "Edited comment {:s} to reflect changes in parent {:s}.".format(comment.id, parent.id)
+			
+	return False
+			
+def write_maintenance_list_to_file():
 	str = ""
 	
 	for entry in deletion_check_list:
@@ -459,6 +455,55 @@ def check_for_deletions(t):
 	
 	with open("active_comments.txt", "w") as f:
 		f.write( str )
+		
+def maintenance_list_insert(entry):
+	# binary search for the index to insert at
+	
+	# define search boundaries
+	lower = -1
+	upper = len(deletion_check_list)
+	
+	# while our boundaries have not crossed
+	while abs( lower - upper ) > 1:
+		# take the average
+		middle = int( math.floor( ( lower + upper ) / 2  ) )
+		
+		# move the upper or lower boundary to halve the search space
+		if int(deletion_check_list[middle]['time']) > int(entry['time']):
+			upper = middle
+		else:
+			lower = middle
+			
+	deletion_check_list.insert(upper, entry)
+	
+def maintain_comments(t):
+	# confirm that there are any comments that need to be checked
+	if int(deletion_check_list[0]['time']) > t:
+		return
+	
+	# pop the first entry
+	entry = deletion_check_list.pop(0)
+	
+	print "Maintaining comment {:s}.".format(entry['id'])
+	
+	# create a comment object from the id in the entry
+	comment = praw.models.Comment(r, id=entry['id'])
+	parent = comment.parent()
+	
+	deleted = check_comment_for_deletion(comment)
+	
+	if not deleted:
+		deleted = check_comment_for_edit(t, parent, comment)
+		
+	if not deleted:
+		# calculate the next time we should perform maintenance on this comment
+		entry['time'] = t + calc_deletion_check_time(comment)
+		
+		# reinsert the entry at its chronologically correct place in the list
+		maintenance_list_insert(entry)
+	
+	# write the updated maintenance list to file
+	write_maintenance_list_to_file()
 	
 	# schedule for the next check
 	schedule_next_deletion()
@@ -476,12 +521,12 @@ def run_bot():
 	if t - last_time_submissions_parsed >= config.submission_parse_interval:
 		parse_submissions_catch()
 	
-	if t >= next_time_to_check_for_deletions:
-		check_for_deletions(t)
+	if t >= next_time_to_maintain_comments:
+		maintain_comments(t)
 	
 	next_update_time = min( last_time_comments_parsed + config.comment_parse_interval,
 	     last_time_submissions_parsed + config.submission_parse_interval,
-	     next_time_to_check_for_deletions )
+	     next_time_to_maintain_comments )
 		 
 	if rate_limit_timer > 0:
 		next_uptime_time = min(rate_limit_timer, next_update_time)
