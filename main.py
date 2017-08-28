@@ -44,7 +44,14 @@ def bot_login():
 praw_errors = (RequestException, ServerError, APIException, ResponseException)
 
 def is_praw_error(e):
-	return e in praw_errors
+	if e in praw_errors:
+		print "Praw error: {:s}".format(repr(e))
+		return True
+	else:
+		return False
+	
+def praw_error_retry(attempt_number, ms_since_first_attempt):
+	print "Praw {:s}. Sleeping for {:.0f}s...".format(config.praw_error_wait_time * ( 2 ** ( attempt_number - 1 ) ))
 	
 def obj_type_str(obj):
 	if isinstance(obj, praw.models.reddit.comment.Comment):
@@ -313,7 +320,9 @@ def get_num_entries_to_pull(history):
 	
 last_time_comments_parsed = 0
 	
-@retry(retry_on_exception=is_praw_error, wait_exponential_multiplier=config.praw_error_wait_time)
+@retry(retry_on_exception=is_praw_error,
+	   wait_exponential_multiplier=config.praw_error_wait_time,
+	   wait_func=praw_error_retry)
 def parse_comments():
 	num = min(get_num_entries_to_pull(comment_flow_history), config.max_pull_count)
 	
@@ -343,7 +352,9 @@ def parse_comments():
 	
 last_time_submissions_parsed = 0
 
-@retry(retry_on_exception=is_praw_error, wait_exponential_multiplier=config.praw_error_wait_time)
+@retry(retry_on_exception=is_praw_error,
+	   wait_exponential_multiplier=config.praw_error_wait_time,
+	   wait_func=praw_error_retry)
 def parse_submissions():
 	num = min(get_num_entries_to_pull(submission_flow_history), config.max_pull_count)
 	
@@ -383,7 +394,9 @@ def schedule_next_deletion():
 		
 	#print "Next deletion scheduled for " + str(next_time_to_maintain_comments)
 
-@retry(retry_on_exception=is_praw_error, wait_exponential_multiplier=config.praw_error_wait_time)
+@retry(retry_on_exception=is_praw_error,
+	   wait_exponential_multiplier=config.praw_error_wait_time,
+	   wait_func=praw_error_retry)
 def check_comment_for_deletion(parent, comment):
 	if comment.is_root:
 		if parent.selftext == "[deleted]" or parent.selftext == "[removed]":
@@ -400,7 +413,9 @@ def check_comment_for_deletion(parent, comment):
 			
 	return False
 
-@retry(retry_on_exception=is_praw_error, wait_exponential_multiplier=config.praw_error_wait_time)		
+@retry(retry_on_exception=is_praw_error,
+	   wait_exponential_multiplier=config.praw_error_wait_time,
+	   wait_func=praw_error_retry)	
 def check_comment_for_edit(t, parent, comment):
 	# has the comment been edited recently OR the comment is new (edit tag is not visible so we need to check to be safe)
 	if ( isinstance(parent.edited, float) and parent.edited >= t - calc_deletion_check_time(comment) ) or t - parent.created_utc < 400:
@@ -456,11 +471,15 @@ def maintenance_list_insert(entry):
 		
 	deletion_check_list.insert(upper, entry)
 	
-@retry(retry_on_exception=is_praw_error, wait_exponential_multiplier=config.praw_error_wait_time)		
+@retry(retry_on_exception=is_praw_error,
+	   wait_exponential_multiplier=config.praw_error_wait_time,
+	   wait_func=praw_error_retry)
 def get_praw_comment_by_id(id):
 	return praw.models.Comment(r, id=id)
 	
-@retry(retry_on_exception=is_praw_error, wait_exponential_multiplier=config.praw_error_wait_time)		
+@retry(retry_on_exception=is_praw_error,
+	   wait_exponential_multiplier=config.praw_error_wait_time,
+	   wait_func=praw_error_retry)	
 def get_praw_comment_parent(comment):
 	return comment.parent()
 	
