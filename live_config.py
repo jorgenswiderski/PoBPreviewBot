@@ -12,3 +12,5 @@ deletion_check_interval_rng = 0.01
 
 praw_error_wait_time = 5
 urllib_error_wait_time = 60
+
+preserve_comments_after = 15552000 # 180 days

@@ -516,7 +516,7 @@ def maintain_comments(t):
 			else:
 				break
 			
-	if not deleted:
+	if not deleted and t - comment.created_utc < config.preserve_comments_after:
 		# calculate the next time we should perform maintenance on this comment
 		entry['time'] = t + calc_deletion_check_time(comment)
 		
