@@ -536,7 +536,7 @@ def run_bot():
 	     next_time_to_maintain_comments )
 		 
 	if rate_limit_timer > 0:
-		next_uptime_time = min(rate_limit_timer, next_update_time)
+		next_update_time = min(rate_limit_timer, next_update_time)
 	
 	if next_update_time > t:
 		#print "Sleeping for {:n}s...".format(next_update_time - t)
