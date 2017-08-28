@@ -484,7 +484,7 @@ def maintain_comments(t):
 	# pop the first entry
 	entry = deletion_check_list.pop(0)
 	
-	print "Maintaining comment {:s}.".format(entry['id'])
+	#print "Maintaining comment {:s}.".format(entry['id'])
 	
 	# create a comment object from the id in the entry
 	comment = praw.models.Comment(r, id=entry['id'])
