@@ -435,7 +435,12 @@ def check_comment_for_deletion(comment):
 def check_comment_for_edit(t, parent, comment):
 	# has the comment been edited recently OR the comment is new (edit tag is not visible so we need to check to be safe)
 	if ( isinstance(parent.edited, float) and parent.edited >= t - calc_deletion_check_time(comment) ) or t - parent.created_utc < 400:
-		new_comment_body = get_response(parent)
+		new_comment_body = None
+		
+		if comment.is_root:
+			new_comment_body = get_response(submission = parent)
+		else:
+			new_comment_body = get_response(comment = parent)
 		
 		if not new_comment_body:
 			comment.delete()
