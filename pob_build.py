@@ -84,7 +84,7 @@ class pob_build:
 			self.__parse_main_skill__()
 		
 		for gem in self.main_skill.findall('Gem'):
-			if not "Support" in gem.attrib['skillId']:
+			if not "Support" in gem.attrib['skillId'] and gem.attrib['enabled'] == "true":
 				self.main_gem = gem
 				return
 				
