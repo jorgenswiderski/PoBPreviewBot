@@ -2,6 +2,7 @@ import util
 import base64
 import re
 import passive_skill_tree as passives
+from skill_gem_names import names as skill_gem_names
 
 stats_to_parse = [
 	{
@@ -140,6 +141,14 @@ class pob_build:
 			
 		#print allocNodes
 		
+	def get_main_gem_name(self):
+		if self.main_gem is None:
+			self.__parse_main_gem__()
+			
+		if self.main_gem.attrib['nameSpec'] in skill_gem_names:
+			return skill_gem_names[self.main_gem.attrib['nameSpec']]
+		else:
+			return self.main_gem.attrib['nameSpec']
 		
 	def get_class(self):
 		if self.ascendancy_name is not None:
@@ -273,7 +282,7 @@ class pob_build:
 			crit_desc = " Crit"
 		
 		# Skill Descriptor
-		gem_name = self.main_gem.attrib['nameSpec']
+		gem_name = self.get_main_gem_name()
 		
 		# Totem/Trap/Mine Descriptor
 		actor_desc = ''
@@ -368,7 +377,7 @@ class pob_build:
 		body += "\n"
 		
 		## Offense
-		gem_name = self.main_gem.attrib['nameSpec']
+		gem_name = self.get_main_gem_name()
 		links = 0
 		
 		for g in self.main_skill.findall('Gem'):
