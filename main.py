@@ -83,7 +83,7 @@ def buffered_reply(obj, response):
 
 def get_response(comment = False, submission = False):
 	if not ( comment or submission ):
-		return
+		raise Exception("get_response passed no parameters")
 
 	obj = ""
 	body = ""
