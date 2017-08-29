@@ -59,11 +59,11 @@ def obj_type_str(obj):
 	else:
 		return "submission"
 	
-def buffered_reply(obj, response, paste_key):
+def buffered_reply(obj, response):
 	global rate_limit_timer
 	if time.time() <  rate_limit_timer:
-		print "Queued reply to {:s} {:s} about pastebin {:s}.".format(obj_type_str(obj), obj.id, paste_key)
-		reply_queue.append((obj, response, paste_key))
+		print "Queued reply to {:s} {:s}.".format(obj_type_str(obj), obj.id)
+		reply_queue.append((obj, response))
 		return
 		
 	#print "Attempting reply to " + obj.id
@@ -73,10 +73,10 @@ def buffered_reply(obj, response, paste_key):
 		print "*** Failed to reply " + repr(e) + " ***"
 		print "Buffering reply for later"
 		rate_limit_timer = time.time() + 60
-		reply_queue.append((obj, response, paste_key))
+		reply_queue.append((obj, response))
 		return
 		
-	print "Replied to {:s} {:s} about pastebin {:s}.".format(obj_type_str(obj), obj.id, paste_key)
+	print "Replied to {:s} {:s}.".format(obj_type_str(obj), obj.id)
 
 	with open("{:s}s_replied_to.txt".format(obj_type_str(obj)), "a") as f:
 		f.write(obj.id + "\n")
@@ -104,13 +104,13 @@ def get_response(comment = False, submission = False):
 		return
 
 	if "pastebin.com/" in body:
-		responses = []
+		responses = {}
 	
 		for match in re.finditer('pastebin\.com/\w+', body):
 			bin = "https://" + match.group(0)
 			paste_key = pastebin.strip_url_to_key(bin)
 			
-			if not paste_key_is_blacklisted(paste_key):
+			if not paste_key_is_blacklisted(paste_key) and paste_key not in responses:
 				try:
 					xml = pastebin.get_as_xml(paste_key)
 				except (zlib.error, TypeError):
@@ -148,7 +148,7 @@ def get_response(comment = False, submission = False):
 							blacklist_pastebin(paste_key)
 							continue
 							
-						responses.append( response )
+						responses[paste_key] = response
 					else:
 						print "XML does not contain player stats."
 						blacklist_pastebin(paste_key)
@@ -156,19 +156,21 @@ def get_response(comment = False, submission = False):
 					print "Pastebin does not contain Path of Building XML."
 					blacklist_pastebin(paste_key)
 		
-		if len(responses) > 0:
+		
+		if len(responses) > 0 and len(responses) <= 10:
 			comment_body = ""
 			if len(responses) > 1:
 				for res in responses:
 					if comment_body != "":
 						comment_body += "\n\n[](#quote_break)  \n"
-					comment_body += '>' + res.replace('\n', "\n>")
+					comment_body += '>' + responses[res].replace('\n', "\n>")
 			else:
-				comment_body = responses[0] + "  \n*****"
+				for res in responses:
+					comment_body = responses[res] + "  \n*****"
 				
 			comment_body += '\n\n' + BOT_FOOTER
 			
-			return (comment_body, paste_key)
+			return comment_body
 			
 def parse_generic( comment = False, submission = False ):
 	# get response text
@@ -184,7 +186,7 @@ def parse_generic( comment = False, submission = False ):
 	
 	# post reply
 	if config.username == "PoBPreviewBot" or config.subreddit != "pathofexile":
-		buffered_reply(comment or submission, response[0], response[1])
+		buffered_reply(comment or submission, response)
 		
 		if comment:
 			comments_replied_to.append(comment.id)
@@ -195,7 +197,7 @@ def parse_generic( comment = False, submission = False ):
 	else:
 		#print "Reply body:\n" + response
 		with open("saved_replies.txt", "a") as f:
-			f.write(response[0] + "\n\n\n")
+			f.write(response + "\n\n\n")
 					
 def deletion_sort(a):
 	return a['time']
@@ -418,6 +420,7 @@ def check_comment_for_deletion(parent, comment):
 	   wait_func=praw_error_retry)	
 def check_comment_for_edit(t, parent, comment):
 	# has the comment been edited recently OR the comment is new (edit tag is not visible so we need to check to be safe)
+	
 	if ( isinstance(parent.edited, float) and parent.edited >= t - calc_deletion_check_time(comment) ) or t - parent.created_utc < 400:
 		new_comment_body = None
 		
@@ -430,9 +433,11 @@ def check_comment_for_edit(t, parent, comment):
 			comment.delete()
 			print "Parent {:s} no longer links to any builds, deleted response comment {:s}.".format(parent.id, comment.id)
 			return True
-		elif new_comment_body[0] != comment.body:
-			comment.edit(new_comment_body[0])
+		elif new_comment_body != comment.body:
+			comment.edit(new_comment_body)
 			print "Edited comment {:s} to reflect changes in parent {:s}.".format(comment.id, parent.id)
+		#else:
+		#	print "{:s}'s response body is unchanged.".format(parent.id)
 			
 	return False
 			
@@ -520,7 +525,7 @@ def run_bot():
 	
 	if rate_limit_timer > 0 and t >= rate_limit_timer and len(reply_queue) > 0:
 		rep = reply_queue.pop()
-		buffered_reply(rep[0], rep[1], rep[2])
+		buffered_reply(rep[0], rep[1])
 	
 	if t - last_time_comments_parsed >= config.comment_parse_interval:
 		parse_comments()
