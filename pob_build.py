@@ -48,6 +48,29 @@ stats_to_parse = [
 
 class StatException(Exception):
 	pass
+	
+class item:
+	def __init__(self, item_xml):
+		self.xml = item_xml
+		self.id = int(self.xml.attrib['id'])
+		
+		self.__parse_xml__()
+		
+	def __parse_xml__(self):
+		rows = self.xml.text.split('\n')
+		
+		#print repr(rows)
+		
+		reg = re.compile("Rarity: ([A-Z])+")
+		s = reg.search(rows[1])
+		
+		if not s:
+			raise StatException('Failure to parse rarity of Item id={:.0f}'.format(self.id))
+			
+		self.rarity = s.group(1)
+		
+		self.name = rows[2].strip()
+		self.base = rows[3].strip()				
 
 class pob_build:
 	stats = {}
@@ -61,6 +84,7 @@ class pob_build:
 		self.__parse_stats__()
 		self.__parse_passive_skills__()
 		self.__parse_character_info__()
+		self.__parse_items__()
 		
 	def __parse_character_info__(self):
 		self.class_name = self.build.attrib['className']
@@ -141,6 +165,21 @@ class pob_build:
 			
 		#print allocNodes
 		
+	def __parse_items__(self):
+		self.items = {}
+		
+		xml_items = self.xml.find('Items')
+		
+		for i in xml_items.findall('Item'):
+			self.items[int(i.attrib['id'])] = item(i)
+			
+		self.equipped_items = {}
+			
+		for slot in xml_items.findall('Slot'):
+			self.equipped_items[slot.attrib['name']] = self.items[int(slot.attrib['itemId'])]
+			
+		print repr(self.equipped_items)
+		
 	def get_main_gem_name(self):
 		if self.main_gem is None:
 			self.__parse_main_gem__()
@@ -163,6 +202,13 @@ class pob_build:
 			return skill in self.passives_by_name
 		else:
 			raise StatException()
+			
+	def has_item_equipped(self, name):
+		for i in self.items:
+			if self.items[i].name.lower() == name.lower():
+				return True
+				
+		return False
 					
 	def isCI(self):
 		return self.has_passive_skill("Chaos Inoculation")
@@ -171,7 +217,7 @@ class pob_build:
 		return self.stats['player']['LifeUnreservedPercent'] < 35
 
 	def isMoM(self):
-		return self.has_passive_skill("Mind Over Matter")
+		return self.has_passive_skill("Mind Over Matter") or self.has_item_equipped("Cloak of Defiance")
 
 	def isHybrid(self):
 		return not self.isCI() and not self.isLowLife() and self.stats['player']['EnergyShield'] >= self.stats['player']['LifeUnreserved'] * 0.25
