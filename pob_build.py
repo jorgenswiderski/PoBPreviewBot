@@ -178,7 +178,7 @@ class pob_build:
 		for slot in xml_items.findall('Slot'):
 			self.equipped_items[slot.attrib['name']] = self.items[int(slot.attrib['itemId'])]
 			
-		print repr(self.equipped_items)
+		#print repr(self.equipped_items)
 		
 	def get_main_gem_name(self):
 		if self.main_gem is None:
