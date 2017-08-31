@@ -12,6 +12,7 @@ import pastebin
 import zlib
 from pob_build import StatException
 from pob_build import pob_build
+from pob_build import UnsupportedException
 from collections import deque
 import math
 import random
@@ -128,6 +129,10 @@ def get_response(comment = False, submission = False):
 						try:
 							build = pob_build(xml, bin, obj.author)
 							response = build.get_response()
+						except UnsupportedException as e:
+							print "{:s}: {:s}".format(obj.id, repr(e))
+							blacklist_pastebin(paste_key)
+							continue
 						except Exception as e:
 							print repr(e)
 						
