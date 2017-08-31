@@ -37,7 +37,7 @@ def bot_login():
 		password = sconfig.password,
 		client_id = sconfig.client_id,
 		client_secret = sconfig.client_secret,
-		user_agent = "PoBPreview")
+		user_agent = "linux:PoBPreviewBot:v1.0 (by /u/aggixx)")
 	print "Successfully logged in as {:s}.".format(config.username)
 		
 	return r
@@ -46,14 +46,17 @@ def bot_login():
 praw_errors = (RequestException, ServerError, APIException, ResponseException)
 
 def is_praw_error(e):
-	if e in praw_errors:
+	print e
+	if isinstance(e, praw_errors):
 		print "Praw error: {:s}".format(repr(e))
 		return True
 	else:
 		return False
 	
 def praw_error_retry(attempt_number, ms_since_first_attempt):
-	print "Praw {:s}. Sleeping for {:.0f}s...".format(config.praw_error_wait_time * ( 2 ** ( attempt_number - 1 ) ))
+	delay = config.praw_error_wait_time * ( 2 ** ( attempt_number - 1 ) )
+	print "Sleeping for {:.0f}s...".format(delay)
+	return delay * 1000
 	
 def obj_type_str(obj):
 	if isinstance(obj, praw.models.reddit.comment.Comment):
