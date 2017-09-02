@@ -11,7 +11,7 @@ import locale
 import pastebin
 import zlib
 from pob_build import StatException
-from pob_build import pob_build
+from pob_build import build_t
 from pob_build import UnsupportedException
 from collections import deque
 import math
@@ -130,7 +130,7 @@ def get_response(comment = False, submission = False):
 				if xml.tag == "PathOfBuilding":
 					if xml.find('Build').find('PlayerStat') is not None:
 						try:
-							build = pob_build(xml, bin, obj.author)
+							build = build_t(xml, bin, obj.author)
 							response = build.get_response()
 						except UnsupportedException as e:
 							print "{:s}: {:s}".format(obj.id, repr(e))

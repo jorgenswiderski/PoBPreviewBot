@@ -2,7 +2,8 @@ import util
 import base64
 import re
 import passive_skill_tree as passives
-from skill_gem_names import names as skill_gem_names
+from name_overrides import skill_overrides
+from name_overrides import build_defining_uniques
 
 stats_to_parse = [
 	{
@@ -52,7 +53,26 @@ class StatException(Exception):
 class UnsupportedException(Exception):
 	pass
 	
-class item:
+class gem_t:
+	def __init__(self, gem_xml):
+		self.xml = gem_xml
+		
+		self.__parse_name__()
+		
+		self.enabled = self.xml.attrib['enabled'].lower() == "true"
+		self.id = self.xml.attrib['skillId']
+		self.level = int(self.xml.attrib['level'])
+		self.quality = int(self.xml.attrib['quality'])
+		
+	def __parse_name__(self):
+		name = self.xml.attrib['nameSpec']
+		
+		if name in skill_overrides:
+			self.name = skill_overrides[name]
+		else:
+			self.name = name
+	
+class item_t:
 	def __init__(self, item_xml):
 		self.xml = item_xml
 		self.id = int(self.xml.attrib['id'])
@@ -75,7 +95,7 @@ class item:
 		self.name = rows[2].strip()
 		self.base = rows[3].strip()				
 
-class pob_build:
+class build_t:
 	stats = {}
 	
 	def __init__(self, xml, pastebin_url, author):
@@ -113,8 +133,10 @@ class pob_build:
 		if self.main_socket_group is None:
 			self.__parse_main_socket_group__()
 		
-		for gem in self.main_socket_group.findall('Gem'):
-			if not "Support" in gem.attrib['skillId'] and gem.attrib['enabled'] == "true":
+		for gem_xml in self.main_socket_group.findall('Gem'):
+			gem = gem_t(gem_xml)
+		
+			if not "Support" in gem.id and gem.enabled:
 				self.main_gem = gem
 				return
 				
@@ -176,7 +198,7 @@ class pob_build:
 		xml_items = self.xml.find('Items')
 		
 		for i in xml_items.findall('Item'):
-			self.items[int(i.attrib['id'])] = item(i)
+			self.items[int(i.attrib['id'])] = item_t(i)
 			
 		self.equipped_items = {}
 			
@@ -190,19 +212,11 @@ class pob_build:
 			raise UnsupportedException('Cast on Critical Strike builds are not supported.')
 			
 	def support_in_socket_group(self, support_name, sgroup):
-		for gem in sgroup.findall('Gem'):
-			if gem.attrib['nameSpec'] == support_name and gem.attrib['enabled'] == "true":
+		for gem_xml in sgroup.findall('Gem'):
+			gem = gem_t(gem_xml)
+			if gem.name == support_name and gem.enabled:
 				return True
 		return False
-		
-	def get_main_gem_name(self):
-		if self.main_gem is None:
-			self.__parse_main_gem__()
-			
-		if self.main_gem.attrib['nameSpec'] in skill_gem_names:
-			return skill_gem_names[self.main_gem.attrib['nameSpec']]
-		else:
-			return self.main_gem.attrib['nameSpec']
 		
 	def get_class(self):
 		if self.ascendancy_name is not None:
@@ -236,6 +250,16 @@ class pob_build:
 
 	def isHybrid(self):
 		return not self.isCI() and not self.isLowLife() and self.stats['player']['EnergyShield'] >= self.stats['player']['LifeUnreserved'] * 0.25
+		
+	def get_main_descriptor(self):
+		for unique in build_defining_uniques:
+			if self.has_item_equipped(unique):
+				if isinstance(build_defining_uniques[unique], str):
+					return build_defining_uniques[unique]
+				else:
+					return unique
+		
+		return self.main_gem.name
 		
 	def get_bleed_dps(self):
 		bleed = self.stats['player']['BleedDPS']
@@ -343,20 +367,22 @@ class pob_build:
 			crit_desc = " Crit"
 		
 		# Skill Descriptor
-		gem_name = self.get_main_gem_name()
+		gem_name = self.get_main_descriptor()
 		
 		# Totem/Trap/Mine Descriptor
 		actor_desc = ''
 		
-		# FIXME: Use pob_build.support_in_socket_group()
-		for gem in self.main_socket_group.findall('Gem'):
-			if gem.attrib['skillId'] == "SupportSpellTotem" or gem.attrib['skillId'] == "SupportRangedAttackTotem":
+		# FIXME: Use build_t.support_in_socket_group()
+		for gem_xml in self.main_socket_group.findall('Gem'):
+			gem = gem_t(gem_xml)
+		
+			if gem.id == "SupportSpellTotem" or gem.id == "SupportRangedAttackTotem":
 				actor_desc = " Totem"
 				break
-			elif gem.attrib['skillId'] == "SupportRemoteMine":
+			elif gem.id == "SupportRemoteMine":
 				actor_desc = " Mine"
 				break
-			elif gem.attrib['skillId'] == "SupportTrap":
+			elif gem.id == "SupportTrap":
 				actor_desc = " Trap"
 				break
 		
@@ -439,11 +465,13 @@ class pob_build:
 		body += "\n"
 		
 		## Offense
-		gem_name = self.get_main_gem_name()
+		gem_name = self.main_gem.name
 		links = 0
 		
-		for g in self.main_socket_group.findall('Gem'):
-			if g.attrib['enabled'] == "true" and (self.main_gem == g or "Support" in g.attrib['skillId']):
+		for gem_xml in self.main_socket_group.findall('Gem'):
+			gem = gem_t(gem_xml)
+			
+			if gem.enabled and (self.main_gem.xml == gem.xml or "Support" in gem.id):
 				links += 1
 
 		dps_breakdown = self.get_dps_breakdown()
