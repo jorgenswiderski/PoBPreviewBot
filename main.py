@@ -149,7 +149,8 @@ def get_response(comment = False, submission = False):
 							with open("error/" + obj.id + "/pastebin.xml", "w") as f:
 								f.write( pastebin.decode_base64_and_inflate(c) )
 							with open("error/" + obj.id + "/info.txt", "w") as f:
-								f.write( "pastebin_url\t{:s}\ncomment_id\t{:s}\ncomment_url\t{:s}\nerror_text\t{:s}".format( bin, obj.id, obj.permalink(), repr(e) ))
+								f.write( "pastebin_url\t{:s}\ncomment_id\t{:s}\ncomment_url\t{:s}\nerror_text\t{:s}".format( bin, obj.id,
+								obj.permalink() if isinstance(obj, praw.models.Comment) else obj.permalink, repr(e) ))
 							with open("error/" + obj.id + "/traceback.txt", "w") as f:
 								traceback.print_exc( file = f )
 							
