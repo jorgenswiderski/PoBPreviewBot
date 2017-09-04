@@ -233,8 +233,8 @@ class build_t:
 			raise StatException()
 			
 	def has_item_equipped(self, name):
-		for i in self.items:
-			if self.items[i].name.lower() == name.lower():
+		for i in self.equipped_items:
+			if self.equipped_items[i].name.lower() == name.lower():
 				return True
 				
 		return False
