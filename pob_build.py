@@ -238,18 +238,15 @@ class build_t:
 				return True
 				
 		return False
-					
-	def isCI(self):
-		return self.has_passive_skill("Chaos Inoculation")
 		
-	def isLowLife(self):
+	def is_low_life(self):
 		return self.stats['player']['LifeUnreservedPercent'] < 35
 
-	def isMoM(self):
+	def is_MoM(self):
 		return self.has_passive_skill("Mind Over Matter") or self.has_item_equipped("Cloak of Defiance")
 
-	def isHybrid(self):
-		return not self.isCI() and not self.isLowLife() and self.stats['player']['EnergyShield'] >= self.stats['player']['LifeUnreserved'] * 0.25
+	def is_hybrid(self):
+		return not self.has_passive_skill("Chaos Inoculation") and not self.is_low_life() and self.stats['player']['EnergyShield'] >= self.stats['player']['LifeUnreserved'] * 0.25
 		
 	def get_main_descriptor(self):
 		for unique in build_defining_uniques:
@@ -346,14 +343,14 @@ class build_t:
 	def get_response_header(self):
 		# Defense descriptor
 		def_desc = ""
-		if self.isCI():
+		if self.has_passive_skill("Chaos Inoculation"):
 			def_desc = "CI"
-		elif self.isMoM():
+		elif self.is_MoM():
 			def_desc = "MoM"
-		elif self.isLowLife():
+		elif self.is_low_life():
 			def_desc = "LL"
 			
-		if self.isHybrid():
+		if self.is_hybrid():
 			if def_desc != "":
 				def_desc = " " + def_desc
 			def_desc = "Hybrid" + def_desc
@@ -404,19 +401,19 @@ class build_t:
 		total_ehp = 0;
 		show_ehp = False
 		
-		if self.isCI():
+		if self.has_passive_skill("Chaos Inoculation"):
 			body = "{:n} **ES**".format(self.stats['player']['EnergyShield'])
 			total_ehp += self.stats['player']['EnergyShield']
 		else:
 			body = "{:n} **Life**".format(self.stats['player']['LifeUnreserved'])
 			total_ehp += self.stats['player']['LifeUnreserved']
 			
-			if self.isMoM():
+			if self.is_MoM():
 				body += " | {:n} **Mana**".format(self.stats['player']['ManaUnreserved'])
 				total_ehp += self.stats['player']['ManaUnreserved']
 				show_ehp = True
 				
-			if self.isHybrid() or self.isLowLife():
+			if self.is_hybrid() or self.is_low_life():
 				body += " | {:n} **ES**".format(self.stats['player']['EnergyShield'])
 				total_ehp += self.stats['player']['EnergyShield']
 				show_ehp = True
