@@ -496,7 +496,7 @@ class build_t:
 		dps_breakdown = self.get_dps_breakdown()
 		
 		if dps_breakdown[0][0] <= 0:
-			raise StatException('Active skill does no DPS! ' + repr(dps_breakdown))
+			raise StatException('Active skill \'{:s}\' does no DPS! {:s}'.format( self.main_gem.name, repr(dps_breakdown) ))
 		
 		dps_str = ""
 		
