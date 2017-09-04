@@ -244,6 +244,21 @@ class build_t:
 
 	def is_MoM(self):
 		return self.has_passive_skill("Mind Over Matter") or self.has_item_equipped("Cloak of Defiance")
+		
+	# FIXME: Use values from the modifiers themselves instead of hardcoding.
+	def get_MoM_percent(self):
+		p = 0
+		
+		if self.is_MoM():
+			p += 0.30
+			
+		if self.has_item_equipped("Cloak of Defiance"):
+			p += 0.10
+			
+		if self.has_passive_skill("Divine Guidance"):
+			p += 0.10
+			
+		return p
 
 	def is_hybrid(self):
 		return not self.has_passive_skill("Chaos Inoculation") and not self.is_low_life() and self.stats['player']['EnergyShield'] >= self.stats['player']['LifeUnreserved'] * 0.25
@@ -409,8 +424,15 @@ class build_t:
 			total_ehp += self.stats['player']['LifeUnreserved']
 			
 			if self.is_MoM():
+				# Display the full amount of unreserved mana
 				body += " | {:n} **Mana**".format(self.stats['player']['ManaUnreserved'])
-				total_ehp += self.stats['player']['ManaUnreserved']
+				
+				# Calculate the maximum amount of mana that contributes to the player's EHP
+				mom_pct = self.get_MoM_percent()
+				max_ehp_mana = self.stats['player']['LifeUnreserved'] * ( mom_pct / ( 1 - mom_pct ) )
+				# Add up to the max amount
+				total_ehp += int( min( self.stats['player']['ManaUnreserved'], max_ehp_mana ) )
+				
 				show_ehp = True
 				
 			if self.is_hybrid() or self.is_low_life():
