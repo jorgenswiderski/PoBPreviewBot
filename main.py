@@ -59,7 +59,7 @@ def praw_error_retry(attempt_number, ms_since_first_attempt):
 	return delay * 1000
 	
 def obj_type_str(obj):
-	if isinstance(obj, praw.models.reddit.comment.Comment):
+	if isinstance(obj, praw.models.Comment):
 		return "comment"
 	else:
 		return "submission"
@@ -431,7 +431,7 @@ def check_comment_for_deletion(parent, comment):
 def check_comment_for_edit(t, parent, comment):
 	# has the comment been edited recently OR the comment is new (edit tag is not visible so we need to check to be safe)
 	
-	if ( isinstance(parent.edited, float) and parent.edited >= t - calc_deletion_check_time(comment) ) or t - parent.created_utc < 400 or "MoM" in comment.body:
+	if ( isinstance(parent.edited, float) and parent.edited >= t - calc_deletion_check_time(comment) ) or t - parent.created_utc < 400:
 		new_comment_body = None
 		
 		if comment.is_root:
