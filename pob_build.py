@@ -283,6 +283,9 @@ class build_t:
 			
 		return bleed
 		
+	def get_poison_dps(self):
+		return self.stats['player']['WithPoisonDPS'] - self.stats['player']['TotalDPS'] - self.stats['player']['TotalDot']
+		
 	def get_dps_breakdown(self):
 		if self.stats['minion']['TotalDPS'] > 0:
 			if self.stats['player']['ActiveMinionLimit'] > 1:
@@ -296,7 +299,8 @@ class build_t:
 			dot = 0
 			direct = 0
 			
-			if self.stats['player']['TotalDot'] > 0:
+			# If the base DoT DPS is greater than the direct + poison DPS, conclude this skill is only used to maintain the DoT.
+			if self.stats['player']['TotalDot'] > 0.5 * self.stats['player']['WithPoisonDPS']:
 				# Base DoT (doesn't include decay and other shit unlike what the attribute name would imply)
 				dot += self.stats['player']['TotalDot']
 				#print "{:.2f} base DoT".format(self.stats['player']['TotalDot'])
@@ -307,8 +311,13 @@ class build_t:
 			
 				if self.stats['player']['WithPoisonDPS'] > 0:
 					# Poison
-					dot += self.stats['player']['WithPoisonDPS'] - self.stats['player']['TotalDPS']
+					dot += self.get_poison_dps()
 					#print "{:.2f} poison".format(self.stats['player']['WithPoisonDPS'] - self.stats['player']['TotalDPS'])
+					
+				# base DoT still contributes to DPS total (if relevant)
+				if self.stats['player']['TotalDot'] > 0:
+					# Base DoT
+					dot += self.stats['player']['TotalDot']
 			
 			# Bleed
 			dot += self.get_bleed_dps()
@@ -330,6 +339,10 @@ class build_t:
 			else:
 				r = [ ( total, "total DPS" ) ]
 				
+				# Base DoT
+				if self.stats['player']['TotalDot'] > 0.01 * total:
+					r.append( ( self.stats['player']['TotalDot'], "skill DoT DPS" ) )
+				
 				# Bleed
 				if self.get_bleed_dps() > 0.01 * total:
 					r.append( ( self.get_bleed_dps(), "bleed DPS" ) )
@@ -339,8 +352,8 @@ class build_t:
 					r.append( ( self.stats['player']['IgniteDPS'], "ignite DPS" ) )
 				
 				# Poison
-				if self.stats['player']['WithPoisonDPS'] - self.stats['player']['TotalDPS'] > 0.01 * total:
-					r.append( ( self.stats['player']['WithPoisonDPS'] - self.stats['player']['TotalDPS'], "poison DPS" ) )
+				if self.get_poison_dps() > 0.01 * total:
+					r.append( ( self.get_poison_dps(), "poison DPS" ) )
 					
 				# Decay
 				if self.stats['player']['DecayDPS'] > 0.01 * total:
@@ -403,7 +416,12 @@ class build_t:
 		# Passive Skill Tree
 		
 		line2 = "Level {:s} [(Tree)]({:s}) | by /u/{:s}\n*****\n".format(self.level, self.passives_url, self.author.name)
-		header += '^' + line2.replace(' ', ' ^')
+		line2 = '^' + line2.replace(' ', ' ^')
+		
+		if hasattr(self, 'ascendancy_name'):
+			line2 = "[](#{:s}) ".format(self.ascendancy_name.lower()) + line2
+			
+		header += line2
 		
 		#print header
 		return header
