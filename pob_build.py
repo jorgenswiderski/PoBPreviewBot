@@ -518,11 +518,16 @@ class build_t:
 			
 			if gem.enabled and (self.main_gem.xml == gem.xml or "Support" in gem.id):
 				links += 1
+				
+		if links < 4:
+			raise StatException('{:s} is in less than a 4L ({:.0f}L).'.format(  self.main_gem.name, links ) )
 
 		dps_breakdown = self.get_dps_breakdown()
 		
 		if dps_breakdown[0][0] <= 0:
 			raise StatException('Active skill \'{:s}\' does no DPS! {:s}'.format( self.main_gem.name, repr(dps_breakdown) ))
+		elif dps_breakdown[0][0] < 500:
+			raise StatException('Active skill \'{:s}\' does negligible DPS! {:s}'.format( self.main_gem.name, repr(dps_breakdown) ))
 		
 		dps_str = ""
 		
