@@ -4,6 +4,7 @@ skill_overrides = {
 	"TriggeredMoltenStrike": "Molten Burst",
 	"RepeatingShockwave": "Abberath's Fury",
 	"UniqueAnimateWeapon": "Dancing Dervish",
+	"ChaosDegenAuraUnique": "Death Aura"
 }
 
 build_defining_uniques = {
