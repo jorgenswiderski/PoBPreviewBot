@@ -368,6 +368,39 @@ class build_t:
 					r.append( ( self.stats['player']['DecayDPS'], "decay DPS" ) )
 		
 				return r
+	
+	def socket_group_is_totem(self, sg):
+		if 'slot' in sg.attrib and sg.attrib['slot'] == "Body Armour" and self.has_item_equipped("Soul Mantle"):
+			return True
+	
+		for gem_xml in sg.findall('Gem'):
+			gem = gem_t(gem_xml)
+		
+			if gem.enabled and (gem.id == "SupportSpellTotem" or gem.id == "SupportRangedAttackTotem"):
+				return True
+	
+	def socket_group_is_mine(self, sg):
+		if 'slot' in sg.attrib and "Weapon 1" in sg.attrib['slot'] and self.has_item_equipped("Tremor Rod"):
+			return True
+	
+		for gem_xml in sg.findall('Gem'):
+			gem = gem_t(gem_xml)
+		
+			if gem.enabled and gem.id == "SupportRemoteMine":
+				return True
+	
+	def socket_group_is_trap(self, sg):
+		if 'slot' in sg.attrib:
+			if sg.attrib['slot'] == "Boots" and self.has_item_equipped("Deerstalker"):
+				return True
+			elif "Weapon 1" in sg.attrib['slot'] and self.has_item_equipped("Fencoil"):
+				return True
+	
+		for gem_xml in sg.findall('Gem'):
+			gem = gem_t(gem_xml)
+		
+			if gem.enabled and gem.id == "SupportTrap":
+				return True
 		
 	def get_response(self):
 		response = self.get_response_header()
@@ -405,19 +438,12 @@ class build_t:
 		# Totem/Trap/Mine Descriptor
 		actor_desc = ''
 		
-		# FIXME: Use build_t.support_in_socket_group()
-		for gem_xml in self.main_socket_group.findall('Gem'):
-			gem = gem_t(gem_xml)
-		
-			if gem.id == "SupportSpellTotem" or gem.id == "SupportRangedAttackTotem":
-				actor_desc = " Totem"
-				break
-			elif gem.id == "SupportRemoteMine":
-				actor_desc = " Mine"
-				break
-			elif gem.id == "SupportTrap":
-				actor_desc = " Trap"
-				break
+		if self.socket_group_is_totem(self.main_socket_group):
+			actor_desc = " Totem"
+		elif self.socket_group_is_mine(self.main_socket_group):
+			actor_desc = " Mine"
+		elif self.socket_group_is_trap(self.main_socket_group):
+			actor_desc = " Trap"
 		
 		header = "###[{:s}{:s} {:s}{:s} {:s}]({:s})\n".format( def_desc, crit_desc, gem_name, actor_desc, self.get_class(), self.pastebin )
 		
