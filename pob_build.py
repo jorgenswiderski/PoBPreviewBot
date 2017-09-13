@@ -130,7 +130,7 @@ class build_t:
 		self.main_socket_group = skills[main_socket_group-1]
 		
 		# check to make sure main socket group is not in an inactive weapon set
-		if "Weapon" in self.main_socket_group.attrib['slot']:
+		if 'slot' in self.main_socket_group.attrib and "Weapon" in self.main_socket_group.attrib['slot']:
 			useSecondWeaponSet = self.xml.find('Items').attrib['useSecondWeaponSet'].lower() == "true"
 			slot = self.main_socket_group.attrib['slot']
 			
