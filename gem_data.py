@@ -15,7 +15,7 @@ class gem_data_t:
 		self.shortname = self.name.replace(" Support", "")
 		self.color_str = info[1].lower()
 		self.shortcode = info[2]
-		self.wiki_url = info[3]
+		self.wiki_url = info[3].strip()
 		self.slug = self.name.replace(" ", "_")
 		
 		self.color = self.__parse_color__()
