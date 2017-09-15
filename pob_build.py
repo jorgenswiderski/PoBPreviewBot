@@ -4,6 +4,7 @@ import re
 import passive_skill_tree as passives
 from name_overrides import skill_overrides
 from name_overrides import build_defining_uniques
+from gem_data import support_gems as support_gem_data
 
 stats_to_parse = [
 	{
@@ -64,6 +65,8 @@ class gem_t:
 		self.level = int(self.xml.attrib['level'])
 		self.quality = int(self.xml.attrib['quality'])
 		
+		self.__get_gem_data__()
+		
 	def __parse_name__(self):
 		name = self.xml.attrib['nameSpec']
 		
@@ -71,6 +74,10 @@ class gem_t:
 			self.name = skill_overrides[name]
 		else:
 			self.name = name
+			
+	def __get_gem_data__(self):
+		if self.name in support_gem_data:
+			self.data = support_gem_data[self.name]
 	
 class item_t:
 	def __init__(self, item_xml):
@@ -401,6 +408,17 @@ class build_t:
 		
 			if gem.enabled and gem.id == "SupportTrap":
 				return True
+				
+	def get_support_gem_str(self, sg):
+		str = ""
+	
+		for gem_xml in sg.findall('Gem'):
+			gem = gem_t(gem_xml)
+			
+			if gem.enabled and "Support" in gem.id:
+				str += "[{:s}]({:s}#support-gem-{:s})".format(gem.data.shortcode, gem.data.wiki_url, gem.data.color_str)
+				
+		return str
 		
 	def get_response(self):
 		response = self.get_response_header()
@@ -563,7 +581,7 @@ class build_t:
 				
 			dps_str += "{:s} {:s}".format(util.floatToSigFig(b[0]), b[1])
 			
-		body += "**{:s}** *({:n}L)* - *{:s}*".format(gem_name, links, dps_str) + '  \n'
+		body += "**{:s}** {:s} *({:n}L)* - *{:s}*".format(gem_name, self.get_support_gem_str(self.main_socket_group), links, dps_str) + '  \n'
 		
 		line = "{:.2f} **Use/sec**".format(self.stats['player']['Speed'])
 		
