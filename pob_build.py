@@ -234,7 +234,7 @@ class build_t:
 		return False
 		
 	def get_class(self):
-		if self.ascendancy_name is not None:
+		if hasattr(self, 'ascendancy_name'):
 			return self.ascendancy_name
 			
 		return self.class_name
