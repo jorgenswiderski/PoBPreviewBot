@@ -1,5 +1,5 @@
 username = "PoBPreviewBot"
-subreddit = "pathofexile"
+subreddits = ["pathofexile", "PathOfExileBuilds"]
 
 submission_parse_interval = 60
 comment_parse_interval = 10

@@ -195,7 +195,7 @@ def parse_generic( comment = False, submission = False ):
 		print "Found matching submission " + submission.id + "."
 	
 	# post reply
-	if config.username == "PoBPreviewBot" or config.subreddit != "pathofexile":
+	if config.username == "PoBPreviewBot" or "pathofexile" not in config.subreddits:
 		buffered_reply(comment or submission, response)
 		
 		if comment:
@@ -306,43 +306,45 @@ def track_submission(submission):
 	global num_new_submissions
 	num_new_submissions += 1
 
-def save_comment_count():
-	if len(comment_flow_history) >= config.pull_count_tracking_window:
-		comment_flow_history.pop(0)
+def save_comment_count(subreddit):
+	if len(comment_flow_history[subreddit]) >= config.pull_count_tracking_window:
+		comment_flow_history[subreddit].pop(0)
 		
 	global num_new_comments
-	comment_flow_history.append(num_new_comments)
+	comment_flow_history[subreddit].append(num_new_comments)
 	num_new_comments = 0
-	#print comment_flow_history
+	#print comment_flow_history[subreddit]
 
-def save_submission_count():
-	if len(submission_flow_history) >= config.pull_count_tracking_window:
-		submission_flow_history.pop(0)
+def save_submission_count(subreddit):
+	if len(submission_flow_history[subreddit]) >= config.pull_count_tracking_window:
+		submission_flow_history[subreddit].pop(0)
 	
 	global num_new_submissions
-	submission_flow_history.append(num_new_submissions)
+	submission_flow_history[subreddit].append(num_new_submissions)
 	num_new_submissions = 0
-	#print submission_flow_history
+	#print submission_flow_history[subreddit]
 	
 def get_num_entries_to_pull(history):
 	if len(history) == 0:
 		return config.initial_pull_count
 		
-	return math.floor(max( max(history), config.min_pull_count ))
+	return math.floor(min(max( max(history), config.min_pull_count ), config.max_pull_count))
 	
-last_time_comments_parsed = 0
+last_time_comments_parsed = {}
+for sub in config.subreddits:
+	last_time_comments_parsed[sub] = 0
 	
 @retry(retry_on_exception=is_praw_error,
 	   wait_exponential_multiplier=config.praw_error_wait_time,
 	   wait_func=praw_error_retry)
-def parse_comments():
-	num = min(get_num_entries_to_pull(comment_flow_history), config.max_pull_count)
+def parse_comments(subreddit):
+	num = get_num_entries_to_pull(comment_flow_history[subreddit])
 	
 	while True:
-		#print "Pulling {:.0f} comments from /r/{:s}...".format(num, config.subreddit)
+		#print "Pulling {:.0f} comments from /r/{:s}...".format(num, subreddit)
 		
 		# Grab comments
-		comments = r.subreddit(config.subreddit).comments(limit=num)
+		comments = r.subreddit(subreddit).comments(limit=num)
 		
 		for comment in comments:
 			if comment.id not in processed_comments_dict:
@@ -352,29 +354,31 @@ def parse_comments():
 					
 		if num_new_comments < num or num >= config.max_pull_count:
 			break
-		elif len(comment_flow_history) > 0:
+		elif len(comment_flow_history[subreddit]) > 0:
 			num *= 2
 		else:
 			break
 			
 	global last_time_comments_parsed
-	last_time_comments_parsed = time.time()
+	last_time_comments_parsed[subreddit] = time.time()
 	
-	save_comment_count()
+	save_comment_count(subreddit)
 	
-last_time_submissions_parsed = 0
+last_time_submissions_parsed = {}
+for sub in config.subreddits:
+	last_time_submissions_parsed[sub] = 0
 
 @retry(retry_on_exception=is_praw_error,
 	   wait_exponential_multiplier=config.praw_error_wait_time,
 	   wait_func=praw_error_retry)
-def parse_submissions():
-	num = min(get_num_entries_to_pull(submission_flow_history), config.max_pull_count)
+def parse_submissions(subreddit):
+	num = get_num_entries_to_pull(submission_flow_history[subreddit])
 	
 	while True:
-		#print "Pulling {:.0f} submissions from /r/{:s}...".format(num, config.subreddit)
+		#print "Pulling {:.0f} submissions from /r/{:s}...".format(num, subreddit)
 		
 		# Grab submissions
-		submissions = r.subreddit(config.subreddit).new(limit=num)
+		submissions = r.subreddit(subreddit).new(limit=num)
 		
 		for submission in submissions:
 			if submission.id not in processed_submissions_dict:
@@ -384,15 +388,15 @@ def parse_submissions():
 		
 		if num_new_submissions < num or num >= config.max_pull_count:
 			break
-		elif len(submission_flow_history) > 0:
+		elif len(submission_flow_history[subreddit]) > 0:
 			num *= 2
 		else:
 			break
 			
 	global last_time_submissions_parsed
-	last_time_submissions_parsed = time.time()
+	last_time_submissions_parsed[subreddit] = time.time()
 	
-	save_submission_count()
+	save_submission_count(subreddit)
 	
 next_time_to_maintain_comments = 0
 
@@ -542,18 +546,25 @@ def run_bot():
 		rep = reply_queue.pop()
 		buffered_reply(rep[0], rep[1])
 	
-	if t - last_time_comments_parsed >= config.comment_parse_interval:
-		parse_comments()
-		
-	if t - last_time_submissions_parsed >= config.submission_parse_interval:
-		parse_submissions()
+	for sub in config.subreddits:
+		if t - last_time_comments_parsed[sub] >= config.comment_parse_interval:
+			parse_comments(sub)
+	
+	for sub in config.subreddits:
+		if t - last_time_submissions_parsed[sub] >= config.submission_parse_interval:
+			parse_submissions(sub)
 	
 	if t >= next_time_to_maintain_comments:
 		maintain_comments(t)
+		
+	# calculate the next time we need to do something
 	
-	next_update_time = min( last_time_comments_parsed + config.comment_parse_interval,
-	     last_time_submissions_parsed + config.submission_parse_interval,
-	     next_time_to_maintain_comments )
+	next_update_time = next_time_to_maintain_comments
+		 
+	for sub in config.subreddits:
+		next_update_time = min( next_update_time,
+		last_time_comments_parsed[sub] + config.comment_parse_interval,
+		last_time_submissions_parsed[sub] + config.submission_parse_interval )
 		 
 	if rate_limit_timer > 0:
 		next_update_time = min(rate_limit_timer, next_update_time)
@@ -653,10 +664,15 @@ processed_submissions_list = []
 processed_submissions_dict = {}
 num_new_comments = 0
 num_new_submissions = 0
-comment_flow_history = []
-submission_flow_history = []
 
-print "Scanning /r/" + config.subreddit + "..."
+comment_flow_history = {}
+submission_flow_history = {}
+
+for sub in config.subreddits:
+	comment_flow_history[sub] = []
+	submission_flow_history[sub] = []
+
+print "Scanning subreddits " + repr(config.subreddits) + "..."
 
 while True:
 	run_bot()
