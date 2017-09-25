@@ -147,15 +147,24 @@ class build_t:
 	def __parse_main_gem__(self):
 		if self.main_socket_group is None:
 			self.__parse_main_socket_group__()
+			
+		nthSkill = int(self.main_socket_group.attrib['mainActiveSkill'])
+		currentSkill = 1
 		
 		for gem_xml in self.main_socket_group.findall('Gem'):
 			gem = gem_t(gem_xml)
 		
 			if not "Support" in gem.id and gem.enabled:
-				self.main_gem = gem
-				return
-				
-		raise StatException('mainSocketGroup has no active skill gem!')
+				if currentSkill == nthSkill:
+					self.main_gem = gem
+					return
+				else:
+					currentSkill += 1
+					
+		if currentSkill > 1:
+			raise Exception('mainActiveSkill exceeds total number of active skill gems in socket group.')
+		else:
+			raise Exception('mainSocketGroup has no active skill gem!')
 		
 	def __parse_stats__(self):
 		for entry in stats_to_parse:
