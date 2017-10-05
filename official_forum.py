@@ -3,8 +3,9 @@ import util
 import config
 from bs4 import BeautifulSoup
 
-soup_cache = {}
-cache_list = []
+soup_cache = None
+cache_time = 0
+cache_url = None
 
 def is_post( url ):
 	if re.match("^https?://www\.pathofexile\.com/forum/view-thread/\d+/?$", url):
@@ -13,20 +14,13 @@ def is_post( url ):
 	return False
 	
 def get_soup_from_url( url ):
-	if url not in soup_cache:
+	if url != cache_url or time.time() > cache_time + 5:
 		html = util.get_url_data(url)
-		soup_cache[url] = BeautifulSoup(html, 'html.parser')
-		cache_list.append(url)
-		if len(cache_list) > config.max_soup_cache_size:
-			# remove the entry at the front of the list
-			removed = cache_list.pop(0)
-			del soup_cache[removed]
-	else:
-		# move the url to the back of list again
-		cache_list.remove(url)
-		cache_list.append(url)
+		soup_cache = BeautifulSoup(html, 'html.parser')
+		cache_time = time.time()
+		cache_url = url
 		
-	return soup_cache[url]		
+	return soup_cache
 	
 def get_op_body( url ):
 	soup = get_soup_from_url( url )
