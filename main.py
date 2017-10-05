@@ -179,7 +179,7 @@ def get_response( reply_object, body, author = None ):
 					blacklist_pastebin(paste_key)
 		
 		
-		if len(responses) > 0 and len(responses) <= 10:
+		if len(responses) > 0 and len(responses) <= 5:
 			comment_body = ""
 			if len(responses) > 1:
 				for res in responses:
