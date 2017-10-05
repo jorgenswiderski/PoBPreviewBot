@@ -1,18 +1,10 @@
 import praw
-import live_config as config
-import live_secret_config as sconfig
-#import config
-#import secret_config as sconfig
 import time
 import os
 import re
 import defusedxml.ElementTree as ET
 import locale
-import pastebin
 import zlib
-from pob_build import StatException
-from pob_build import build_t
-from pob_build import UnsupportedException
 from collections import deque
 import math
 import random
@@ -20,11 +12,22 @@ import traceback
 import urllib2
 from retrying import retry
 
+import live_config as config
+import live_secret_config as sconfig
+#import config
+#import secret_config as sconfig
+import pastebin
+import official_forum
+import util
+from pob_build import build_t
+
 from prawcore.exceptions import RequestException
 from prawcore.exceptions import ServerError
 from prawcore.exceptions import ResponseException
 from prawcore.exceptions import Forbidden
 from praw.exceptions import APIException
+from pob_build import StatException
+from pob_build import UnsupportedException
 
 
 BOT_FOOTER = "[^Path ^of ^Building](https://github.com/Openarl/PathOfBuilding) ^| ^This ^reply ^will ^be ^automatically ^removed ^if ^its ^parent ^comment ^is ^deleted. ^| ^[Feedback?](https://www.reddit.com/r/PoBPreviewBot/)"
@@ -85,26 +88,35 @@ def buffered_reply(obj, response):
 
 	with open("{:s}s_replied_to.txt".format(obj_type_str(obj)), "a") as f:
 		f.write(obj.id + "\n")
-
-def get_response(comment = False, submission = False):
-	if not ( comment or submission ):
-		raise Exception("get_response passed no parameters")
-
-	obj = ""
-	body = ""
-	if comment:
-		obj = comment
-		body = comment.body
-	elif submission:
-		obj = submission
-		if submission.selftext == '':
-			body = submission.url
-		else:
-			body = submission.selftext
-	
-	#print "Processing " + obj.id
 		
-	if obj.author == r.user.me():
+def get_submission_body( submission ):
+	if submission.selftext == '':
+		if official_forum.is_post( submission.url ):
+			return official_forum.get_op_body( submission.url )
+		else:
+			return submission.url
+	else:
+		return submission.selftext 
+		
+def get_submission_author( submission ):
+	if submission.selftext == '' and official_forum.is_post( submission.url ):
+		return official_forum.get_op_author( submission.url )
+	else:
+		return submission.author
+
+def get_response( reply_object, body, author = None ):
+	if not (reply_object and ( isinstance( reply_object, praw.models.Comment ) or isinstance( reply_object, praw.models.Submission ) ) ):
+		raise Exception("get_response passed invalid reply_object")
+	elif not ( body and ( isinstance( body, str ) or isinstance( body, unicode ) ) ):
+		raise Exception("get_response passed invalid body")
+		
+	# If author isn't passed in as a parameter, then default to the author of the object we're replying to
+	if not author:
+		author = reply_object.author
+	
+	#print "Processing " + reply_object.id
+		
+	if reply_object.author == r.user.me():
 		#print "Author is self, ignoring"
 		return
 
@@ -130,31 +142,31 @@ def get_response(comment = False, submission = False):
 				if xml.tag == "PathOfBuilding":
 					if xml.find('Build').find('PlayerStat') is not None:
 						try:
-							build = build_t(xml, bin, obj.author)
+							build = build_t(xml, bin, author)
 							response = build.get_response()
 						except UnsupportedException as e:
-							print "{:s}: {:s}".format(obj.id, repr(e))
+							print "{:s}: {:s}".format(reply_object.id, repr(e))
 							blacklist_pastebin(paste_key)
 							continue
 						except Exception as e:
 							print repr(e)
 						
 							# dump xml for debugging later
-							c = pastebin.get_contents(paste_key)
+							c = util.get_url_data("http://pastebin.com/raw/" + paste_key)
 							c = c.replace("-", "+").replace("_", "/")
 							
-							if not os.path.exists("error/" + obj.id):
-								os.makedirs("error/" + obj.id)
+							if not os.path.exists("error/" + reply_object.id):
+								os.makedirs("error/" + reply_object.id)
 							
-							with open("error/" + obj.id + "/pastebin.xml", "w") as f:
+							with open("error/" + reply_object.id + "/pastebin.xml", "w") as f:
 								f.write( pastebin.decode_base64_and_inflate(c) )
-							with open("error/" + obj.id + "/info.txt", "w") as f:
-								f.write( "pastebin_url\t{:s}\ncomment_id\t{:s}\ncomment_url\t{:s}\nerror_text\t{:s}".format( bin, obj.id,
-								obj.permalink() if isinstance(obj, praw.models.Comment) else obj.permalink, repr(e) ))
-							with open("error/" + obj.id + "/traceback.txt", "w") as f:
+							with open("error/" + reply_object.id + "/info.txt", "w") as f:
+								f.write( "pastebin_url\t{:s}\ncomment_id\t{:s}\ncomment_url\t{:s}\nerror_text\t{:s}".format( bin, reply_object.id,
+								reply_object.permalink() if isinstance(reply_object, praw.models.Comment) else reply_object.permalink, repr(e) ))
+							with open("error/" + reply_object.id + "/traceback.txt", "w") as f:
 								traceback.print_exc( file = f )
 							
-							print "Dumped info to error/{:s}/".format( obj.id )
+							print "Dumped info to error/{:s}/".format( reply_object.id )
 							blacklist_pastebin(paste_key)
 							continue
 							
@@ -182,28 +194,28 @@ def get_response(comment = False, submission = False):
 			
 			return comment_body
 			
-def parse_generic( comment = False, submission = False ):
+def parse_generic( reply_object, body, author = None ):
+	if not ( reply_object and ( isinstance( reply_object, praw.models.Comment ) or isinstance( reply_object, praw.models.Submission ) ) ):
+		raise Exception("parse_generic passed invalid reply_object")
+	elif not ( body and ( isinstance( body, str ) or isinstance( body, unicode ) ) ):
+		raise Exception("parse_generic passed invalid body")
+
 	# get response text
-	response = get_response( comment = comment, submission = submission )
+	response = get_response( reply_object, body, author = author )
 	
 	if not response:
 		return
 		
-	if comment:
-		print "Found matching comment " + comment.id + "."
-	elif submission:
-		print "Found matching submission " + submission.id + "."
+	print "Found matching {:s} {:s}.".format(obj_type_str(reply_object), reply_object.id)
 	
 	# post reply
 	if config.username == "PoBPreviewBot" or "pathofexile" not in config.subreddits:
-		buffered_reply(comment or submission, response)
+		buffered_reply(reply_object, response)
 		
-		if comment:
-			comments_replied_to.append(comment.id)
-		elif submission:
-			submissions_replied_to.append(submission.id)
+		if isinstance(reply_object, praw.models.Comment):
+			comments_replied_to.append(reply_object.id)
 		else:
-			raise Exception('parse_generic was passed neither a comment nor submission.')
+			submissions_replied_to.append(reply_object.id)
 	else:
 		#print "Reply body:\n" + response
 		with open("saved_replies.txt", "a") as f:
@@ -350,7 +362,7 @@ def parse_comments(subreddit):
 			if comment.id not in processed_comments_dict:
 				track_comment(comment)
 				if comment.id not in comments_replied_to:
-					parse_generic( comment = comment )
+					parse_generic( comment, comment.body )
 					
 		if num_new_comments < num or num >= config.max_pull_count:
 			break
@@ -384,7 +396,7 @@ def parse_submissions(subreddit):
 			if submission.id not in processed_submissions_dict:
 				track_submission(submission)
 				if submission.id not in submissions_replied_to:
-					parse_generic( submission = submission ) 
+					parse_generic( submission, get_submission_body( submission ), author = get_submission_author( submission ) )
 		
 		if num_new_submissions < num or num >= config.max_pull_count:
 			break
@@ -435,13 +447,13 @@ def check_comment_for_deletion(parent, comment):
 def check_comment_for_edit(t, parent, comment):
 	# has the comment been edited recently OR the comment is new (edit tag is not visible so we need to check to be safe)
 	
-	if ( isinstance(parent.edited, float) and parent.edited >= t - calc_deletion_check_time(comment) ) or t - parent.created_utc < 400:
+	if ( isinstance(parent.edited, float) and parent.edited >= t - calc_deletion_check_time(comment) ) or t - parent.created_utc < 400 or ( comment.is_root and parent.selftext == '' and official_forum.is_post( parent.url ) ):
 		new_comment_body = None
 		
-		if comment.is_root:
-			new_comment_body = get_response(submission = parent)
+		if isinstance(parent, praw.models.Comment):
+			new_comment_body = get_response(parent, parent.body)
 		else:
-			new_comment_body = get_response(comment = parent)
+			new_comment_body = get_response(parent, get_submission_body( parent ), author = get_submission_author( parent ) )
 		
 		if not new_comment_body:
 			comment.delete()

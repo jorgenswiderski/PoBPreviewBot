@@ -5,6 +5,7 @@ import passive_skill_tree as passives
 from name_overrides import skill_overrides
 from name_overrides import build_defining_uniques
 from gem_data import support_gems as support_gem_data
+import praw.models
 
 stats_to_parse = [
 	{
@@ -109,14 +110,22 @@ class build_t:
 		self.xml = xml
 		self.build = self.xml.find('Build')
 		self.pastebin = pastebin_url
-		self.author = author
 		
+		self.__parse_author__(author)
 		self.__parse_stats__()
 		self.__parse_passive_skills__()
 		self.__parse_character_info__()
 		self.__parse_items__()
 		
 		self.__check_build_eligibility__()
+		
+	def __parse_author__(self, author):
+		if isinstance(author, praw.models.reddit.redditor.Redditor):
+			self.author = "/u/{:s}".format(author.name)
+		elif isinstance(author, str) or isinstance(author, unicode):
+			self.author = author
+		else:
+			raise Exception('Build has invalid author')
 		
 	def __parse_character_info__(self):
 		self.class_name = self.build.attrib['className']
@@ -476,7 +485,7 @@ class build_t:
 		
 		# Passive Skill Tree
 		
-		line2 = "Level {:s} [(Tree)]({:s}) | by /u/{:s}\n*****\n".format(self.level, self.passives_url, self.author.name)
+		line2 = "Level {:s} [(Tree)]({:s}) | by {:s}\n*****\n".format(self.level, self.passives_url, self.author)
 		line2 = '^' + line2.replace(' ', ' ^')
 		
 		if hasattr(self, 'ascendancy_name'):

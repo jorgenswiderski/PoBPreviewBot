@@ -7,6 +7,7 @@ initial_pull_count = 50
 min_pull_count = 5
 pull_count_tracking_window = 10
 max_pull_count = 200
+max_soup_cache_size = 10
 
 deletion_check_interval_rng = 0.01
 
