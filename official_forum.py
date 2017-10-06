@@ -1,7 +1,9 @@
 import re
+import time
+from bs4 import BeautifulSoup
+
 import util
 import config
-from bs4 import BeautifulSoup
 
 soup_cache = None
 cache_time = 0
@@ -14,6 +16,10 @@ def is_post( url ):
 	return False
 	
 def get_soup_from_url( url ):
+	global cache_url
+	global cache_time
+	global soup_cache
+	
 	if url != cache_url or time.time() > cache_time + 5:
 		html = util.get_url_data(url)
 		soup_cache = BeautifulSoup(html, 'html.parser')
@@ -25,13 +31,19 @@ def get_soup_from_url( url ):
 def get_op_body( url ):
 	soup = get_soup_from_url( url )
 	
-	first_post = soup.select("div.forum-table-container tr:nth-of-type(1) > td.content-container")
+	op_body = soup.select("div.forum-table-container tr:nth-of-type(1) > td.content-container > div.content")
 	
-	return first_post[0].get_text()
+	if len(op_body) == 0:
+		return " ";
+	
+	return op_body[0].get_text()
 	
 def get_op_author( url ):
 	soup = get_soup_from_url( url )
 	
 	author_link = soup.select("div.forum-table-container tr:nth-of-type(1) div.posted-by a:nth-of-type(2)")
+	
+	if len(author_link) == 0:
+		return None;
 	
 	return "[{:s}](https://pathofexile.com{:s})".format(author_link[0].get_text(), author_link[0]['href'])
