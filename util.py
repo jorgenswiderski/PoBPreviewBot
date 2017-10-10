@@ -1,5 +1,6 @@
 import urllib2
 import config
+import re
 
 def floatToSigFig(n):
 	negative = False
