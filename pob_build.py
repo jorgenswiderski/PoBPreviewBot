@@ -268,7 +268,14 @@ class build_t:
 	def has_item_equipped(self, name):
 		for i in self.equipped_items:
 			if self.equipped_items[i].name.lower() == name.lower():
-				return True
+				# check to make sure main socket group is not in an inactive weapon set
+				if "Weapon" in i:
+					useSecondWeaponSet = self.xml.find('Items').attrib['useSecondWeaponSet'].lower() == "true"
+					
+					if ( useSecondWeaponSet and "Swap" in i ) or ( not useSecondWeaponSet and "Swap" not in i ):
+						return True
+				else:
+					return True
 				
 		return False
 		
