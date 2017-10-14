@@ -35,10 +35,7 @@ def get_url_data(raw_url):
 	while True:
 		try:
 			url = urllib2.urlopen(raw_url)
-		except urllib2.HTTPError as e:
-			if "HTTP Error" not in repr(e):
-				raise e
-				
+		except (urllib2.HTTPError, urllib2.URLError) as e:
 			print "urllib2 failed to pull {:s}: {:s}. Sleeping for {:.0f}s...".format(raw_url, repr(e), config.urllib_error_wait_time)
 			time.sleep(config.urllib_error_wait_time)
 		else:
