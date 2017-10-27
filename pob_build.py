@@ -104,11 +104,44 @@ class item_t:
 		self.base = rows[3].strip()				
 
 class build_t:
-	stats = {}
+	config_bools = {
+		"conditionFullLife": "Full Life",
+		"conditionKilledRecently": "Killed Recently",
+		#"conditionOnConsecratedGround": "Cons. Ground",
+		"conditionEnemyMoving": "Enemy Moving",
+		"conditionEnemyShocked": "Shock",
+		#"conditionEnemyBlinded": "Blind",
+		"buffUnholyMight": "Unholy Might",
+		#"buffPhasing": "Phasing",
+		"conditionEnemyCoveredInAsh": "Covered in Ash",
+		"buffOnslaught": "Onslaught",
+		"conditionEnemyMaimed": "Maim",
+		"conditionEnemyIntimidated": "Intimidate",
+		"conditionEnemyBleeding": "Bleed",
+		#"buffFortify": "Fortify",
+	}
+	
+	config_numbers = {
+		"enemyFireResist": "+{:n}% Fire Res",
+		"enemyColdResist": "+{:n}% Cold Res",
+		"enemyLightningResist": "+{:n}% Light Res",
+		"enemyChaosResist": "+{:n}% Chaos Res",
+		"enemyPhysicalReduction": "+{:n}% Phys Reduction",
+		"multiplierPoisonOnEnemy": "Poison \({:n}\)",
+	}
+	
+	# Dict of Wither Stacks by its corresponding skillPart
+	wither_stacks = {
+		"1": 1,
+		"2": 5, 
+		"3": 10,
+		"4": 20,
+	}
 	
 	def __init__(self, xml, pastebin_url, author):
 		self.xml = xml
-		self.build = self.xml.find('Build')
+		self.xml_build = self.xml.find('Build')
+		self.xml_config = self.xml.find('Config')
 		self.pastebin = pastebin_url
 		
 		self.__parse_author__(author)
@@ -128,18 +161,18 @@ class build_t:
 			raise Exception('Build has invalid author')
 		
 	def __parse_character_info__(self):
-		self.class_name = self.build.attrib['className']
+		self.class_name = self.xml_build.attrib['className']
 		
-		if self.build.attrib['ascendClassName'] != "None":
-			self.ascendancy_name = self.build.attrib['ascendClassName']
+		if self.xml_build.attrib['ascendClassName'] != "None":
+			self.ascendancy_name = self.xml_build.attrib['ascendClassName']
 			
-		self.level = self.build.attrib['level']
+		self.level = self.xml_build.attrib['level']
 		
 		self.__parse_main_socket_group__()
 		self.__parse_main_gem__()
 		
 	def __parse_main_socket_group__(self):
-		main_socket_group = int(self.build.attrib['mainSocketGroup'])
+		main_socket_group = int(self.xml_build.attrib['mainSocketGroup'])
 		skills = self.xml.find('Skills')
 		if len(skills) == 0:
 			raise StatException('Build has no skills')
@@ -176,12 +209,14 @@ class build_t:
 			raise Exception('mainSocketGroup has no active skill gem!')
 		
 	def __parse_stats__(self):
+		self.stats = {}
+	
 		for entry in stats_to_parse:
 			key = entry['key']
 			elementType = entry['elementType']
 			self.stats[key] = {}
 			
-			for stat in self.build.findall(elementType):
+			for stat in self.xml_build.findall(elementType):
 				if stat.attrib['stat'] in entry['stats']:
 					self.stats[key][stat.attrib['stat']] = float(stat.attrib['value'])
 					
@@ -434,6 +469,13 @@ class build_t:
 			if gem.enabled and gem.id == "SupportTrap":
 				return True
 				
+	def get_enabled_gem(self, gem_name):
+		for gem in self.xml.findall("./Skills/Skill/Gem[@nameSpec='{}']".format(gem_name)):
+			if "enabled" in gem.attrib and gem.attrib['enabled'].lower() == "true":
+				return gem
+				
+		return None
+				
 	def get_support_gem_str(self, sg):
 		str = ""
 	
@@ -444,6 +486,60 @@ class build_t:
 				str += "[{:s}]({:s}#support-gem-{:s})".format(gem.data.shortcode, gem.data.wiki_url, gem.data.color_str)
 				
 		return str
+		
+	def __get_config_value__(self, name):
+		xml_input = self.xml_config.find("*[@name='{:s}']".format(name))
+		
+		if xml_input is None:
+			#print "{:s}: {:s}".format(name, None)
+			return None
+			
+		if 'boolean' in xml_input.attrib:
+			#print "{:s}: {:s}".format(name, xml_input.attrib['boolean'].lower())
+			return xml_input.attrib['boolean'].lower()
+			
+		if 'number' in xml_input.attrib:
+			#print "{:s}: {:n}".format(name, float(xml_input.attrib['number']))
+			return float(xml_input.attrib['number'])
+			
+		if 'string' in xml_input.attrib:
+			#print "{:s}: {:s}".format(name, xml_input.attrib['string'].lower())
+			return xml_input.attrib['string'].lower()
+			
+	def __get_config_array__(self):
+		dps_config = []
+	
+		if self.__get_config_value__("enemyIsBoss") == "true":
+			dps_config.append("Boss")
+		elif self.__get_config_value__("enemyIsBoss") == "shaper":
+			dps_config.append("Shaper")
+		
+		for opt_name in self.config_bools:
+			if self.__get_config_value__(opt_name) == "true":
+				dps_config.append(self.config_bools[opt_name])
+		
+		for opt_name in self.config_numbers:
+			val = self.__get_config_value__(opt_name)
+			if val and val != 0:
+				dps_config.append(self.config_numbers[opt_name].format(self.__get_config_value__(opt_name)))
+				
+		if self.get_enabled_gem("Vaal Haste") is not None:
+			dps_config.append("Vaal Haste")
+				
+		wither = self.get_enabled_gem("Wither")
+		if wither is not None:
+			dps_config.append("Wither \({}\)".format(self.wither_stacks[wither.attrib['skillPart']]))
+				
+		return dps_config
+			
+	def __get_config_string__(self):
+		dps_config = self.__get_config_array__()
+		
+		if len(dps_config) == 0:
+			return ""
+		
+		return "  \n\n" + " **Config:** {:s}".format(", ".join(dps_config)).replace(' ', " ^^")
+			
 		
 	def get_response(self):
 		response = self.get_response_header()
@@ -614,6 +710,8 @@ class build_t:
 			line += " | {:.2f}% **Crit** | {:n}% **Multi**".format(self.stats['player']['CritChance'], self.stats['player']['CritMultiplier']*100)
 			
 		body += '^' + line.replace(' ', ' ^')
+		
+		body += self.__get_config_string__()
 		
 		#print body
 		return body
