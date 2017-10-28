@@ -121,13 +121,14 @@ def get_response( reply_object, body, author = None ):
 		return
 
 	if "pastebin.com/" in body:
-		responses = {}
+		responses = []
+		bins_responded_to = {}
 	
 		for match in re.finditer('pastebin\.com/\w+', body):
 			bin = "https://" + match.group(0)
 			paste_key = pastebin.strip_url_to_key(bin)
 			
-			if not paste_key_is_blacklisted(paste_key) and paste_key not in responses:
+			if not paste_key_is_blacklisted(paste_key) and paste_key not in bins_responded_to:
 				try:
 					xml = pastebin.get_as_xml(paste_key)
 				except (zlib.error, TypeError):
@@ -176,7 +177,8 @@ def get_response( reply_object, body, author = None ):
 							blacklist_pastebin(paste_key)
 							continue
 							
-						responses[paste_key] = response
+						responses.append(response)
+						bins_responded_to[paste_key] = True
 					else:
 						print "XML does not contain player stats."
 						blacklist_pastebin(paste_key)
@@ -191,10 +193,10 @@ def get_response( reply_object, body, author = None ):
 				for res in responses:
 					if comment_body != "":
 						comment_body += "\n\n[](#quote_break)  \n"
-					comment_body += '>' + responses[res].replace('\n', "\n>")
+					comment_body += '>' + res.replace('\n', "\n>")
 			else:
 				for res in responses:
-					comment_body = responses[res] + "  \n*****"
+					comment_body = res + "  \n*****"
 				
 			comment_body += '\n\n' + BOT_FOOTER
 			
