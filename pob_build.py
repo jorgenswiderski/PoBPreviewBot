@@ -122,11 +122,11 @@ class build_t:
 	}
 	
 	config_numbers = {
-		"enemyFireResist": "+{:n}% Fire Res",
-		"enemyColdResist": "+{:n}% Cold Res",
-		"enemyLightningResist": "+{:n}% Light Res",
-		"enemyChaosResist": "+{:n}% Chaos Res",
-		"enemyPhysicalReduction": "+{:n}% Phys Reduction",
+		"enemyFireResist": "{:+n}% Fire Res",
+		"enemyColdResist": "{:+n}% Cold Res",
+		"enemyLightningResist": "{:+n}% Light Res",
+		"enemyChaosResist": "{:+n}% Chaos Res",
+		"enemyPhysicalReduction": "{:+n}% Phys Reduction",
 		"multiplierPoisonOnEnemy": "Poison \({:n}\)",
 	}
 	
