@@ -11,6 +11,7 @@ import random
 import traceback
 import urllib2
 from retrying import retry
+import traceback
 
 import live_config as config
 import live_secret_config as sconfig
@@ -45,13 +46,13 @@ def bot_login():
 		
 	return r
 	
-	
 praw_errors = (RequestException, ServerError, APIException, ResponseException)
 
 def is_praw_error(e):
 	print e
 	if isinstance(e, praw_errors):
 		print "Praw error: {:s}".format(repr(e))
+		print traceback.format_exc()
 		return True
 	else:
 		return False
@@ -536,8 +537,16 @@ def maintain_comments(t):
 	comment = get_praw_comment_by_id(entry['id'])
 	parent = get_praw_comment_parent(comment)
 	
+	deleted = False
+	
+	# Make sure the reply has not already been deleted
+	if comment.body == "[deleted]":
+		print "Reply {} has already been deleted, removing from list of active comments.".format(comment.id)
+		deleted = True
+	
 	try:
-		deleted = check_comment_for_deletion(parent, comment)
+		if not deleted:
+			deleted = check_comment_for_deletion(parent, comment)
 
 		if not deleted:
 			deleted = check_comment_for_edit(t, parent, comment)
