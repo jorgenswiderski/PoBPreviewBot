@@ -2,6 +2,7 @@ import urllib2
 import config
 import re
 import time
+from retrying import retry
 
 def floatToSigFig(n):
 	negative = False
@@ -28,20 +29,16 @@ def floatToSigFig(n):
 
 	return s
 	
+def urllib_error_retry(attempt_number, ms_since_first_attempt):
+	delay = 1 * ( 2 ** ( attempt_number - 1 ) )
+	print "An error occurred during get_url_data(). Sleeping for {:.0f}s before retrying...".format(delay)
+	return delay * 1000
 	
-	
+@retry(wait_exponential_multiplier=1000,
+	stop_max_attempt_number=8,
+	wait_func=urllib_error_retry)
 def get_url_data(raw_url):
-	url = False
-	
-	while True:
-		try:
-			url = urllib2.urlopen(raw_url)
-		except (urllib2.HTTPError, urllib2.URLError) as e:
-			print "urllib2 failed to pull {:s}: {:s}. Sleeping for {:.0f}s...".format(raw_url, repr(e), config.urllib_error_wait_time)
-			time.sleep(config.urllib_error_wait_time)
-		else:
-			# If no error, break out of the loop
-			break
+	url = urllib2.urlopen(raw_url)
 	
 	data = url.read()
 	return data
