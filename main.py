@@ -79,11 +79,15 @@ def buffered_reply(obj, response):
 	try:
 		log_reply(obj.reply(response), obj.id)
 	except APIException as e:
-		print "*** Failed to reply " + repr(e) + " ***"
-		print "Buffering reply for later"
-		rate_limit_timer = time.time() + 60
-		reply_queue.append((obj, response))
-		return
+		if "DELETED_COMMENT" in str(e):
+			print "Parent {} {} has been deleted before it could be responded to. Removing response from reply queue.".format(obj_type_str(obj), obj.id)
+			return
+		else:
+			print "*** Failed to reply " + repr(e) + " ***"
+			print "Buffering reply for later"
+			rate_limit_timer = time.time() + 60
+			reply_queue.append((obj, response))
+			return
 		
 	print "Replied to {:s} {:s}.".format(obj_type_str(obj), obj.id)
 
@@ -207,6 +211,8 @@ def parse_generic( reply_object, body, author = None ):
 	if not ( reply_object and ( isinstance( reply_object, praw.models.Comment ) or isinstance( reply_object, praw.models.Submission ) ) ):
 		raise Exception("parse_generic passed invalid reply_object")
 	elif not ( body and ( isinstance( body, str ) or isinstance( body, unicode ) ) ):
+		print body
+		print type(body)
 		raise Exception("parse_generic passed invalid body")
 
 	# get response text
