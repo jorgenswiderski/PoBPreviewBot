@@ -191,8 +191,9 @@ def get_response( reply_object, body, author = None ):
 					print "Pastebin does not contain Path of Building XML."
 					blacklist_pastebin(paste_key)
 		
-		
-		if len(responses) > 0 and len(responses) <= 5:
+		if len(responses) > 5:
+			print "Ignoring {} {} because it has greater than 5 valid pastebins. ({})".format(obj_type_str(reply_object), reply_object.id, len(responses))
+		elif len(responses) > 0:
 			comment_body = ""
 			if len(responses) > 1:
 				for res in responses:
