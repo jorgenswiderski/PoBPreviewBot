@@ -142,7 +142,10 @@ def get_response( reply_object, body, author = None ):
 					continue
 				except urllib2.HTTPError as e:
 					print "urllib2 {:s}".format(repr(e))
-					blacklist_pastebin(paste_key)
+					
+					if "Service Temporarily Unavailable" not in repr(e):
+						blacklist_pastebin(paste_key)
+						
 					continue
 				
 				if xml.tag == "PathOfBuilding":
@@ -158,7 +161,10 @@ def get_response( reply_object, body, author = None ):
 							print repr(e)
 						
 							# dump xml for debugging later
-							c = util.get_url_data("http://pastebin.com/raw/" + paste_key)
+							try:
+								c = util.get_url_data("http://pastebin.com/raw/" + paste_key)
+							except urllib2.HTTPError as e2:
+								print "An exception occurred when parsing a comment, but debug data was unable to be dumped."
 							c = c.replace("-", "+").replace("_", "/")
 							
 							if not os.path.exists("error/" + reply_object.id):
