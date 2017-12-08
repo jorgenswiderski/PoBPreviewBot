@@ -563,6 +563,8 @@ def maintain_comments(t):
 
 		if not deleted:
 			deleted = check_comment_for_edit(t, parent, comment)
+	except urllib2.HTTPError as e:
+		print "An HTTPError occurred while maintaining comment {}. Skipping the check for now.".format(comment.id)
 	except Forbidden as e:
 		print "Attempted to perform forbidden action on comment {:s}. Removing from list of active comments.\n{:s}".format(comment.id, comment.permalink())
 		# Comment may or may not be deleted, but for one reason or another we can't modify it anymore, so no point in trying to keep track of it.
