@@ -46,4 +46,7 @@ def get_op_author( url ):
 	if len(author_link) == 0:
 		return None;
 	
-	return "[{:s}](https://pathofexile.com{:s})".format(author_link[0].get_text(), author_link[0]['href'])
+	
+	out_str = "[{:s}](https://pathofexile.com{:s})".format(author_link[0].get_text().encode('utf-8'), author_link[0]['href'])
+	
+	return out_str
