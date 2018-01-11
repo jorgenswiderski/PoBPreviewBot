@@ -55,9 +55,45 @@ class StatException(Exception):
 class UnsupportedException(Exception):
 	pass
 	
+class socket_group_t:
+	def __init__(self, skill_xml, build):
+		self.xml = skill_xml
+		self.build = build
+		
+		self.__get_parent_item__()
+		self.__create_gems__()
+		
+	def __create_gems__(self):
+		self.gems = []
+		
+		for gem_xml in self.xml.findall('Gem'):
+			self.gems.append(gem_t(gem_xml, self))
+			
+	def __get_parent_item__(self):
+		slot = self.xml.attrib['slot']
+		self.item = self.build.equipped_items[slot]
+		
+	def getNthActiveGem(self, n):
+		currentSkill = 1
+		for gem in self.gems:
+			if not "Support" in gem.id and gem.enabled:
+				if currentSkill == n:
+					return gem
+				else:
+					currentSkill += 1
+					
+		if currentSkill > 1:
+			raise Exception('mainActiveSkill exceeds total number of active skill gems in socket group.')
+		else:
+			raise Exception('mainSocketGroup has no active skill gem!')
+	
 class gem_t:
-	def __init__(self, gem_xml):
+	def __init__(self, gem_xml, socket_group):
 		self.xml = gem_xml
+		
+		self.build = socket_group.build
+		self.socket_group = socket_group
+		self.item = socket_group.item
 		
 		self.__parse_name__()
 		
@@ -66,7 +102,7 @@ class gem_t:
 		self.level = int(self.xml.attrib['level'])
 		self.quality = int(self.xml.attrib['quality'])
 		
-		self.__get_gem_data__()
+		self.data = self.__get_gem_data__(self.name)
 		
 	def __parse_name__(self):
 		name = self.xml.attrib['nameSpec']
@@ -76,9 +112,39 @@ class gem_t:
 		else:
 			self.name = name
 			
-	def __get_gem_data__(self):
-		if self.name in support_gem_data:
-			self.data = support_gem_data[self.name]
+	def __get_gem_data__(self, name):
+		name = name.lower()
+		
+		if name in support_gem_data:
+			return support_gem_data[name]
+		
+	def is_supported_by(self, support):
+		support = support.lower()
+		
+		for gem in self.socket_group.gems:
+			if gem.enabled and support == self.name.lower():
+				return true
+				
+		return self.item.grants_support_gem(support)
+	
+	def get_support_gem_str(self):
+		str = ""
+
+		# Support gems from xml (socketed into the item)
+		for gem in self.socket_group.gems:
+			if gem.enabled and "Support" in gem.id:
+				str += "[{:s}]({:s}#support-gem-{:s})".format(gem.data.shortcode, gem.data.wiki_url, gem.data.color_str)
+				
+		# Support gems granted by the item
+		for support in self.item.support_mods:
+			data = self.__get_gem_data__(support)
+			
+			if data:
+				str += "[{:s}]({:s}#support-gem-{:s})".format(data.shortcode, data.wiki_url, data.color_str)
+			else:
+				print("Warning: Support gem '{}' was not found in gem data and was ommitted in gem str!".format(support));
+				
+		return str
 	
 class item_t:
 	def __init__(self, item_xml):
@@ -101,7 +167,23 @@ class item_t:
 		self.rarity = s.group(1)
 		
 		self.name = rows[2].strip()
-		self.base = rows[3].strip()				
+		self.base = rows[3].strip()
+		
+		self.__parse_for_support_gems__(rows)
+		
+	def __parse_for_support_gems__(self, rows):
+		# Match in lower case just in case
+		reg = re.compile("socketed gems are supported by level \d+ (.+)")
+		
+		self.support_mods = []
+	
+		for r in rows:
+			s = reg.search(r.lower())
+			if s:
+				self.support_mods.append(s.group(1).strip())
+	
+	def grants_support_gem(self, support):
+		return support.lower() in self.support_mods
 
 class build_t:
 	config_bools = {
@@ -144,11 +226,11 @@ class build_t:
 		self.xml_config = self.xml.find('Config')
 		self.pastebin = pastebin_url
 		
+		self.__parse_items__()
 		self.__parse_author__(author)
 		self.__parse_stats__()
 		self.__parse_passive_skills__()
 		self.__parse_character_info__()
-		self.__parse_items__()
 		
 		self.__check_build_eligibility__()
 		
@@ -176,12 +258,12 @@ class build_t:
 		skills = self.xml.find('Skills')
 		if len(skills) == 0:
 			raise StatException('Build has no skills')
-		self.main_socket_group = skills[main_socket_group-1]
+		self.main_socket_group = socket_group_t(skills[main_socket_group-1], self)
 		
 		# check to make sure main socket group is not in an inactive weapon set
-		if 'slot' in self.main_socket_group.attrib and "Weapon" in self.main_socket_group.attrib['slot']:
+		if 'slot' in self.main_socket_group.xml.attrib and "Weapon" in self.main_socket_group.xml.attrib['slot']:
 			useSecondWeaponSet = self.xml.find('Items').attrib['useSecondWeaponSet'].lower() == "true"
-			slot = self.main_socket_group.attrib['slot']
+			slot = self.main_socket_group.xml.attrib['slot']
 			
 			if ( not useSecondWeaponSet and "Swap" in slot ) or ( useSecondWeaponSet and "Swap" not in slot ):
 				raise StatException('mainSocketGroup is in inactive weapon set.')
@@ -190,23 +272,8 @@ class build_t:
 		if self.main_socket_group is None:
 			self.__parse_main_socket_group__()
 			
-		nthSkill = int(self.main_socket_group.attrib['mainActiveSkill'])
-		currentSkill = 1
-		
-		for gem_xml in self.main_socket_group.findall('Gem'):
-			gem = gem_t(gem_xml)
-		
-			if not "Support" in gem.id and gem.enabled:
-				if currentSkill == nthSkill:
-					self.main_gem = gem
-					return
-				else:
-					currentSkill += 1
-					
-		if currentSkill > 1:
-			raise Exception('mainActiveSkill exceeds total number of active skill gems in socket group.')
-		else:
-			raise Exception('mainSocketGroup has no active skill gem!')
+		nthSkill = int(self.main_socket_group.xml.attrib['mainActiveSkill'])
+		self.main_gem = self.main_socket_group.getNthActiveGem(nthSkill)
 		
 	def __parse_stats__(self):
 		self.stats = {}
@@ -276,15 +343,8 @@ class build_t:
 		#print repr(self.equipped_items)
 		
 	def __check_build_eligibility__(self):
-		if self.support_in_socket_group("Cast on Critical Strike", self.main_socket_group) or self.has_item_equipped("Cospri's Malice"):
+		if self.main_gem.is_supported_by("Cast on Critical Strike") or self.has_item_equipped("Cospri's Malice"):
 			raise UnsupportedException('Cast on Critical Strike builds are not supported.')
-			
-	def support_in_socket_group(self, support_name, sgroup):
-		for gem_xml in sgroup.findall('Gem'):
-			gem = gem_t(gem_xml)
-			if gem.name == support_name and gem.enabled:
-				return True
-		return False
 		
 	def get_class(self):
 		if hasattr(self, 'ascendancy_name'):
@@ -435,39 +495,6 @@ class build_t:
 					r.append( ( self.stats['player']['DecayDPS'], "decay DPS" ) )
 		
 				return r
-	
-	def socket_group_is_totem(self, sg):
-		if 'slot' in sg.attrib and sg.attrib['slot'] == "Body Armour" and self.has_item_equipped("Soul Mantle"):
-			return True
-	
-		for gem_xml in sg.findall('Gem'):
-			gem = gem_t(gem_xml)
-		
-			if gem.enabled and (gem.id == "SupportSpellTotem" or gem.id == "SupportRangedAttackTotem"):
-				return True
-	
-	def socket_group_is_mine(self, sg):
-		if 'slot' in sg.attrib and "Weapon 1" in sg.attrib['slot'] and self.has_item_equipped("Tremor Rod"):
-			return True
-	
-		for gem_xml in sg.findall('Gem'):
-			gem = gem_t(gem_xml)
-		
-			if gem.enabled and gem.id == "SupportRemoteMine":
-				return True
-	
-	def socket_group_is_trap(self, sg):
-		if 'slot' in sg.attrib:
-			if sg.attrib['slot'] == "Boots" and self.has_item_equipped("Deerstalker"):
-				return True
-			elif "Weapon 1" in sg.attrib['slot'] and self.has_item_equipped("Fencoil"):
-				return True
-	
-		for gem_xml in sg.findall('Gem'):
-			gem = gem_t(gem_xml)
-		
-			if gem.enabled and gem.id == "SupportTrap":
-				return True
 				
 	def get_enabled_gem(self, gem_name):
 		for gem in self.xml.findall("./Skills/Skill/Gem[@nameSpec='{}']".format(gem_name)):
@@ -475,17 +502,6 @@ class build_t:
 				return gem
 				
 		return None
-				
-	def get_support_gem_str(self, sg):
-		str = ""
-	
-		for gem_xml in sg.findall('Gem'):
-			gem = gem_t(gem_xml)
-			
-			if gem.enabled and "Support" in gem.id:
-				str += "[{:s}]({:s}#support-gem-{:s})".format(gem.data.shortcode, gem.data.wiki_url, gem.data.color_str)
-				
-		return str
 		
 	def __get_config_value__(self, name):
 		xml_input = self.xml_config.find("*[@name='{:s}']".format(name))
@@ -577,11 +593,11 @@ class build_t:
 		# Totem/Trap/Mine Descriptor
 		actor_desc = ''
 		
-		if self.socket_group_is_totem(self.main_socket_group):
+		if self.main_gem.is_supported_by("Spell Totem") or self.main_gem.is_supported_by("Ranged Attack Totem"):
 			actor_desc = " Totem"
-		elif self.socket_group_is_mine(self.main_socket_group):
+		elif self.main_gem.is_supported_by("Remote Mine"):
 			actor_desc = " Mine"
-		elif self.socket_group_is_trap(self.main_socket_group):
+		elif self.main_gem.is_supported_by("Trap"):
 			actor_desc = " Trap"
 		
 		header = "###[{:s}{:s} {:s}{:s} {:s}]({:s})\n".format( def_desc, crit_desc, gem_name, actor_desc, self.get_class(), self.pastebin )
@@ -678,9 +694,7 @@ class build_t:
 		gem_name = self.main_gem.name
 		links = 0
 		
-		for gem_xml in self.main_socket_group.findall('Gem'):
-			gem = gem_t(gem_xml)
-			
+		for gem in self.main_socket_group.gems:
 			if gem.enabled and (self.main_gem.xml == gem.xml or "Support" in gem.id):
 				links += 1
 				
@@ -702,7 +716,7 @@ class build_t:
 				
 			dps_str += "{:s} {:s}".format(util.floatToSigFig(b[0]), b[1])
 			
-		body += "**{:s}** {:s} *({:n}L)* - *{:s}*".format(gem_name, self.get_support_gem_str(self.main_socket_group), links, dps_str) + '  \n'
+		body += "**{:s}** {:s} *({:n}L)* - *{:s}*".format(gem_name, self.main_gem.get_support_gem_str(), links, dps_str) + '  \n'
 		
 		line = "{:.2f} **Use/sec**".format(self.stats['player']['Speed'])
 		

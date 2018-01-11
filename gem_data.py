@@ -9,6 +9,8 @@ class gem_color(Enum):
 	BLUE = 3
 
 class gem_data_t:
+	url_suffix_re = re.compile(".com/(.+?)$")
+
 	def __init__(self, tsv_info):
 		info = tsv_info.split("\t")
 		self.name = info[0]
@@ -37,6 +39,10 @@ class gem_data_t:
 			return "#08a842"
 		elif self.color == gem_color.BLUE:
 			return "#4163c9"
+			
+	def get_url_suffix(self):
+		search = self.url_suffix_re.search(self.wiki_url)
+		return search.group(1)
 		
 
 def load_gems_from_file(path):
@@ -52,7 +58,7 @@ def load_gems_from_file(path):
 		
 		for gem in gems:
 			gem = gem_data_t( gem )
-			support_gems[ gem.shortname ] = gem
+			support_gems[ gem.shortname.lower() ] = gem
 			
 	return support_gems
 	
