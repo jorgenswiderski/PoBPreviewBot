@@ -70,8 +70,11 @@ class socket_group_t:
 			self.gems.append(gem_t(gem_xml, self))
 			
 	def __get_parent_item__(self):
-		slot = self.xml.attrib['slot']
-		self.item = self.build.equipped_items[slot]
+		if 'slot' in self.xml.attrib:
+			slot = self.xml.attrib['slot']
+			self.item = self.build.equipped_items[slot]
+		else:
+			self.item = None
 		
 	def getNthActiveGem(self, n):
 		currentSkill = 1
@@ -123,9 +126,12 @@ class gem_t:
 		
 		for gem in self.socket_group.gems:
 			if gem.enabled and support == self.name.lower():
-				return true
-				
-		return self.item.grants_support_gem(support)
+				return True
+		
+		if self.item is not None:
+			return self.item.grants_support_gem(support)
+			
+		return False
 	
 	def get_support_gem_str(self):
 		str = ""
@@ -136,13 +142,14 @@ class gem_t:
 				str += "[{:s}]({:s}#support-gem-{:s})".format(gem.data.shortcode, gem.data.wiki_url, gem.data.color_str)
 				
 		# Support gems granted by the item
-		for support in self.item.support_mods:
-			data = self.__get_gem_data__(support)
-			
-			if data:
-				str += "[{:s}]({:s}#support-gem-{:s})".format(data.shortcode, data.wiki_url, data.color_str)
-			else:
-				print("Warning: Support gem '{}' was not found in gem data and was ommitted in gem str!".format(support));
+		if self.item is not None:
+			for support in self.item.support_mods:
+				data = self.__get_gem_data__(support)
+				
+				if data:
+					str += "[{:s}]({:s}#support-gem-{:s})".format(data.shortcode, data.wiki_url, data.color_str)
+				else:
+					print("Warning: Support gem '{}' was not found in gem data and was ommitted in gem str!".format(support));
 				
 		return str
 	
