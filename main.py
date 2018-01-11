@@ -31,7 +31,7 @@ from pob_build import StatException
 from pob_build import UnsupportedException
 
 
-BOT_FOOTER = "[^Path ^of ^Building](https://github.com/Openarl/PathOfBuilding) ^| ^This ^reply ^will ^be ^automatically ^removed ^if ^its ^parent ^comment ^is ^deleted. ^| ^[Feedback?](https://www.reddit.com/r/PoBPreviewBot/)"
+BOT_FOOTER = "[^Path ^of ^Building](https://github.com/Openarl/PathOfBuilding) ^| ^This ^reply ^automatically ^updates ^based ^on ^its ^parent ^comment. ^| ^[Feedback?](https://www.reddit.com/r/PoBPreviewBot/)"
 
 locale.setlocale(locale.LC_ALL, '')
 
