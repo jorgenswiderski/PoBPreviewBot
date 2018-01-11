@@ -244,7 +244,7 @@ def parse_generic( reply_object, body, author = None ):
 			f.write(response + "\n\n\n")
 					
 def deletion_sort(a):
-	return a['time']
+	return int(a['time'])
 					
 def get_deletion_check_list():
 	cl = []
