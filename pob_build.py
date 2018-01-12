@@ -755,7 +755,7 @@ class build_t:
 		body += "\n"
 		
 		## Offense
-		num_supports = self.main_gem.get_num_supports()
+		num_supports = self.main_gem.get_num_support_gems()
 		
 		if num_supports < 3:
 			raise EligibilityException('Active skill {} has only {} support gem, it must have at least 3 support gems.'.format( self.main_gem.name, num_supports ) )
