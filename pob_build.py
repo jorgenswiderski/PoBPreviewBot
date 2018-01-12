@@ -79,7 +79,7 @@ class socket_group_t:
 	def getNthActiveGem(self, n):
 		currentSkill = 1
 		for gem in self.gems:
-			if not "Support" in gem.id and gem.enabled:
+			if not gem.is_support() and gem.enabled:
 				if currentSkill == n:
 					return gem
 				else:
@@ -120,8 +120,14 @@ class gem_t:
 		
 		if name in support_gem_data:
 			return support_gem_data[name]
+			
+	def is_support(self):
+		return "Support" in self.id
 		
 	def is_supported_by(self, support):
+		if self.is_support():
+			return False
+			
 		support = support.lower()
 		
 		for gem in self.socket_group.gems:
@@ -138,7 +144,7 @@ class gem_t:
 
 		# Support gems from xml (socketed into the item)
 		for gem in self.socket_group.gems:
-			if gem.enabled and "Support" in gem.id:
+			if gem.enabled and gem.is_support():
 				str += "[{:s}]({:s}#support-gem-{:s})".format(gem.data.shortcode, gem.data.wiki_url, gem.data.color_str)
 				
 		# Support gems granted by the item
@@ -702,7 +708,7 @@ class build_t:
 		links = 0
 		
 		for gem in self.main_socket_group.gems:
-			if gem.enabled and (self.main_gem.xml == gem.xml or "Support" in gem.id):
+			if gem.enabled and (self.main_gem == gem or gem.is_support()):
 				links += 1
 				
 		if links < 4:
