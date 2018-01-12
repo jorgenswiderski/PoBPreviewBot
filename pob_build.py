@@ -576,6 +576,9 @@ class build_t:
 		if wither is not None:
 			dps_config.append("Wither \({}\)".format(self.wither_stacks[wither.attrib['skillPart']]))
 				
+		if self.get_enabled_gem("Punishment") is not None:
+			dps_config.append("Punishment")
+				
 		return dps_config
 			
 	def __get_config_string__(self):
