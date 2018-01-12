@@ -159,6 +159,23 @@ class gem_t:
 				
 		return str
 	
+	def get_num_support_gems(self):
+		n = 0
+		
+		for gem in self.socket_group.gems:
+			if gem.enabled and gem.is_support():
+				n += 1
+		
+		return n
+			
+	def get_num_supports(self):
+		n = self.get_num_support_gems()
+		
+		if self.item is not None:
+			n += len(self.item.support_mods)
+			
+		return n
+	
 class item_t:
 	def __init__(self, item_xml):
 		self.xml = item_xml
@@ -704,22 +721,17 @@ class build_t:
 		body += "\n"
 		
 		## Offense
-		gem_name = self.main_gem.name
-		links = 0
+		num_supports = self.main_gem.get_num_supports()
 		
-		for gem in self.main_socket_group.gems:
-			if gem.enabled and (self.main_gem == gem or gem.is_support()):
-				links += 1
-				
-		if links < 4:
-			raise StatException('{:s} is in less than a 4L ({:.0f}L).'.format(  self.main_gem.name, links ) )
+		if num_supports < 3:
+			raise StatException('Active skill {} has only {} support gem, it must have at least 3 support gems.'.format( self.main_gem.name, num_supports ) )
 
 		dps_breakdown = self.get_dps_breakdown()
 		
 		if dps_breakdown[0][0] <= 0:
-			raise StatException('Active skill \'{:s}\' does no DPS! {:s}'.format( self.main_gem.name, repr(dps_breakdown) ))
+			raise StatException('Active skill {:s} does no DPS! {:s}'.format( self.main_gem.name, repr(dps_breakdown) ))
 		elif dps_breakdown[0][0] < 500:
-			raise StatException('Active skill \'{:s}\' does negligible DPS! {:s}'.format( self.main_gem.name, repr(dps_breakdown) ))
+			raise StatException('Active skill {:s} does negligible DPS! {:s}'.format( self.main_gem.name, repr(dps_breakdown) ))
 		
 		dps_str = ""
 		
@@ -729,7 +741,7 @@ class build_t:
 				
 			dps_str += "{:s} {:s}".format(util.floatToSigFig(b[0]), b[1])
 			
-		body += "**{:s}** {:s} *({:n}L)* - *{:s}*".format(gem_name, self.main_gem.get_support_gem_str(), links, dps_str) + '  \n'
+		body += "**{:s}** {:s} *({:n}L)* - *{:s}*".format(self.main_gem.name, self.main_gem.get_support_gem_str(), 1+num_supports, dps_str) + '  \n'
 		
 		line = "{:.2f} **Use/sec**".format(self.stats['player']['Speed'])
 		
