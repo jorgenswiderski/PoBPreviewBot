@@ -177,6 +177,12 @@ class gem_t:
 		return n
 	
 class item_t:
+	re_variant = re.compile("^Variant: .+")
+	re_reqs = re.compile("^Requires Level \d+")
+	re_implicits = re.compile("^Implicits: \d+")
+	re_support_mod = re.compile("socketed gems are supported by level \d+ (.+)")
+	re_variant_tag = re.compile("{variant:([\d,]+)}")
+
 	def __init__(self, item_xml):
 		self.xml = item_xml
 		self.id = int(self.xml.attrib['id'])
@@ -199,21 +205,51 @@ class item_t:
 		self.name = rows[2].strip()
 		self.base = rows[3].strip()
 		
-		self.__parse_for_support_gems__(rows)
+		self.__parse_mods__(rows)
+		self.__parse_for_support_gems__()
 		
-	def __parse_for_support_gems__(self, rows):
+	def __parse_mods__(self, rows):
+		self.mods = []
+		for i in range(4, len(rows)):
+			if self.re_variant.search(rows[i]):
+				continue
+			if self.re_reqs.search(rows[i]):
+				continue
+			if self.re_implicits.search(rows[i]):
+				continue
+				
+			if self.is_mod_active(rows[i]):
+				self.mods.append(rows[i])
+		
+	def __parse_for_support_gems__(self):
 		# Match in lower case just in case
-		reg = re.compile("socketed gems are supported by level \d+ (.+)")
-		
 		self.support_mods = []
 	
-		for r in rows:
-			s = reg.search(r.lower())
+		for r in self.mods:
+			s = self.re_support_mod.search(r.lower())
 			if s:
 				self.support_mods.append(s.group(1).strip())
 	
 	def grants_support_gem(self, support):
 		return support.lower() in self.support_mods
+		
+	def is_mod_active(self, mod):
+		# If there's a variant tag, skip any mods who require a variant different than the one the item is using.
+		var = self.re_variant_tag.search(mod)
+		
+		if var:
+			if 'variant' not in self.xml.attrib:
+				raise Exception("Item {} does not have attrib variant".format(self.id))
+				
+			req_variants = [int(v) for v in var.group(1).split(",")]
+			
+			if int(self.xml.attrib['variant']) not in req_variants:
+				#print("Ignoring row (v={}): {}", int(self.xml.attrib['variant']), rows[i])
+				return False
+				
+			#print("Row is valid (v={}): {}", int(self.xml.attrib['variant']), rows[i])
+			
+		return True
 
 class build_t:
 	config_bools = {
