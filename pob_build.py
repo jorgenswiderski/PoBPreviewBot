@@ -105,7 +105,7 @@ class gem_t:
 		self.level = int(self.xml.attrib['level'])
 		self.quality = int(self.xml.attrib['quality'])
 		
-		self.data = self.__get_gem_data__(self.name)
+		self.data = self.get_gem_data(self.name)
 		
 	def __parse_name__(self):
 		name = self.xml.attrib['nameSpec']
@@ -114,12 +114,26 @@ class gem_t:
 			self.name = skill_overrides[name]
 		else:
 			self.name = name
-			
-	def __get_gem_data__(self, name):
+	
+	@staticmethod
+	def get_gem_data(name):
 		name = name.lower()
 		
 		if name in support_gem_data:
 			return support_gem_data[name]
+		
+	def get_support_gem_dict(self):
+		dict = {}
+		
+		# Support gems from xml (socketed into the item)
+		for gem in self.socket_group.gems:
+			if gem.enabled and gem.is_support():
+				dict[gem.data.shortname.lower()] = gem.data
+
+		# Merge in all the support gems granted by the item's mods
+		dict.update(self.item.support_mods)
+					
+		return dict
 			
 	def is_support(self):
 		return "Support" in self.id
@@ -128,34 +142,14 @@ class gem_t:
 		if self.is_support():
 			return False
 			
-		support = support.lower()
+		return support.lower() in self.get_support_gem_dict()
 		
-		for gem in self.socket_group.gems:
-			if gem.enabled and support == gem.name.lower():
-				return True
-		
-		if self.item is not None:
-			return self.item.grants_support_gem(support)
-			
-		return False
 	
 	def get_support_gem_str(self):
 		str = ""
-
-		# Support gems from xml (socketed into the item)
-		for gem in self.socket_group.gems:
-			if gem.enabled and gem.is_support():
-				str += "[{:s}]({:s}#support-gem-{:s})".format(gem.data.shortcode, gem.data.wiki_url, gem.data.color_str)
-				
-		# Support gems granted by the item
-		if self.item is not None:
-			for support in self.item.support_mods:
-				data = self.__get_gem_data__(support)
-				
-				if data:
-					str += "[{:s}]({:s}#support-gem-{:s})".format(data.shortcode, data.wiki_url, data.color_str)
-				else:
-					print("Warning: Support gem '{}' was not found in gem data and was ommitted in gem str!".format(support));
+		
+		for name, data in self.get_support_gem_dict().items():
+			str += "[{:s}]({:s}#support-gem-{:s})".format(data.shortcode, data.wiki_url, data.color_str)
 				
 		return str
 	
@@ -169,12 +163,7 @@ class gem_t:
 		return n
 			
 	def get_num_supports(self):
-		n = self.get_num_support_gems()
-		
-		if self.item is not None:
-			n += len(self.item.support_mods)
-			
-		return n
+		return len(self.get_support_gem_dict())
 	
 class item_t:
 	re_variant = re.compile("^Variant: .+")
@@ -222,13 +211,19 @@ class item_t:
 				self.mods.append(rows[i])
 		
 	def __parse_for_support_gems__(self):
-		# Match in lower case just in case
-		self.support_mods = []
+		self.support_mods = {}
 	
 		for r in self.mods:
+			# Match in lower case just in case the mod has improper capitalization
 			s = self.re_support_mod.search(r.lower())
 			if s:
-				self.support_mods.append(s.group(1).strip())
+				name = s.group(1).strip()
+				data = gem_t.get_gem_data(name)
+				
+				if data:
+					self.support_mods[data.shortname.lower()] = data
+				else:
+					print("Warning: Support gem '{}' was not found in gem data and was ommitted in gem str!".format(name));
 	
 	def grants_support_gem(self, support):
 		return support.lower() in self.support_mods
