@@ -125,7 +125,7 @@ class gem_t:
 		support = support.lower()
 		
 		for gem in self.socket_group.gems:
-			if gem.enabled and support == self.name.lower():
+			if gem.enabled and support == gem.name.lower():
 				return True
 		
 		if self.item is not None:
