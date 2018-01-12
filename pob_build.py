@@ -48,11 +48,11 @@ stats_to_parse = [
 		],
 	},
 ]
-
-class StatException(Exception):
+	
+class EligibilityException(Exception):
 	pass
 	
-class UnsupportedException(Exception):
+class UnsupportedException(EligibilityException):
 	pass
 	
 class socket_group_t:
@@ -88,7 +88,7 @@ class socket_group_t:
 		if currentSkill > 1:
 			raise Exception('mainActiveSkill exceeds total number of active skill gems in socket group.')
 		else:
-			raise Exception('mainSocketGroup has no active skill gem!')
+			raise EligibilityException('Active skill group contains no active skill gems.')
 	
 class gem_t:
 	def __init__(self, gem_xml, socket_group):
@@ -192,7 +192,7 @@ class item_t:
 		s = reg.search(rows[1])
 		
 		if not s:
-			raise StatException('Failure to parse rarity of Item id={:.0f}'.format(self.id))
+			raise Exception('Failure to parse rarity of Item id={:.0f}'.format(self.id))
 			
 		self.rarity = s.group(1)
 		
@@ -287,7 +287,7 @@ class build_t:
 		main_socket_group = int(self.xml_build.attrib['mainSocketGroup'])
 		skills = self.xml.find('Skills')
 		if len(skills) == 0:
-			raise StatException('Build has no skills')
+			raise EligibilityException('Build has no active skills.')
 		self.main_socket_group = socket_group_t(skills[main_socket_group-1], self)
 		
 		# check to make sure main socket group is not in an inactive weapon set
@@ -296,7 +296,7 @@ class build_t:
 			slot = self.main_socket_group.xml.attrib['slot']
 			
 			if ( not useSecondWeaponSet and "Swap" in slot ) or ( useSecondWeaponSet and "Swap" not in slot ):
-				raise StatException('mainSocketGroup is in inactive weapon set.')
+				raise EligibilityException('The active skill gem is socketed in an inactive weapon (ie weapon swap).')
 		
 	def __parse_main_gem__(self):
 		if self.main_socket_group is None:
@@ -334,12 +334,12 @@ class build_t:
 		b = base64.b64decode(b64)
 		
 		if not b or len(b) < 6:
-			raise StatException('invalid passive skill tree')
+			raise Exception('The build\'s passive skill tree is invalid.')
 		
 		ver = ord(b[0]) * 16777216 + ord(b[1]) * 65536 + ord(b[2]) * 256 + ord(b[3])
 		
 		if ver > 4:
-			raise StatException("Invalid tree link (unknown version number '{:s}')".format(ver))
+			raise Exception("The build's passive skill tree link uses an unknown version (number '{:s}').".format(ver))
 			
 		#nodes = b.replace(ver >= 4 and chr(8) or chr(7), chr(-1))
 		nodes = b
@@ -388,7 +388,7 @@ class build_t:
 		elif isinstance(skill, str):
 			return skill in self.passives_by_name
 		else:
-			raise StatException()
+			raise Exception("has_passive_skill was passed an invalid param #2: {}".format(skill))
 			
 	def has_item_equipped(self, name):
 		for i in self.equipped_items:
@@ -727,14 +727,14 @@ class build_t:
 		num_supports = self.main_gem.get_num_supports()
 		
 		if num_supports < 3:
-			raise StatException('Active skill {} has only {} support gem, it must have at least 3 support gems.'.format( self.main_gem.name, num_supports ) )
+			raise EligibilityException('Active skill {} has only {} support gem, it must have at least 3 support gems.'.format( self.main_gem.name, num_supports ) )
 
 		dps_breakdown = self.get_dps_breakdown()
 		
 		if dps_breakdown[0][0] <= 0:
-			raise StatException('Active skill {:s} does no DPS! {:s}'.format( self.main_gem.name, repr(dps_breakdown) ))
+			raise EligibilityException('Active skill {:s} does no DPS! {:s}'.format( self.main_gem.name, repr(dps_breakdown) ))
 		elif dps_breakdown[0][0] < 500:
-			raise StatException('Active skill {:s} does negligible DPS! {:s}'.format( self.main_gem.name, repr(dps_breakdown) ))
+			raise EligibilityException('Active skill {:s} does negligible DPS! {:s}'.format( self.main_gem.name, repr(dps_breakdown) ))
 		
 		dps_str = ""
 		
