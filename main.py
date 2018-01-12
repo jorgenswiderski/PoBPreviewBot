@@ -27,11 +27,11 @@ from prawcore.exceptions import ServerError
 from prawcore.exceptions import ResponseException
 from prawcore.exceptions import Forbidden
 from praw.exceptions import APIException
-from pob_build import StatException
-from pob_build import UnsupportedException
+from pob_build import EligibilityException
 
 
 BOT_FOOTER = "[^Path ^of ^Building](https://github.com/Openarl/PathOfBuilding) ^| ^This ^reply ^automatically ^updates ^based ^on ^its ^parent ^comment. ^| ^[Feedback?](https://www.reddit.com/r/PoBPreviewBot/)"
+BOT_INTRO = "Hi there! I'm a bot that replies to [Path of Building](https://github.com/Openarl/PathOfBuilding) pastebins with a short summary of the build [like this](https://i.imgur.com/Ee9Sbo1.png)! Just include a link to any Path of Building pastebin in your comment or submission and I'll automatically respond."
 
 locale.setlocale(locale.LC_ALL, '')
 
@@ -68,16 +68,18 @@ def obj_type_str(obj):
 	else:
 		return "submission"
 	
-def buffered_reply(obj, response):
+def buffered_reply(obj, response, log = True):
 	global rate_limit_timer
 	if time.time() <  rate_limit_timer:
 		print "Queued reply to {:s} {:s}.".format(obj_type_str(obj), obj.id)
-		reply_queue.append((obj, response))
+		reply_queue.append((obj, response, log))
 		return
 		
 	#print "Attempting reply to " + obj.id
 	try:
-		log_reply(obj.reply(response), obj.id)
+		comment = obj.reply(response)
+		if log:
+			log_reply(comment, obj.id)
 	except APIException as e:
 		if "DELETED_COMMENT" in str(e):
 			print "Parent {} {} has been deleted before it could be responded to. Removing response from reply queue.".format(obj_type_str(obj), obj.id)
@@ -86,7 +88,7 @@ def buffered_reply(obj, response):
 			print "*** Failed to reply " + repr(e) + " ***"
 			print "Buffering reply for later"
 			rate_limit_timer = time.time() + 60
-			reply_queue.append((obj, response))
+			reply_queue.append((obj, response, log))
 			return
 		
 	print "Replied to {:s} {:s}.".format(obj_type_str(obj), obj.id)
@@ -108,8 +110,11 @@ def get_submission_author( submission ):
 		return official_forum.get_op_author( submission.url )
 	else:
 		return submission.author
+		
+class PastebinLimitException(Exception):
+	pass
 
-def get_response( reply_object, body, author = None ):
+def get_response( reply_object, body, author = None, ignore_blacklist = False ):
 	if not (reply_object and ( isinstance( reply_object, praw.models.Comment ) or isinstance( reply_object, praw.models.Submission ) ) ):
 		raise Exception("get_response passed invalid reply_object")
 	elif not ( body and ( isinstance( body, str ) or isinstance( body, unicode ) ) ):
@@ -133,7 +138,7 @@ def get_response( reply_object, body, author = None ):
 			bin = "https://" + match.group(0)
 			paste_key = pastebin.strip_url_to_key(bin)
 			
-			if not paste_key_is_blacklisted(paste_key) and paste_key not in bins_responded_to:
+			if (not paste_key_is_blacklisted(paste_key) or ignore_blacklist) and paste_key not in bins_responded_to:
 				try:
 					xml = pastebin.get_as_xml(paste_key)
 				except (zlib.error, TypeError):
@@ -153,9 +158,9 @@ def get_response( reply_object, body, author = None ):
 						try:
 							build = build_t(xml, bin, author)
 							response = build.get_response()
-						except UnsupportedException as e:
-							print "{:s}: {:s}".format(reply_object.id, repr(e))
+						except EligibilityException:
 							blacklist_pastebin(paste_key)
+							raise
 							continue
 						except Exception as e:
 							print repr(e)
@@ -198,7 +203,7 @@ def get_response( reply_object, body, author = None ):
 					blacklist_pastebin(paste_key)
 		
 		if len(responses) > 5:
-			print "Ignoring {} {} because it has greater than 5 valid pastebins. ({})".format(obj_type_str(reply_object), reply_object.id, len(responses))
+			raise PastebinLimitException("Ignoring {} {} because it has greater than 5 valid pastebins. ({})".format(obj_type_str(reply_object), reply_object.id, len(responses)))
 		elif len(responses) > 0:
 			comment_body = ""
 			if len(responses) > 1:
@@ -221,12 +226,17 @@ def parse_generic( reply_object, body, author = None ):
 		print body
 		print type(body)
 		raise Exception("parse_generic passed invalid body")
-
-	# get response text
-	response = get_response( reply_object, body, author = author )
 	
-	if not response:
-		return
+	response = None
+	
+	try:
+		# get response text
+		response = get_response( reply_object, body, author = author )
+	except (EligibilityException, PastebinLimitException) as e:
+		print(str(e))
+		
+	if response is None:
+		return False
 		
 	print "Found matching {:s} {:s}.".format(obj_type_str(reply_object), reply_object.id)
 	
@@ -242,6 +252,8 @@ def parse_generic( reply_object, body, author = None ):
 		#print "Reply body:\n" + response
 		with open("saved_replies.txt", "a") as f:
 			f.write(response + "\n\n\n")
+			
+	return True
 					
 def deletion_sort(a):
 	return int(a['time'])
@@ -364,6 +376,34 @@ def get_num_entries_to_pull(history):
 		
 	return math.floor(min(max( max(history), config.min_pull_count ), config.max_pull_count))
 	
+def reply_to_summon(comment):
+	errs = []
+	parent = comment.parent()
+	
+	if parent.author == r.user.me():
+		return
+	
+	try:
+		if isinstance(parent, praw.models.Comment):
+			get_response(parent, parent.body, ignore_blacklist = True)
+		else:
+			get_response(parent, get_submission_body( parent ), author = get_submission_author( parent ), ignore_blacklist = True)
+	except (EligibilityException, PastebinLimitException) as e:
+		errs.append("* {}".format(str(e)))
+	
+	response = None
+	
+	if len(errs) > 0:
+		response = "The {} {} was not responded to for the following reason{}:\n\n{}".format(obj_type_str(parent), parent.id, "s" if len(errs) > 1 else "", "  \n".join(errs))
+	else:
+		response = BOT_INTRO
+	
+	if response is None:
+		return
+	
+	if config.username == "PoBPreviewBot" or "pathofexile" not in config.subreddits:
+		buffered_reply(comment, response, log = False)
+	
 last_time_comments_parsed = {}
 for sub in config.subreddits:
 	last_time_comments_parsed[sub] = 0
@@ -384,7 +424,10 @@ def parse_comments(subreddit):
 			if comment.id not in processed_comments_dict:
 				track_comment(comment)
 				if comment.id not in comments_replied_to:
-					parse_generic( comment, comment.body )
+					replied = parse_generic( comment, comment.body )
+					
+					if not replied and ( "u/" + config.username ) in comment.body:
+						reply_to_summon( comment )
 					
 		if num_new_comments < num or num >= config.max_pull_count:
 			break
@@ -472,12 +515,15 @@ def check_comment_for_edit(t, parent, comment):
 	if ( isinstance(parent.edited, float) and parent.edited >= t - calc_deletion_check_time(comment) ) or t - parent.created_utc < 400 or ( comment.is_root and parent.selftext == '' and official_forum.is_post( parent.url ) ):
 		new_comment_body = None
 		
-		if isinstance(parent, praw.models.Comment):
-			new_comment_body = get_response(parent, parent.body)
-		else:
-			new_comment_body = get_response(parent, get_submission_body( parent ), author = get_submission_author( parent ) )
+		try:
+			if isinstance(parent, praw.models.Comment):
+				new_comment_body = get_response(parent, parent.body)
+			else:
+				new_comment_body = get_response(parent, get_submission_body( parent ), author = get_submission_author( parent ) )
+		except (EligibilityException, PastebinLimitException) as e:
+			print(e)
 		
-		if not new_comment_body:
+		if new_comment_body is None:
 			comment.delete()
 			print "Parent {:s} no longer links to any builds, deleted response comment {:s}.".format(parent.id, comment.id)
 			return True
@@ -588,7 +634,7 @@ def run_bot():
 	
 	if rate_limit_timer > 0 and t >= rate_limit_timer and len(reply_queue) > 0:
 		rep = reply_queue.pop()
-		buffered_reply(rep[0], rep[1])
+		buffered_reply(rep[0], rep[1], rep[2])
 	
 	for sub in config.subreddits:
 		if t - last_time_comments_parsed[sub] >= config.comment_parse_interval:
