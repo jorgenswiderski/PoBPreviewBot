@@ -426,7 +426,7 @@ def parse_comments(subreddit):
 				if comment.id not in comments_replied_to:
 					replied = parse_generic( comment, comment.body )
 					
-					if not replied and ( "u/" + config.username ) in comment.body:
+					if not replied and ( "u/" + config.username.lower() ) in comment.body.lower():
 						reply_to_summon( comment )
 					
 		if num_new_comments < num or num >= config.max_pull_count:
