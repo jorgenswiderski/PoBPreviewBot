@@ -131,7 +131,8 @@ class gem_t:
 				dict[gem.data.shortname.lower()] = gem.data
 
 		# Merge in all the support gems granted by the item's mods
-		dict.update(self.item.support_mods)
+		if self.item is not None:
+			dict.update(self.item.support_mods)
 					
 		return dict
 			
