@@ -382,18 +382,24 @@ def reply_to_summon(comment):
 	
 	if parent.author == r.user.me():
 		return
+		
+	p_response = None
 	
 	try:
 		if isinstance(parent, praw.models.Comment):
-			get_response(parent, parent.body, ignore_blacklist = True)
+			p_response = get_response(parent, parent.body, ignore_blacklist = True)
 		else:
-			get_response(parent, get_submission_body( parent ), author = get_submission_author( parent ), ignore_blacklist = True)
+			p_response = get_response(parent, get_submission_body( parent ), author = get_submission_author( parent ), ignore_blacklist = True)
 	except (EligibilityException, PastebinLimitException) as e:
 		errs.append("* {}".format(str(e)))
 	
 	response = None
-	
-	if len(errs) > 0:
+		
+	if p_response is not None and parent.id not in comments_replied_to and parent.id not in submissions_replied_to:
+		if config.username == "PoBPreviewBot" or "pathofexile" not in config.subreddits:
+			buffered_reply(parent, p_response)
+		response = "Seems like I missed comment {}! I've replied to it now, sorry about that.".format(parent.id)
+	elif len(errs) > 0:
 		response = "The {} {} was not responded to for the following reason{}:\n\n{}".format(obj_type_str(parent), parent.id, "s" if len(errs) > 1 else "", "  \n".join(errs))
 	else:
 		response = BOT_INTRO
