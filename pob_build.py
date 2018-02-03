@@ -7,6 +7,8 @@ from name_overrides import build_defining_uniques
 from gem_data import support_gems as support_gem_data
 import praw.models
 
+ERR_CHECK_ACTIVE_SKILL = 'Please make sure the correct skill is selected in the left panel when you export!'
+
 stats_to_parse = [
 	{
 		'elementType': 'PlayerStat',
@@ -88,7 +90,7 @@ class socket_group_t:
 		if currentSkill > 1:
 			raise Exception('mainActiveSkill exceeds total number of active skill gems in socket group.')
 		else:
-			raise EligibilityException('Active skill group contains no active skill gems. Please make sure the correct skill is selected in the left panel when you export!')
+			raise EligibilityException('Active skill group contains no active skill gems. {}'.format(ERR_CHECK_ACTIVE_SKILL))
 	
 class gem_t:
 	def __init__(self, gem_xml, socket_group):
@@ -333,7 +335,10 @@ class build_t:
 	def __parse_main_gem__(self):
 		if self.main_socket_group is None:
 			self.__parse_main_socket_group__()
-			
+		
+		if self.main_socket_group.xml.attrib['mainActiveSkill'] == 'nil':
+			raise EligibilityException('Active skill group contains no active skill gems. {}'.format(ERR_CHECK_ACTIVE_SKILL))
+		
 		nthSkill = int(self.main_socket_group.xml.attrib['mainActiveSkill'])
 		self.main_gem = self.main_socket_group.getNthActiveGem(nthSkill)
 		
@@ -759,14 +764,14 @@ class build_t:
 		num_supports = self.main_gem.get_num_support_gems()
 		
 		if num_supports < 3:
-			raise EligibilityException('Active skill {} has only {} support gem, it must have at least 3 support gems. Please make sure the correct skill is selected in the left panel when you export!'.format( self.main_gem.name, num_supports ) )
+			raise EligibilityException('Active skill {} has only {} support gem, it must have at least 3 support gems. {}'.format( self.main_gem.name, num_supports, ERR_CHECK_ACTIVE_SKILL ) )
 
 		dps_breakdown = self.get_dps_breakdown()
 		
 		if dps_breakdown[0][0] <= 0:
-			raise EligibilityException('Active skill {:s} does no DPS! {:s} Please make sure the correct skill is selected in the left panel when you export!'.format( self.main_gem.name, repr(dps_breakdown) ))
+			raise EligibilityException('Active skill {:s} does no DPS! {:s} {}'.format( self.main_gem.name, repr(dps_breakdown), ERR_CHECK_ACTIVE_SKILL ))
 		elif dps_breakdown[0][0] < 500:
-			raise EligibilityException('Active skill {:s} does negligible DPS! {:s} Please make sure the correct skill is selected in the left panel when you export!'.format( self.main_gem.name, repr(dps_breakdown) ))
+			raise EligibilityException('Active skill {:s} does negligible DPS! {:s} ()'.format( self.main_gem.name, repr(dps_breakdown), ERR_CHECK_ACTIVE_SKILL ))
 		
 		dps_str = ""
 		
