@@ -279,7 +279,7 @@ class build_t:
 		"1": 1,
 		"2": 5, 
 		"3": 10,
-		"4": 20,
+		"4": 15,
 	}
 	
 	def __init__(self, xml, pastebin_url, author):
