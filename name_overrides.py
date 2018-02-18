@@ -10,4 +10,7 @@ skill_overrides = {
 build_defining_uniques = {
 	"The Whispering Ice": "Whispering Ice",
 	"Ngamahu's Flame": "Ngamahu's",
+	"The Poet's Pen": "Poet's Pen",
+	"Mjolner": "Mjolner",
+	"Cospri's Malice": "Cospri's",
 }

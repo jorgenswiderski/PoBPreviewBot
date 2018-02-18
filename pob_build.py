@@ -554,7 +554,7 @@ class build_t:
 		if self.main_gem.name == "Lightning Warp":
 			return True
 		if self.main_gem.item is not None:
-			if self.main_gem.item.name == "Cospri's Malice" or self.main_gem.item.name == "Poet's Pen" or self.main_gem.item.name == "Mjölner":
+			if self.main_gem.item.name == "Cospri's Malice" or self.main_gem.item.name == "The Poet's Pen" or self.main_gem.item.name == "Mjolner":
 				return True
 			
 		return False
@@ -1017,7 +1017,7 @@ class build_t:
 		## Offense
 		num_supports = self.main_gem.get_num_support_gems()
 		
-		if num_supports < 3:
+		if num_supports < 3 and not ( self.main_gem.item is not None and ( self.main_gem.item.name == "Cospri's Malice" or self.main_gem.item.name == "The Poet's Pen" or self.main_gem.item.name == "Mjolner" ) ):
 			raise EligibilityException('Active skill {} has only {} support gem, it must have at least 3 support gems. {}'.format( self.main_gem.name, num_supports, ERR_CHECK_ACTIVE_SKILL ) )
 
 		dps_breakdown = self.get_dps_breakdown()
