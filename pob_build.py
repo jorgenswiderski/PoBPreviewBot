@@ -176,6 +176,38 @@ class gem_t:
 			
 	def get_num_supports(self):
 		return len(self.get_support_gem_dict())
+		
+	def get_totem_limit(self):
+		tl = self.build.get_totem_limit()
+		
+		if self.name == "Searing Bond":
+			tl += 1
+			
+		'''
+		# XML does not include attributes
+		if self.name == "Siege Ballista Totem" and self.build.has_item_equipped("Iron Commander"):
+			tl += math.floor( self.build.get_attribute("Dexterity") / 200 )
+		'''
+			
+		if self.build.has_item_equipped("Skirmish") and ( self.is_supported_by("Ranged Attack Totem") or self.name == "Ancestral Protector" or self.name == "Ancestral Warchief" ):
+			tl += 1
+			
+		return tl
+	
+	def is_totem(self):
+		return " Totem" in self.name or self.name == "Ancestral Warchief" or self.name == "Ancestral Protector" or self.is_supported_by("Ranged Attack Totem") or self.is_supported_by("Spell Totem")
+		
+	def is_mine(self):
+		return " Mine" in self.name or self.is_supported_by("Remote Mine")
+	
+	def is_trap(self):
+		return " Trap" in self.name or self.is_supported_by("Trap")
+		
+	def has_stackable_dot(self):
+		if self.name == "Scorching Ray":
+			return True
+		
+		return False
 	
 class item_t:
 	re_variant = re.compile("^Variant: .+")
@@ -187,6 +219,9 @@ class item_t:
 	def __init__(self, item_xml):
 		self.xml = item_xml
 		self.id = int(self.xml.attrib['id'])
+		
+		# set by build_t.__parse_items__()
+		self.slot = None
 		
 		self.__parse_xml__()
 		
@@ -415,6 +450,7 @@ class build_t:
 			
 		for slot in xml_items.findall('Slot'):
 			self.equipped_items[slot.attrib['name']] = self.items[int(slot.attrib['itemId'])]
+			self.equipped_items[slot.attrib['name']].slot = slot.attrib['name']
 			
 		#print repr(self.equipped_items)
 		
@@ -487,10 +523,31 @@ class build_t:
 		
 		return self.main_gem.name
 		
+	def get_totem_limit(self):
+		tl = 1
+		
+		if self.has_passive_skill("Ancestral Bond"):
+			tl += 1
+			
+		if self.has_item_equipped("Soul Mantle"):
+			tl += 1
+			
+		if self.has_passive_skill("Hierophant") and self.main_gem.item is not None and self.main_gem.item.slot == "Helmet":
+			tl += 1
+		
+		if self.has_passive_skill("Ritual of Awakening"):
+			tl += 2
+			
+		if self.has_item_equipped("Tukohama's Fortress"):
+			tl += 1
+			
+		return tl
+		
+		
 	def show_average_damage(self):
-		if " Trap" in self.main_gem.name or self.main_gem.is_supported_by("Trap"):
+		if self.main_gem.is_trap():
 			return True
-		if " Mine" in self.main_gem.name or self.main_gem.is_supported_by("Remote Mine"):
+		if self.main_gem.is_mine():
 			return True
 		if "Vaal " in self.main_gem.name and self.main_gem.name != "Vaal Cyclone":
 			return True
@@ -500,7 +557,7 @@ class build_t:
 		return False
 		
 	def show_dps(self):
-		if " Mine" in self.main_gem.name or self.main_gem.is_supported_by("Remote Mine"):
+		if self.main_gem.is_mine():
 			return True
 		if self.show_average_damage():
 			return False
@@ -534,18 +591,17 @@ class build_t:
 	def get_speed_multiplier(self):
 		sm = 1.000
 		
-		if " Mine" in self.main_gem.name or self.main_gem.is_supported_by("Remote Mine"):
-			if self.main_gem.is_supported_by("Minefield"):
-				sm *= 3.000
+		if self.main_gem.is_mine() and self.main_gem.is_supported_by("Minefield"):
+			sm *= 3.000
 				
 		return sm
 		
 	def get_speed(self):
 		speed = self.get_stat('Speed')
 	
-		if " Mine" in self.main_gem.name or self.main_gem.is_supported_by("Remote Mine"):
+		if self.main_gem.is_mine():
 			speed = 1 / float(self.get_stat('MineLayingTime'))
-		if " Trap" in self.main_gem.name or self.main_gem.is_supported_by("Trap"):
+		if self.main_gem.is_trap():
 			speed = 1 / float(self.get_stat('TrapThrowingTime'))
 			
 		speed *= self.get_speed_multiplier()
@@ -553,9 +609,9 @@ class build_t:
 		return speed
 		
 	def get_speed_str(self):
-		if " Mine" in self.main_gem.name or self.main_gem.is_supported_by("Remote Mine"):
+		if self.main_gem.is_mine():
 			return "Mines/sec"
-		elif " Trap" in self.main_gem.name or self.main_gem.is_supported_by("Trap"):
+		elif self.main_gem.is_trap():
 			return "Throws/sec"
 		else:
 			return "Use/sec"
@@ -697,16 +753,34 @@ class build_t:
 				
 				# skill specific override
 				if self.main_gem.name == "Essence Drain":
-					if dps['poison'] <= 0.0:
+					if dps['poison'] <= 0.000:
 						dps['direct'] = 0.000
 						dps['ignite'] = 0.000
 				
+				if self.main_gem.is_totem() and self.main_gem.get_totem_limit() > 1:
+					# assume skill DoT stacks
+					per_totem = dps['direct'] + dps['poison']
+					
+					dot_stacks = self.main_gem.has_stackable_dot()
+					
+					if dot_stacks:
+						per_totem += dps['skillDoT']
+						
+					dps_stats.append( ( per_totem, " DPS per totem" ) )
+					
+					totem_limit = self.get_totem_limit()
+					dps['direct'] *= totem_limit
+					dps['poison'] *= totem_limit
+					
+					if dot_stacks:
+						dps['skillDoT'] *= totem_limit
+						
 				total = sum(dps.values())
 				
 				# only show DoTs in breakdown if, together, they add up to a meaningful amount of DPS
 				if dps['direct'] < 0.95 * total:
-					# Base DoT
-					if dps['skillDoT'] > 0.01 * total:
+					# Base DoT -- only show if its not the sole source of damage
+					if dps['skillDoT'] > 0.01 * total and total != dps['skillDoT']:
 						dps_stats.append( ( dps['skillDoT'], "skill DoT DPS" ) )
 						
 					# Poison
@@ -728,12 +802,9 @@ class build_t:
 					# sort stats descending
 					if len(dps_stats) > 1:
 						dps_stats.sort(key=build_t.stat_sort, reverse=True)
-						
-					if dps['direct'] <= 0 and len(dps_stats) == 1:
-						# If skill does no direct damage and only 1 kind of DoT (ie RF, SR) then just show that 1 dot as the total DPS
-						dps_stats = [ ( dps_stats[0][0], "DPS" ) ]
-					else:
-						dps_stats.insert(0, ( total, "total DPS" ))
+				
+				if len(dps_stats) > 0:
+					dps_stats.insert(0, ( total, "total DPS" ))
 				else:
 					dps_stats.insert(0, ( total, "DPS" ))
 				
@@ -964,6 +1035,9 @@ class build_t:
 		body += "**{:s}** {:s} *({:n}L)* - *{:s}*".format(self.main_gem.name, self.main_gem.get_support_gem_str(), 1+num_supports, dps_str) + '  \n'
 		
 		line = "{:.2f} **{}**".format(self.get_speed(), self.get_speed_str())
+		
+		if self.main_gem.is_totem():
+			line += " | {} **Totems**".format(self.main_gem.get_totem_limit())
 		
 		if self.get_stat('CritChance') >= 20:
 			line += " | {:.2f}% **Crit** | {:n}% **Multi**".format(self.get_stat('CritChance'), self.get_stat('CritMultiplier')*100)

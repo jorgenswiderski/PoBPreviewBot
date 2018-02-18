@@ -92,6 +92,11 @@ def buffered_reply(obj, response, log = True):
 			return
 		
 	print "Replied to {:s} {:s}.".format(obj_type_str(obj), obj.id)
+	
+	if isinstance(obj, praw.models.Comment):
+		comments_replied_to.append(obj.id)
+	else:
+		submissions_replied_to.append(obj.id)
 
 	with open("{:s}s_replied_to.txt".format(obj_type_str(obj)), "a") as f:
 		f.write(obj.id + "\n")
@@ -243,11 +248,6 @@ def parse_generic( reply_object, body, author = None ):
 	# post reply
 	if config.username == "PoBPreviewBot" or "pathofexile" not in config.subreddits:
 		buffered_reply(reply_object, response)
-		
-		if isinstance(reply_object, praw.models.Comment):
-			comments_replied_to.append(reply_object.id)
-		else:
-			submissions_replied_to.append(reply_object.id)
 	else:
 		#print "Reply body:\n" + response
 		with open("saved_replies.txt", "a") as f:
@@ -376,6 +376,13 @@ def get_num_entries_to_pull(history):
 		
 	return math.floor(min(max( max(history), config.min_pull_count ), config.max_pull_count))
 	
+def has_reply_buffered(id):
+	for entry in reply_queue:
+		if id == entry[0].id:
+			return True
+	
+	return False
+	
 def reply_to_summon(comment):
 	errs = []
 	parent = comment.parent()
@@ -395,7 +402,7 @@ def reply_to_summon(comment):
 	
 	response = None
 		
-	if p_response is not None and parent.id not in comments_replied_to and parent.id not in submissions_replied_to:
+	if p_response is not None and parent.id not in comments_replied_to and parent.id not in submissions_replied_to and not has_reply_buffered(parent.id):
 		if config.username == "PoBPreviewBot" or "pathofexile" not in config.subreddits:
 			buffered_reply(parent, p_response)
 		response = "Seems like I missed comment {}! I've replied to it now, sorry about that.".format(parent.id)
@@ -429,7 +436,7 @@ def parse_comments(subreddit):
 		for comment in comments:
 			if comment.id not in processed_comments_dict:
 				track_comment(comment)
-				if comment.id not in comments_replied_to:
+				if comment.id not in comments_replied_to and not has_reply_buffered(comment.id):
 					replied = parse_generic( comment, comment.body )
 					
 					if not replied and ( "u/" + config.username ).lower() in comment.body.lower():
@@ -466,7 +473,7 @@ def parse_submissions(subreddit):
 		for submission in submissions:
 			if submission.id not in processed_submissions_dict:
 				track_submission(submission)
-				if submission.id not in submissions_replied_to:
+				if submission.id not in submissions_replied_to and not has_reply_buffered(submission.id):
 					parse_generic( submission, get_submission_body( submission ), author = get_submission_author( submission ) )
 		
 		if num_new_submissions < num or num >= config.max_pull_count:
@@ -515,10 +522,10 @@ def check_comment_for_deletion(parent, comment):
 @retry(retry_on_exception=is_praw_error,
 	   wait_exponential_multiplier=config.praw_error_wait_time,
 	   wait_func=praw_error_retry)	
-def check_comment_for_edit(t, parent, comment):
+def check_comment_for_edit(t, parent, comment, scheduled_time):
 	# has the comment been edited recently OR the comment is new (edit tag is not visible so we need to check to be safe)
 	
-	if ( isinstance(parent.edited, float) and parent.edited >= t - calc_deletion_check_time(comment) ) or t - parent.created_utc < 400 or ( comment.is_root and parent.selftext == '' and official_forum.is_post( parent.url ) ):
+	if ( isinstance(parent.edited, float) and parent.edited >= scheduled_time - 60 ) or t - parent.created_utc < 400 or ( comment.is_root and parent.selftext == '' and official_forum.is_post( parent.url ) ):
 		new_comment_body = None
 		
 		try:
@@ -531,6 +538,14 @@ def check_comment_for_edit(t, parent, comment):
 		
 		if new_comment_body is None:
 			comment.delete()
+			
+			if isinstance(parent, praw.models.Comment):
+				comments_replied_to.remove(parent.id)
+				write_replied_to_file(comments=True)
+			else:
+				submissions_replied_to.remove(parent.id)
+				write_replied_to_file(submissions=True)
+				
 			print "Parent {:s} no longer links to any builds, deleted response comment {:s}.".format(parent.id, comment.id)
 			return True
 		elif new_comment_body != comment.body:
@@ -538,6 +553,11 @@ def check_comment_for_edit(t, parent, comment):
 			print "Edited comment {:s} to reflect changes in parent {:s}.".format(comment.id, parent.id)
 		#else:
 		#	print "{:s}'s response body is unchanged.".format(parent.id)
+	#else:
+	#	if isinstance(parent.edited, float):
+	#		print("{} was last edited {:.0f}s ago ({:.0f}s before the edit window).".format(obj_type_str(parent), t - parent.edited, scheduled_time - 60 - parent.edited))
+	#	elif t - parent.created_utc >= 400:
+	#		print("{} is more than 400s old ({:.0f}s) and is not edited.".format(obj_type_str(parent), t - parent.created_utc))
 			
 	return False
 			
@@ -549,6 +569,15 @@ def write_maintenance_list_to_file():
 	
 	with open("active_comments.txt", "w") as f:
 		f.write( str )
+		
+
+def write_replied_to_file(comments=False, submissions=False):
+	if comments:
+		with open("comments_replied_to.txt", "w") as f:
+			f.write( "\n".join( comments_replied_to ) + "\n" )
+	if submissions:
+		with open("submissions_replied_to.txt", "w") as f:
+			f.write( "\n".join( submissions_replied_to ) + "\n" )
 		
 def maintenance_list_insert(entry):
 	# binary search for the index to insert at
@@ -614,7 +643,7 @@ def maintain_comments(t):
 			deleted = check_comment_for_deletion(parent, comment)
 
 		if not deleted:
-			deleted = check_comment_for_edit(t, parent, comment)
+			deleted = check_comment_for_edit(t, parent, comment, int(entry['time']))
 	except urllib2.HTTPError as e:
 		print "An HTTPError occurred while maintaining comment {}. Skipping the check for now.".format(comment.id)
 	except Forbidden as e:
