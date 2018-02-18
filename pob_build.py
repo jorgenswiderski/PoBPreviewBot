@@ -455,7 +455,7 @@ class build_t:
 		#print repr(self.equipped_items)
 		
 	def __check_build_eligibility__(self):
-		if self.main_gem.is_supported_by("Cast on Critical Strike") or self.has_item_equipped("Cospri's Malice"):
+		if self.main_gem.is_supported_by("Cast on Critical Strike"):
 			raise UnsupportedException('Cast on Critical Strike builds are currently not supported.')
 		
 	def get_class(self):
@@ -553,6 +553,9 @@ class build_t:
 			return True
 		if self.main_gem.name == "Lightning Warp":
 			return True
+		if self.main_gem.item is not None:
+			if self.main_gem.item.name == "Cospri's Malice" or self.main_gem.item.name == "Poet's Pen" or self.main_gem.item.name == "Mjölner":
+				return True
 			
 		return False
 		
