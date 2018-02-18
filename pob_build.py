@@ -39,6 +39,9 @@ stats_to_parse = [
 			"LifeUnreserved",
 			"BleedDPS",
 			"IgniteDPS",
+			"MineLayingTime",
+			"TrapThrowingTime",
+			#"TrapCooldown",
 		],
 	},
 	{
@@ -447,8 +450,11 @@ class build_t:
 				
 		return False
 		
+	def get_stat(self, stat_name, minion=False):
+		return self.stats['minion' if minion else 'player'][stat_name]
+		
 	def is_low_life(self):
-		return self.stats['player']['LifeUnreservedPercent'] < 35
+		return self.get_stat('LifeUnreservedPercent') < 35
 
 	def is_MoM(self):
 		return self.has_passive_skill("Mind Over Matter") or self.has_item_equipped("Cloak of Defiance")
@@ -469,7 +475,7 @@ class build_t:
 		return p
 
 	def is_hybrid(self):
-		return not self.has_passive_skill("Chaos Inoculation") and not self.is_low_life() and self.stats['player']['EnergyShield'] >= self.stats['player']['LifeUnreserved'] * 0.25
+		return not self.has_passive_skill("Chaos Inoculation") and not self.is_low_life() and self.get_stat('EnergyShield') >= self.get_stat('LifeUnreserved') * 0.25
 		
 	def get_main_descriptor(self):
 		for unique in build_defining_uniques:
@@ -481,8 +487,28 @@ class build_t:
 		
 		return self.main_gem.name
 		
+	def show_average_damage(self):
+		if " Trap" in self.main_gem.name or self.main_gem.is_supported_by("Trap"):
+			return True
+		if " Mine" in self.main_gem.name or self.main_gem.is_supported_by("Remote Mine"):
+			return True
+		if "Vaal " in self.main_gem.name and self.main_gem.name != "Vaal Cyclone":
+			return True
+		if self.main_gem.name == "Lightning Warp":
+			return True
+			
+		return False
+		
+	def show_dps(self):
+		if " Mine" in self.main_gem.name or self.main_gem.is_supported_by("Remote Mine"):
+			return True
+		if self.show_average_damage():
+			return False
+		
+		return True
+		
 	def get_bleed_dps(self):
-		bleed = self.stats['player']['BleedDPS']
+		bleed = self.get_stat('BleedDPS')
 		
 		if self.has_passive_skill("Crimson Dance"):
 			desc = "\n".join(passives.nodes[self.passives_by_name["Crimson Dance"]]['sd'])
@@ -491,19 +517,64 @@ class build_t:
 			
 		return bleed
 		
-	def get_poison_dps(self):
-		return self.stats['player']['WithPoisonDPS'] - self.stats['player']['TotalDPS'] - self.stats['player']['TotalDot']
+	def get_average_damage(self):
+		damage = {}
+		
+		damage['direct'] = self.get_stat('AverageDamage')
+		
+		if self.get_stat('WithPoisonDPS') > 0:
+			# janky poison average damage calculation because "WithPoisonAverageDamage" is only in the XML for average 
+			# damage skills, and "PoisonDamage" doesn't account for poison chance which also isn't in the XML.
+			damage['poison'] = ( self.get_stat('WithPoisonDPS') - self.get_stat('TotalDPS') ) / self.get_stat('Speed')
+		else:
+			damage['poison'] = 0.000
+		
+		return damage
+		
+	def get_speed_multiplier(self):
+		sm = 1.000
+		
+		if " Mine" in self.main_gem.name or self.main_gem.is_supported_by("Remote Mine"):
+			if self.main_gem.is_supported_by("Minefield"):
+				sm *= 3.000
+				
+		return sm
+		
+	def get_speed(self):
+		speed = self.get_stat('Speed')
+	
+		if " Mine" in self.main_gem.name or self.main_gem.is_supported_by("Remote Mine"):
+			speed = 1 / float(self.get_stat('MineLayingTime'))
+		if " Trap" in self.main_gem.name or self.main_gem.is_supported_by("Trap"):
+			speed = 1 / float(self.get_stat('TrapThrowingTime'))
+			
+		speed *= self.get_speed_multiplier()
+		
+		return speed
+		
+	def get_speed_str(self):
+		if " Mine" in self.main_gem.name or self.main_gem.is_supported_by("Remote Mine"):
+			return "Mines/sec"
+		elif " Trap" in self.main_gem.name or self.main_gem.is_supported_by("Trap"):
+			return "Throws/sec"
+		else:
+			return "Use/sec"
+			
+	@staticmethod
+	def stat_sort(element):
+		return element[0]
 		
 	def get_dps_breakdown(self):
-		if self.stats['minion']['TotalDPS'] > 0:
-			if self.stats['player']['ActiveMinionLimit'] > 1:
+		if self.get_stat('TotalDPS', minion=True) > 0:
+			if self.get_stat('ActiveMinionLimit') > 1:
 				return [
-					(self.stats['minion']['TotalDPS'] * self.stats['player']['ActiveMinionLimit'], "total DPS"),
-					(self.stats['minion']['TotalDPS'], "DPS per minion"),
+					(self.get_stat('TotalDPS', minion=True) * self.get_stat('ActiveMinionLimit'), "total DPS"),
+					(self.get_stat('TotalDPS', minion=True), "DPS per minion"),
 				]
 			else:
-				return [ (self.stats['minion']['TotalDPS'], "DPS") ]
+				return [ (self.get_stat('TotalDPS', minion=True), "DPS") ]
 		else:
+			'''
 			dot = 0
 			direct = 0
 			
@@ -513,36 +584,47 @@ class build_t:
 				dot += self.stats['player']['TotalDot']
 				#print "{:.2f} base DoT".format(self.stats['player']['TotalDot'])
 			else:
+				use_average_damage = self.use_average_damage()
+					
 				# Direct DPS
-				direct += self.stats['player']['TotalDPS']
-				#print "{:.2f} direct".format(self.stats['player']['TotalDPS'])
+				if use_average_damage:
+					direct += self.stats['player']['AverageDamage']
+				else:
+					direct += self.stats['player']['TotalDPS']
+					#print "{:.2f} direct".format(self.stats['player']['TotalDPS'])
 			
 				if self.stats['player']['WithPoisonDPS'] > 0:
 					# Poison
-					dot += self.get_poison_dps()
-					#print "{:.2f} poison".format(self.stats['player']['WithPoisonDPS'] - self.stats['player']['TotalDPS'])
+					if use_average_damage:
+						dot += self.stats['player']['WithPoisonAverageDamage'] - self.stats['player']['AverageDamage']
+					else:
+						dot += self.get_poison_dps()
+						#print "{:.2f} poison".format(self.stats['player']['WithPoisonDPS'] - self.stats['player']['TotalDPS'])
 					
 				# base DoT still contributes to DPS total (if relevant)
-				if self.stats['player']['TotalDot'] > 0:
+				if not use_average_damage and self.stats['player']['TotalDot'] > 0:
 					# Base DoT
 					dot += self.stats['player']['TotalDot']
 			
-			# Bleed
-			dot += self.get_bleed_dps()
-			#print "{:.2f} bleed".format(self.get_bleed_dps())
-			
-			# Ignite
-			dot += self.stats['player']['IgniteDPS']
-			#print "{:.2f} ignite".format(self.stats['player']['IgniteDPS'])
-			
-			# Decay
-			dot += self.stats['player']['DecayDPS']
-			#print "{:.2f} decay".format(self.stats['player']['DecayDPS'])
+			if not use_average_damage:
+				# Bleed
+				dot += self.get_bleed_dps()
+				#print "{:.2f} bleed".format(self.get_bleed_dps())
+				
+				# Ignite
+				dot += self.stats['player']['IgniteDPS']
+				#print "{:.2f} ignite".format(self.stats['player']['IgniteDPS'])
+				
+				# Decay
+				dot += self.stats['player']['DecayDPS']
+				#print "{:.2f} decay".format(self.stats['player']['DecayDPS'])
 			
 			total = direct + dot
 			
-			# if direct DPS is >95% of the total DPS
-			if max(direct, self.stats['player']['TotalDot']) >= 0.95 * total:
+			if use_average_damage:
+				return [ ( total, "avg damage" ) ]
+			# if direct DPS is >95% of the total DPS	
+			elif max(direct, self.stats['player']['TotalDot']) >= 0.95 * total:
 				return [ ( total, "DPS" ) ]
 			else:
 				r = [ ( total, "total DPS" ) ]
@@ -568,6 +650,99 @@ class build_t:
 					r.append( ( self.stats['player']['DecayDPS'], "decay DPS" ) )
 		
 				return r
+			'''
+			damage = {}
+			stats = []
+			
+			if self.show_average_damage():
+				damage = self.get_average_damage()
+				
+				total = damage['direct'] + damage['poison']
+						
+				if damage['poison'] >= 0.05 * total:
+					stats.append( ( total, "total dmg" ) )
+					stats.append( ( damage['poison'], "poison dmg" ) )
+				else:
+					stats.append( ( total, "avg damage" ) )
+				
+			if self.show_dps():
+				dps = {}
+				
+				# new list for dps stats so we can sort it independently of average damage stats
+				dps_stats = []
+				
+				# if this skill is an average damage skill
+				if len(damage) > 0:
+					# then calculate the DPS using average damage times speed
+					speed = self.get_speed()
+					dps['direct'] = damage['direct'] * speed
+					dps['poison'] = damage['poison'] * speed
+				else:
+					# otherwise just use the DPS stats
+					dps['direct'] = self.get_stat('TotalDPS')
+					if self.get_stat('WithPoisonDPS') > 0:
+						# For some reason WithPoisonDPS also includes skill DoT DPS
+						dps['poison'] = self.get_stat('WithPoisonDPS') - dps['direct'] - self.get_stat('TotalDot')
+					else:
+						dps['poison'] = 0.000
+				
+				'''skill_hit_multiplier = self.get_stat('TotalDPS') / dps['direct']
+				dps['direct'] *= skill_hit_multiplier
+				dps['poison'] *= skill_hit_multiplier'''
+				
+				dps['skillDoT'] = self.get_stat('TotalDot')
+				dps['bleed'] = self.get_bleed_dps()
+				dps['ignite'] = self.get_stat('IgniteDPS')
+				dps['decay'] = self.get_stat('DecayDPS')
+				
+				# skill specific override
+				if self.main_gem.name == "Essence Drain":
+					if dps['poison'] <= 0.0:
+						dps['direct'] = 0.000
+						dps['ignite'] = 0.000
+				
+				total = sum(dps.values())
+				
+				# only show DoTs in breakdown if, together, they add up to a meaningful amount of DPS
+				if dps['direct'] < 0.95 * total:
+					# Base DoT
+					if dps['skillDoT'] > 0.01 * total:
+						dps_stats.append( ( dps['skillDoT'], "skill DoT DPS" ) )
+						
+					# Poison
+					if dps['poison'] > 0.01 * total:
+						dps_stats.append( ( dps['poison'], "poison DPS" ) )
+					
+					# Bleed
+					if dps['bleed'] > 0.01 * total:
+						dps_stats.append( ( dps['bleed'], "bleed DPS" ) )
+						
+					# Ignite
+					if dps['ignite'] > 0.01 * total:
+						dps_stats.append( ( dps['ignite'], "ignite DPS" ) )
+						
+					# Decay
+					if dps['decay'] > 0.01 * total:
+						dps_stats.append( ( dps['decay'], "decay DPS" ) )
+						
+					# sort stats descending
+					if len(dps_stats) > 1:
+						dps_stats.sort(key=build_t.stat_sort, reverse=True)
+						
+					if dps['direct'] <= 0 and len(dps_stats) == 1:
+						# If skill does no direct damage and only 1 kind of DoT (ie RF, SR) then just show that 1 dot as the total DPS
+						dps_stats = [ ( dps_stats[0][0], "DPS" ) ]
+					else:
+						dps_stats.insert(0, ( total, "total DPS" ))
+				else:
+					dps_stats.insert(0, ( total, "DPS" ))
+				
+				# combine DPS stats and average damage stats into one list
+				dps_stats.extend(stats)
+				stats = dps_stats
+				
+		return stats
+		
 				
 	def get_enabled_gem(self, gem_name):
 		for gem in self.xml.findall("./Skills/Skill/Gem[@nameSpec='{}']".format(gem_name)):
@@ -630,8 +805,7 @@ class build_t:
 		if len(dps_config) == 0:
 			return ""
 		
-		return "  \n\n" + " **Config:** {:s}".format(", ".join(dps_config)).replace(' ', " ^^")
-			
+		return "  \n\n" + " **Config:** {:s}".format(", ".join(dps_config)).replace(' ', " ^^")	
 		
 	def get_response(self):
 		response = self.get_response_header()
@@ -660,7 +834,7 @@ class build_t:
 		
 		# Crit descriptor
 		crit_desc = ""
-		if self.stats['player']["CritChance"] >= 20:
+		if self.get_stat("CritChance") >= 20:
 			crit_desc = " Crit"
 		
 		# Skill Descriptor
@@ -700,27 +874,27 @@ class build_t:
 		show_ehp = False
 		
 		if self.has_passive_skill("Chaos Inoculation"):
-			body = "{:n} **ES**".format(self.stats['player']['EnergyShield'])
-			total_ehp += self.stats['player']['EnergyShield']
+			body = "{:n} **ES**".format(self.get_stat('EnergyShield'))
+			total_ehp += self.get_stat('EnergyShield')
 		else:
-			body = "{:n} **Life**".format(self.stats['player']['LifeUnreserved'])
-			total_ehp += self.stats['player']['LifeUnreserved']
+			body = "{:n} **Life**".format(self.get_stat('LifeUnreserved'))
+			total_ehp += self.get_stat('LifeUnreserved')
 			
 			if self.is_MoM():
 				# Display the full amount of unreserved mana
-				body += " | {:n} **Mana**".format(self.stats['player']['ManaUnreserved'])
+				body += " | {:n} **Mana**".format(self.get_stat('ManaUnreserved'))
 				
 				# Calculate the maximum amount of mana that contributes to the player's EHP
 				mom_pct = self.get_MoM_percent()
-				max_ehp_mana = self.stats['player']['LifeUnreserved'] * ( mom_pct / ( 1 - mom_pct ) )
+				max_ehp_mana = self.get_stat('LifeUnreserved') * ( mom_pct / ( 1 - mom_pct ) )
 				# Add up to the max amount
-				total_ehp += int( min( self.stats['player']['ManaUnreserved'], max_ehp_mana ) )
+				total_ehp += int( min( self.get_stat('ManaUnreserved'), max_ehp_mana ) )
 				
 				show_ehp = True
 				
 			if self.is_hybrid() or self.is_low_life():
-				body += " | {:n} **ES**".format(self.stats['player']['EnergyShield'])
-				total_ehp += self.stats['player']['EnergyShield']
+				body += " | {:n} **ES**".format(self.get_stat('EnergyShield'))
+				total_ehp += self.get_stat('EnergyShield')
 				show_ehp = True
 		
 		if show_ehp:
@@ -732,33 +906,33 @@ class build_t:
 		
 		line = ""
 		
-		if self.stats['player']['MeleeEvadeChance'] >= 15:
-			line += "{:.0f}% **Evade**".format(self.stats['player']['MeleeEvadeChance'])
+		if self.get_stat('MeleeEvadeChance') >= 15:
+			line += "{:.0f}% **Evade**".format(self.get_stat('MeleeEvadeChance'))
 		
-		if self.stats['player']['PhysicalDamageReduction'] >= 10:
+		if self.get_stat('PhysicalDamageReduction') >= 10:
 			if line != "":
 				line += " | "
-			line += "{:n}% **Phys** **Mitg**".format(self.stats['player']['PhysicalDamageReduction'])
+			line += "{:n}% **Phys** **Mitg**".format(self.get_stat('PhysicalDamageReduction'))
 		
-		if self.stats['player']['BlockChance'] >= 30:
+		if self.get_stat('BlockChance') >= 30:
 			if line != "":
 				line += " | "
-			line += "{:n}% **Block**".format(self.stats['player']['BlockChance'])
+			line += "{:n}% **Block**".format(self.get_stat('BlockChance'))
 		
-		if self.stats['player']['SpellBlockChance'] > 0:
+		if self.get_stat('SpellBlockChance') > 0:
 			if line != "":
 				line += " | "
-			line += "{:.0f}% **Spell** **Block**".format(self.stats['player']['SpellBlockChance'])
+			line += "{:.0f}% **Spell** **Block**".format(self.get_stat('SpellBlockChance'))
 		
-		if self.stats['player']['AttackDodgeChance'] > 3:
+		if self.get_stat('AttackDodgeChance') > 3:
 			if line != "":
 				line += " | "
-			line += "{:n}% **Dodge**".format(self.stats['player']['AttackDodgeChance'])
+			line += "{:n}% **Dodge**".format(self.get_stat('AttackDodgeChance'))
 		
-		if self.stats['player']['SpellDodgeChance'] > 3:
+		if self.get_stat('SpellDodgeChance') > 3:
 			if line != "":
 				line += " | "
-			line += "{:n}% **Spell** **Dodge**".format(self.stats['player']['SpellDodgeChance'])
+			line += "{:n}% **Spell** **Dodge**".format(self.get_stat('SpellDodgeChance'))
 		
 		if line != "":
 			line = '^' + line.replace(' ', ' ^') + '\n'
@@ -789,10 +963,10 @@ class build_t:
 			
 		body += "**{:s}** {:s} *({:n}L)* - *{:s}*".format(self.main_gem.name, self.main_gem.get_support_gem_str(), 1+num_supports, dps_str) + '  \n'
 		
-		line = "{:.2f} **Use/sec**".format(self.stats['player']['Speed'])
+		line = "{:.2f} **{}**".format(self.get_speed(), self.get_speed_str())
 		
-		if self.stats['player']['CritChance'] >= 20:
-			line += " | {:.2f}% **Crit** | {:n}% **Multi**".format(self.stats['player']['CritChance'], self.stats['player']['CritMultiplier']*100)
+		if self.get_stat('CritChance') >= 20:
+			line += " | {:.2f}% **Crit** | {:n}% **Multi**".format(self.get_stat('CritChance'), self.get_stat('CritMultiplier')*100)
 			
 		body += '^' + line.replace(' ', ' ^')
 		
