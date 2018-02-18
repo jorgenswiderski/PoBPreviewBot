@@ -112,6 +112,12 @@ class gem_t:
 	def __parse_name__(self):
 		name = self.xml.attrib['nameSpec']
 		
+		# Extremely rarely, a skill can be exported without a proper "nameSpec" attribute in which case we can't tell what the name of the skill is.
+		# No proper solution at the moment, so just throw an exception.
+		# Github issue: https://github.com/Openarl/PathOfBuilding/issues/835
+		if name == "":
+			raise EligibilityException('Active skill has malformed name, please re-export the build.')
+		
 		if name in skill_overrides:
 			self.name = skill_overrides[name]
 		else:
