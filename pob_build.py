@@ -546,8 +546,11 @@ class build_t:
 		if self.has_passive_skill("Hierophant") and self.main_gem.item is not None and self.main_gem.item.slot == "Helmet":
 			tl += 1
 		
+		if self.has_passive_skill("Pursuit of Faith"):
+			tl += 1
+		
 		if self.has_passive_skill("Ritual of Awakening"):
-			tl += 2
+			tl += 1
 			
 		patt = "Can have up to (\d+) additional Totems? summoned at a time".lower()
 			
