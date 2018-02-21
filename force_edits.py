@@ -9,9 +9,16 @@ def main(time_str, dcl):
 	
 	threshold = time.time() + dct
 	
+	updated = []
+	
 	for entry in dcl:
 		if int(entry['time']) < threshold:
-			print "Flagging {} for update.".format(entry['id'])
+			updated.append(entry['id'])
 			entry['time'] = 0
+			
+	if updated.length <= 10:
+		print "Flagged comments for update: {}".format(updated)
+	else:
+		print "Flagged {} comments for update.".format(updated.length)
 	
 	return dcl
