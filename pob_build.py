@@ -452,6 +452,20 @@ class build_t:
 			self.equipped_items[slot.attrib['name']] = self.items[int(slot.attrib['itemId'])]
 			self.equipped_items[slot.attrib['name']].slot = slot.attrib['name']
 			
+		# Jewels
+		jewel_idx = 0
+		for sock in self.xml.findall("Socket"):
+			id = int(sock.attrib['itemId'])
+			if id > 0:
+				jewel_idx += 1;
+				key = "Jewel{}".format(jewel_idx)
+				self.equipped_items[key] = self.items[id]
+				
+				if self.equipped_items[key].slot is None:
+					self.equipped_items[key].slot = key
+			
+				
+			
 		#print repr(self.equipped_items)
 		
 	def __check_build_eligibility__(self):
@@ -529,20 +543,31 @@ class build_t:
 		if self.has_passive_skill("Ancestral Bond"):
 			tl += 1
 			
-		if self.has_item_equipped("Soul Mantle"):
-			tl += 1
-			
 		if self.has_passive_skill("Hierophant") and self.main_gem.item is not None and self.main_gem.item.slot == "Helmet":
 			tl += 1
 		
 		if self.has_passive_skill("Ritual of Awakening"):
 			tl += 2
 			
+		patt = "Can have up to (\d+) additional Totems? summoned at a time".lower()
+			
+		for key in self.equipped_items:
+			item = self.equipped_items[key]
+			for mod in item.mods:
+				mo = re.search( patt, mod.lower() )
+				if mo is not None:
+					tl += int(mo.group(1))
+		
+		# covered by the above mod parsing code
+		'''
 		if self.has_item_equipped("Tukohama's Fortress"):
 			tl += 1
 			
+		if self.has_item_equipped("Soul Mantle"):
+			tl += 1
+		'''
+			
 		return tl
-		
 		
 	def show_average_damage(self):
 		if self.main_gem.is_trap():
