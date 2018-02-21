@@ -12,6 +12,8 @@ import traceback
 import urllib2
 from retrying import retry
 import traceback
+import sys
+from force_edits import main as force_edit
 
 import live_config as config
 import live_secret_config as sconfig
@@ -20,6 +22,7 @@ import live_secret_config as sconfig
 import pastebin
 import official_forum
 import util
+from util import calc_deletion_check_time
 from pob_build import build_t
 
 from prawcore.exceptions import RequestException
@@ -278,36 +281,6 @@ def get_deletion_check_list():
 			cl.sort(key=deletion_sort)
 			
 	return cl
-	
-					
-def calc_deletion_check_time(comment):
-	comment_age = time.time() - comment.created_utc
-	
-	# 0 < x < 15 minutes
-	# fixed interval of 60s
-	t = 60
-	
-	# 15m < x < 4h
-	if comment_age > 900:
-		# increase linearly up to 15 minutes
-		t *= min( comment_age, 14400 ) / ( 14400 / 15 )
-		
-	# 4h < x < 1w
-	if comment_age > 14400:
-		# increase exponentially up to 6 hours
-		t *= math.pow( 1.078726, ( min( comment_age, 604800 ) - 900 ) / 14400 )
-		
-	if comment_age > 604800:
-		# 2 weeks: 15.1 hrs
-		# 3 weeks: 24.0 hrs
-		# 4 weeks: 38.1 hrs
-		t *= math.pow( 2, ( comment_age - 604800 ) / 604800 )
-		
-	if config.deletion_check_interval_rng > 0:
-		t *= 1.0 + config.deletion_check_interval_rng * ( 2.0 * random.random() - 1.0 )
-		
-	return t
-		
 					
 def log_reply(comment, parent):
 	check_time = time.time() + calc_deletion_check_time(comment)
@@ -766,7 +739,7 @@ def get_blacklisted_pastebins():
 	
 def paste_key_is_blacklisted(paste_key):
 	return paste_key in pastebin_blacklist
-
+	
 	
 r = bot_login()
 comments_replied_to = get_saved_comments()
@@ -776,6 +749,11 @@ submissions_replied_to = get_saved_submissions()
 pastebin_blacklist = get_blacklisted_pastebins()
 #print pastebin_blacklist
 deletion_check_list = get_deletion_check_list()
+	
+if '-force' in sys.argv and sys.argv.index('-force') < len(sys.argv):
+	deletion_check_list = force_edit( sys.argv[ sys.argv.index('-force') + 1 ], deletion_check_list )	
+	write_maintenance_list_to_file()
+	
 schedule_next_deletion()
 #print deletion_check_list
 
