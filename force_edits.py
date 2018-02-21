@@ -16,9 +16,9 @@ def main(time_str, dcl):
 			updated.append(entry['id'])
 			entry['time'] = 0
 			
-	if updated.length <= 10:
+	if len(updated) <= 10:
 		print "Flagged comments for update: {}".format(updated)
 	else:
-		print "Flagged {} comments for update.".format(updated.length)
+		print "Flagged {} comments for update.".format( len(updated) )
 	
 	return dcl
