@@ -12,6 +12,7 @@ from response import get_response
 import official_forum
 
 from prawcore.exceptions import Forbidden
+from pob_build import EligibilityException
 
 def write_replied_to_file(comments=False, submissions=False):
 	if comments:
@@ -275,11 +276,11 @@ class maintain_list_t:
 			return
 		
 		time_str = args[ args.index('-force') + 1 ]
-		sec = parse_time_str(time_str)
+		sec = util.parse_time_str(time_str)
 		
-		next_check = entry_t.stat_next_check(sec)
+		next_check = entry_t.get_check_time(sec)
 		
-		threshold = time.time() + dct
+		threshold = time.time() + next_check
 		
 		updated = []
 		

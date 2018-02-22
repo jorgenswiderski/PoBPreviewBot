@@ -348,6 +348,7 @@ class build_t:
 		elif isinstance(author, str) or isinstance(author, unicode):
 			self.author = author
 		else:
+			# FIXME: This exception should NOT cause the pastbin to be blacklisted.
 			raise Exception('Build has invalid author')
 		
 	def __parse_character_info__(self):
