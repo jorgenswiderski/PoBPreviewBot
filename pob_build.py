@@ -449,6 +449,12 @@ class build_t:
 		self.equipped_items = {}
 			
 		for slot in xml_items.findall('Slot'):
+			# Skip inactive flasks
+			# FIXME: Inactive flasks are technically equipped but this is a bit simpler than having
+			# to worry about whether any item is "active" when only flasks have that property
+			if "Flask" in slot.attrib['name'] and not ('active' in slot.attrib and slot.attrib['active'].lower() == "true"):
+				continue
+				
 			self.equipped_items[slot.attrib['name']] = self.items[int(slot.attrib['itemId'])]
 			self.equipped_items[slot.attrib['name']].slot = slot.attrib['name']
 			
