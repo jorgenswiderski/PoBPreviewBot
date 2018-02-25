@@ -77,9 +77,12 @@ class socket_group_t:
 	def __get_parent_item__(self):
 		if 'slot' in self.xml.attrib:
 			slot = self.xml.attrib['slot']
-			self.item = self.build.equipped_items[slot]
-		else:
-			self.item = None
+			
+			if slot in self.build.equipped_items:
+				self.item = self.build.equipped_items[slot]
+				return
+		
+		self.item = None
 		
 	def getNthActiveGem(self, n):
 		currentSkill = 1
