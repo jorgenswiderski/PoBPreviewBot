@@ -104,7 +104,7 @@ class entry_t:
 		self.time = 0
 	
 	def maintain(self):
-		#print "Maintaining comment {:s}.".format(entry['id'])
+		#print "[{}] Maintaining comment {:s}.".format( time.strftime("%H:%M:%S"), self.comment_id )
 		
 		deleted = False
 		

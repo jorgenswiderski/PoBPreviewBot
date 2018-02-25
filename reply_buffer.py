@@ -54,6 +54,7 @@ class reply_handler_t:
 				
 	def process(self):
 		while len(self.queue) > 0 and not self.throttled():
+			#print "[{}] Processing reply queue entry (of {})".format( time.strftime("%H:%M:%S"), len(self) )
 			self.queue[0].attempt_post()
 			
 			if self.queue[0].resolved:

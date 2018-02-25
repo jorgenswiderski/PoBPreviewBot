@@ -243,10 +243,12 @@ def run_bot():
 	
 	for sub in config.subreddits:
 		if t - last_time_comments_parsed[sub] >= config.comment_parse_interval:
+			#print "[{}] Reading comments from /r/{}".format(time.strftime("%H:%M:%S"), sub)
 			parse_comments(sub)
 	
 	for sub in config.subreddits:
 		if t - last_time_submissions_parsed[sub] >= config.submission_parse_interval:
+			#print "[{}] Reading submissions from /r/{}".format(time.strftime("%H:%M:%S"), sub)
 			parse_submissions(sub)
 	
 	maintain_list.process()
@@ -255,7 +257,7 @@ def run_bot():
 	st = get_sleep_time()
 	
 	if st > 0:
-		#print "Sleeping for {:n}s...".format( st )
+		#print "[{}] Sleeping for {:.2f}s...".format( time.strftime("%H:%M:%S"), st )
 		time.sleep( st )
 			
 			
