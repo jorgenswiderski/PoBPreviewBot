@@ -589,6 +589,8 @@ class build_t:
 			return True
 		if self.main_gem.name == "Lightning Warp":
 			return True
+		if self.main_gem.name == "Molten Burst":
+			return True
 		if self.main_gem.item is not None:
 			if self.main_gem.item.name == "Cospri's Malice" or self.main_gem.item.name == "The Poet's Pen" or self.main_gem.item.name == "Mjolner":
 				return True
