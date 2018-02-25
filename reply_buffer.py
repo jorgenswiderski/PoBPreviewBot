@@ -90,7 +90,7 @@ class reply_t:
 				f.write(self.object.id + "\n")
 			
 			if self.req_maintenance:
-				self.handler.maintain_list.add( comment, self.object )
+				self.handler.maintain_list.add( comment )
 				
 			self.resolved = True
 		except APIException as e:

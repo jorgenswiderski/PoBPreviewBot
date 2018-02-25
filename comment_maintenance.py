@@ -23,13 +23,16 @@ def write_replied_to_file(comments=False, submissions=False):
 			f.write( "\n".join( submissions ) + "\n" )
 
 class entry_t:
-	def __init__(self, list, comment_id, parent_id, time=None):
+	def __init__(self, list, comment_id, time=None, created=None):
 		self.list = list
 		self.comment_id = comment_id
-		self.parent_id = parent_id
 		self.comment = None
 		self.parent = None
-		self.created_utc = None
+		
+		if created is not None:
+			self.created_utc = int(created)
+		else:
+			self.created_utc = None
 		
 		if time is None:
 			self.update_check_time()
@@ -39,10 +42,17 @@ class entry_t:
 	@classmethod
 	def from_str(cls, self, str):
 		split = str.strip().split('\t')
-		return cls(self, split[0], split[2], time=split[1])
+		
+		if len(split) >= 3 and util.is_number(split[2]) and int(split[2]) > 1000000000:
+			return cls(self, split[0], time=split[1], created=split[2])
+		else:
+			return cls(self, split[0], time=split[1])
 		
 	def __str__(self):
-		return "{:s}\t{:.0f}\t{:s}".format(self.comment_id, self.time, self.parent_id)
+		if self.created_utc is None:
+			return "{:s}\t{:.0f}".format(self.comment_id, self.time)
+		else:
+			return "{:s}\t{:.0f}\t{:.0f}".format(self.comment_id, self.time, self.created_utc)
 			
 	@retry(retry_on_exception=util.is_praw_error,
 		   wait_exponential_multiplier=config.praw_error_wait_time,
@@ -65,7 +75,7 @@ class entry_t:
 	def get_comment_created_utc(self):
 		if self.created_utc is None:
 			self.created_utc = self.get_comment().created_utc
-			
+		
 		return self.created_utc
 	
 	@staticmethod
@@ -140,13 +150,13 @@ class entry_t:
 		if comment.is_root:
 			if parent.selftext == "[deleted]" or parent.selftext == "[removed]":
 				comment.delete()
-				print "Deleted comment {:s} as parent submission {:s} was deleted.".format( self.comment_id, comment.parent_id )
+				print "Deleted comment {:s} as parent submission {:s} was deleted.".format( self.comment_id, parent.id )
 				
 				return True
 		else:
 			if parent.body == "[deleted]":
 				comment.delete()
-				print "Deleted comment {:s} as parent comment {:s} was deleted.".format( self.comment_id, comment.parent_id )
+				print "Deleted comment {:s} as parent comment {:s} was deleted.".format( self.comment_id, parent.id )
 				
 				return True
 				
@@ -176,19 +186,19 @@ class entry_t:
 				comment.delete()
 				
 				if isinstance(parent, praw.models.Comment):
-					self.list.comments_replied_to.remove(self.parent_id)
+					self.list.comments_replied_to.remove(parent.id)
 					write_replied_to_file(comments=self.list.comments_replied_to)
 				else:
-					self.list.submissions_replied_to.remove(self.parent_id)
+					self.list.submissions_replied_to.remove(parent.id)
 					write_replied_to_file(submissions=self.list.submissions_replied_to)
 					
-				print "Parent {:s} no longer links to any builds, deleted response comment {:s}.".format(self.parent_id, self.comment_id)
+				print "Parent {:s} no longer links to any builds, deleted response comment {:s}.".format(parent.id, self.comment_id)
 				return True
 			elif new_comment_body != comment.body:
 				comment.edit(new_comment_body)
-				print "Edited comment {:s} to reflect changes in parent {:s}.".format(self.comment_id, self.parent_id)
+				print "Edited comment {:s} to reflect changes in parent {:s}.".format(self.comment_id, parent.id)
 			#else:
-			#	print "{:s}'s response body is unchanged.".format(self.parent_id)
+			#	print "{:s}'s response body is unchanged.".format(parent.id)
 		#else:
 		#	if isinstance(parent.edited, float):
 		#		print("{} was last edited {:.0f}s ago ({:.0f}s before the edit window).".format(obj_type_str(parent), t - parent.edited, self.time - 60 - parent.edited))
@@ -258,7 +268,7 @@ class maintain_list_t:
 		self.list.insert(upper, entry)
 			
 	def add(self, comment, parent):
-		entry = entry_t(self, comment.id, parent.id)
+		entry = entry_t(self, comment.id)
 		
 		self.add_entry( entry )
 			

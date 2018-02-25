@@ -109,3 +109,21 @@ def get_submission_author( submission ):
 		return official_forum.get_op_author( submission.url )
 	else:
 		return submission.author
+		
+def is_number(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        pass
+ 
+	'''
+    try:
+        import unicodedata
+        unicodedata.numeric(s)
+        return True
+    except (TypeError, ValueError):
+        pass
+	'''
+ 
+	return False
