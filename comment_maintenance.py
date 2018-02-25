@@ -23,16 +23,16 @@ def write_replied_to_file(comments=False, submissions=False):
 			f.write( "\n".join( submissions ) + "\n" )
 
 class entry_t:
-	def __init__(self, list, comment_id, time=None, created=None):
+	def __init__(self, list, comment_id, created, time=None):
 		self.list = list
 		self.comment_id = comment_id
 		self.comment = None
 		self.parent = None
 		
-		if created is not None:
-			self.created_utc = int(created)
+		if created is None:
+			self.created_utc = self.get_comment().created_utc
 		else:
-			self.created_utc = None
+			self.created_utc = int(created)
 		
 		if time is None:
 			self.update_check_time()
@@ -40,19 +40,13 @@ class entry_t:
 			self.time = int(time)
 		
 	@classmethod
-	def from_str(cls, self, str):
+	def from_str(cls, list, str):
 		split = str.strip().split('\t')
 		
-		if len(split) >= 3 and util.is_number(split[2]) and int(split[2]) > 1000000000:
-			return cls(self, split[0], time=split[1], created=split[2])
-		else:
-			return cls(self, split[0], time=split[1])
+		return cls(list, split[0], split[2], time=split[1])
 		
 	def __str__(self):
-		if self.created_utc is None:
-			return "{:s}\t{:.0f}".format(self.comment_id, self.time)
-		else:
-			return "{:s}\t{:.0f}\t{:.0f}".format(self.comment_id, self.time, self.created_utc)
+		return "{:s}\t{:.0f}\t{:.0f}".format(self.comment_id, self.time, self.created_utc)
 			
 	@retry(retry_on_exception=util.is_praw_error,
 		   wait_exponential_multiplier=config.praw_error_wait_time,
@@ -71,12 +65,6 @@ class entry_t:
 			self.parent = self.get_comment().parent()
 			
 		return self.parent
-		
-	def get_comment_created_utc(self):
-		if self.created_utc is None:
-			self.created_utc = self.get_comment().created_utc
-		
-		return self.created_utc
 	
 	@staticmethod
 	def get_check_time(comment_age):
@@ -108,7 +96,7 @@ class entry_t:
 		
 	def update_check_time(self):
 		t = time.time()
-		comment_age = t - self.get_comment_created_utc()
+		comment_age = t - self.created_utc
 		self.time = t + entry_t.get_check_time(comment_age)
 		
 	def flag(self):
@@ -137,7 +125,7 @@ class entry_t:
 			# Comment may or may not be deleted, but for one reason or another we can't modify it anymore, so no point in trying to keep track of it.
 			deleted = True
 				
-		if not deleted and time.time() - self.get_comment_created_utc() < config.preserve_comments_after:
+		if not deleted and time.time() - self.created_utc < config.preserve_comments_after:
 			# calculate the next time we should perform maintenance on this comment
 			self.update_check_time()
 			
@@ -269,7 +257,7 @@ class maintain_list_t:
 		self.list.insert(upper, entry)
 			
 	def add(self, comment):
-		entry = entry_t(self, comment.id)
+		entry = entry_t(self, comment.id, comment.created_utc)
 		
 		self.add_entry( entry )
 			
@@ -287,23 +275,17 @@ class maintain_list_t:
 			return
 		
 		time_str = args[ args.index('-force') + 1 ]
-		sec = util.parse_time_str(time_str)
+		cutoff = time.time() - util.parse_time_str(time_str)
 		
-		next_check = entry_t.get_check_time(sec)
+		filtered = filter(lambda x: x.created_utc >= cutoff, self.list)
 		
-		threshold = time.time() + next_check
-		
-		updated = []
-		
-		for entry in self.list:
-			if entry.time < threshold:
-				updated.append(entry.comment_id)
-				entry.flag()
+		for e in filtered:
+			e.flag()
 				
-		if len(updated) <= 10:
-			print "Flagged comments for update: {}".format(updated)
+		if len(filtered) > 0 and len(filtered) <= 10:
+			print "Flagged {} comments for update:\n{}".format( len( filtered ), ", ".join( map( lambda e: e.comment_id, filtered ) ) )
 		else:
-			print "Flagged {} comments for update.".format( len(updated) )
+			print "Flagged {} comments for update.".format( len( filtered ) )
 		
 		self.save_to_file()
 		
