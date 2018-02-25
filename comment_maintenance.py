@@ -98,7 +98,8 @@ class entry_t:
 			# 2 weeks: 15.1 hrs
 			# 3 weeks: 24.0 hrs
 			# 4 weeks: 38.1 hrs
-			t *= math.pow( 2, ( comment_age - 604800 ) / 604800 )
+			# 4.585+ weeks: 72 hrs
+			t *= min( math.pow( 2, ( comment_age - 604800 ) / 604800 ), 12 )
 			
 		if config.deletion_check_interval_rng > 0:
 			t *= 1.0 + config.deletion_check_interval_rng * ( 2.0 * random.random() - 1.0 )
@@ -267,7 +268,7 @@ class maintain_list_t:
 			
 		self.list.insert(upper, entry)
 			
-	def add(self, comment, parent):
+	def add(self, comment):
 		entry = entry_t(self, comment.id)
 		
 		self.add_entry( entry )
