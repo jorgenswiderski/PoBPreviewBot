@@ -13,6 +13,9 @@ import official_forum
 
 from prawcore.exceptions import Forbidden
 from pob_build import EligibilityException
+	
+class PastebinLimitException(Exception):
+	pass
 
 def write_replied_to_file(comments=False, submissions=False):
 	if comments:

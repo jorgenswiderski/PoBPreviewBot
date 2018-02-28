@@ -22,6 +22,7 @@ from reply_buffer import reply_handler_t
 from response import get_response
 
 from pob_build import EligibilityException
+from comment_maintenance import PastebinLimitException
 
 
 locale.setlocale(locale.LC_ALL, '')
@@ -36,9 +37,6 @@ def bot_login():
 	print "Successfully logged in as {:s}.".format(config.username)
 		
 	return r
-		
-class PastebinLimitException(Exception):
-	pass
 			
 def parse_generic( reply_object, body, author = None ):
 	if not ( reply_object and ( isinstance( reply_object, praw.models.Comment ) or isinstance( reply_object, praw.models.Submission ) ) ):
