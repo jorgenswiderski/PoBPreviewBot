@@ -41,6 +41,7 @@ stats_to_parse = [
 			"IgniteDPS",
 			"MineLayingTime",
 			"TrapThrowingTime",
+			"WithPoisonAverageDamage",
 			#"TrapCooldown",
 		],
 	},
@@ -77,9 +78,12 @@ class socket_group_t:
 	def __get_parent_item__(self):
 		if 'slot' in self.xml.attrib:
 			slot = self.xml.attrib['slot']
-			self.item = self.build.equipped_items[slot]
-		else:
-			self.item = None
+			
+			if slot in self.build.equipped_items:
+				self.item = self.build.equipped_items[slot]
+				return
+		
+		self.item = None
 		
 	def getNthActiveGem(self, n):
 		currentSkill = 1
@@ -348,6 +352,7 @@ class build_t:
 		elif isinstance(author, str) or isinstance(author, unicode):
 			self.author = author
 		else:
+			# FIXME: This exception should NOT cause the pastbin to be blacklisted.
 			raise Exception('Build has invalid author')
 		
 	def __parse_character_info__(self):
@@ -449,6 +454,12 @@ class build_t:
 		self.equipped_items = {}
 			
 		for slot in xml_items.findall('Slot'):
+			# Skip inactive flasks
+			# FIXME: Inactive flasks are technically equipped but this is a bit simpler than having
+			# to worry about whether any item is "active" when only flasks have that property
+			if "Flask" in slot.attrib['name'] and not ('active' in slot.attrib and slot.attrib['active'].lower() == "true"):
+				continue
+				
 			self.equipped_items[slot.attrib['name']] = self.items[int(slot.attrib['itemId'])]
 			self.equipped_items[slot.attrib['name']].slot = slot.attrib['name']
 			
@@ -581,6 +592,8 @@ class build_t:
 			return True
 		if self.main_gem.name == "Lightning Warp":
 			return True
+		if self.main_gem.name == "Molten Burst":
+			return True
 		if self.main_gem.item is not None:
 			if self.main_gem.item.name == "Cospri's Malice" or self.main_gem.item.name == "The Poet's Pen" or self.main_gem.item.name == "Mjolner":
 				return True
@@ -610,9 +623,14 @@ class build_t:
 		
 		damage['direct'] = self.get_stat('AverageDamage')
 		
-		if self.get_stat('WithPoisonDPS') > 0:
-			# janky poison average damage calculation because "WithPoisonAverageDamage" is only in the XML for average 
-			# damage skills, and "PoisonDamage" doesn't account for poison chance which also isn't in the XML.
+		if self.get_stat('WithPoisonAverageDamage') > 0:
+			# If "WithPoisonAverageDamage" is available, then use that for simplicity.
+			damage['poison'] = self.get_stat('WithPoisonAverageDamage') - damage['direct']
+		elif self.get_stat('WithPoisonDPS') > 0:
+			# Otherwise we need to do something janky because only average damage skills have WPAD, and "PoisonDamage"
+			# doesn't account for poison chance which also isn't in the XML.
+			# Solution: Since its not an avg dmg skill it that means its a DPS skill and it should include the 
+			# "WithPoisonDPS" stat. Divide by speed to find the poison damage.
 			damage['poison'] = ( self.get_stat('WithPoisonDPS') - self.get_stat('TotalDPS') ) / self.get_stat('Speed')
 		else:
 			damage['poison'] = 0.000
@@ -661,83 +679,6 @@ class build_t:
 			else:
 				return [ (self.get_stat('TotalDPS', minion=True), "DPS") ]
 		else:
-			'''
-			dot = 0
-			direct = 0
-			
-			# If the base DoT DPS is greater than the direct + poison DPS, conclude this skill is only used to maintain the DoT.
-			if self.stats['player']['TotalDot'] > 0.5 * self.stats['player']['WithPoisonDPS']:
-				# Base DoT (doesn't include decay and other shit unlike what the attribute name would imply)
-				dot += self.stats['player']['TotalDot']
-				#print "{:.2f} base DoT".format(self.stats['player']['TotalDot'])
-			else:
-				use_average_damage = self.use_average_damage()
-					
-				# Direct DPS
-				if use_average_damage:
-					direct += self.stats['player']['AverageDamage']
-				else:
-					direct += self.stats['player']['TotalDPS']
-					#print "{:.2f} direct".format(self.stats['player']['TotalDPS'])
-			
-				if self.stats['player']['WithPoisonDPS'] > 0:
-					# Poison
-					if use_average_damage:
-						dot += self.stats['player']['WithPoisonAverageDamage'] - self.stats['player']['AverageDamage']
-					else:
-						dot += self.get_poison_dps()
-						#print "{:.2f} poison".format(self.stats['player']['WithPoisonDPS'] - self.stats['player']['TotalDPS'])
-					
-				# base DoT still contributes to DPS total (if relevant)
-				if not use_average_damage and self.stats['player']['TotalDot'] > 0:
-					# Base DoT
-					dot += self.stats['player']['TotalDot']
-			
-			if not use_average_damage:
-				# Bleed
-				dot += self.get_bleed_dps()
-				#print "{:.2f} bleed".format(self.get_bleed_dps())
-				
-				# Ignite
-				dot += self.stats['player']['IgniteDPS']
-				#print "{:.2f} ignite".format(self.stats['player']['IgniteDPS'])
-				
-				# Decay
-				dot += self.stats['player']['DecayDPS']
-				#print "{:.2f} decay".format(self.stats['player']['DecayDPS'])
-			
-			total = direct + dot
-			
-			if use_average_damage:
-				return [ ( total, "avg damage" ) ]
-			# if direct DPS is >95% of the total DPS	
-			elif max(direct, self.stats['player']['TotalDot']) >= 0.95 * total:
-				return [ ( total, "DPS" ) ]
-			else:
-				r = [ ( total, "total DPS" ) ]
-				
-				# Base DoT
-				if self.stats['player']['TotalDot'] > 0.01 * total:
-					r.append( ( self.stats['player']['TotalDot'], "skill DoT DPS" ) )
-				
-				# Bleed
-				if self.get_bleed_dps() > 0.01 * total:
-					r.append( ( self.get_bleed_dps(), "bleed DPS" ) )
-					
-				# Ignite
-				if self.stats['player']['IgniteDPS'] > 0.01 * total:
-					r.append( ( self.stats['player']['IgniteDPS'], "ignite DPS" ) )
-				
-				# Poison
-				if self.get_poison_dps() > 0.01 * total:
-					r.append( ( self.get_poison_dps(), "poison DPS" ) )
-					
-				# Decay
-				if self.stats['player']['DecayDPS'] > 0.01 * total:
-					r.append( ( self.stats['player']['DecayDPS'], "decay DPS" ) )
-		
-				return r
-			'''
 			damage = {}
 			stats = []
 			

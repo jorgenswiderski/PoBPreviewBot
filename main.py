@@ -4,37 +4,26 @@ import os
 import re
 import defusedxml.ElementTree as ET
 import locale
-import zlib
 from collections import deque
 import math
 import random
-import traceback
-import urllib2
 from retrying import retry
-import traceback
 import sys
-from force_edits import main as force_edit
 
 import live_config as config
 import live_secret_config as sconfig
 #import config
 #import secret_config as sconfig
 import pastebin
-import official_forum
 import util
-from util import calc_deletion_check_time
-from pob_build import build_t
+from util import obj_type_str
+from comment_maintenance import maintain_list_t
+from reply_buffer import reply_handler_t
+from response import get_response
 
-from prawcore.exceptions import RequestException
-from prawcore.exceptions import ServerError
-from prawcore.exceptions import ResponseException
-from prawcore.exceptions import Forbidden
-from praw.exceptions import APIException
 from pob_build import EligibilityException
+from comment_maintenance import PastebinLimitException
 
-
-BOT_FOOTER = "[^Path ^of ^Building](https://github.com/Openarl/PathOfBuilding) ^| ^This ^reply ^automatically ^updates ^based ^on ^its ^parent ^comment. ^| ^[Feedback?](https://www.reddit.com/r/PoBPreviewBot/)"
-BOT_INTRO = "Hi there! I'm a bot that replies to [Path of Building](https://github.com/Openarl/PathOfBuilding) pastebins with a short summary of the build [like this](https://i.imgur.com/Ee9Sbo1.png)! Just include a link to any Path of Building pastebin in your comment or submission and I'll automatically respond."
 
 locale.setlocale(locale.LC_ALL, '')
 
@@ -48,184 +37,6 @@ def bot_login():
 	print "Successfully logged in as {:s}.".format(config.username)
 		
 	return r
-	
-praw_errors = (RequestException, ServerError, APIException, ResponseException)
-
-def is_praw_error(e):
-	print e
-	if isinstance(e, praw_errors):
-		print "Praw error: {:s}".format(repr(e))
-		print traceback.format_exc()
-		return True
-	else:
-		return False
-	
-def praw_error_retry(attempt_number, ms_since_first_attempt):
-	delay = config.praw_error_wait_time * ( 2 ** ( attempt_number - 1 ) )
-	print "Sleeping for {:.0f}s...".format(delay)
-	return delay * 1000
-	
-def obj_type_str(obj):
-	if isinstance(obj, praw.models.Comment):
-		return "comment"
-	else:
-		return "submission"
-	
-def buffered_reply(obj, response, log = True):
-	global rate_limit_timer
-	if time.time() <  rate_limit_timer:
-		print "Queued reply to {:s} {:s}.".format(obj_type_str(obj), obj.id)
-		reply_queue.append((obj, response, log))
-		return
-		
-	#print "Attempting reply to " + obj.id
-	try:
-		comment = obj.reply(response)
-		if log:
-			log_reply(comment, obj.id)
-	except APIException as e:
-		if "DELETED_COMMENT" in str(e):
-			print "Parent {} {} has been deleted before it could be responded to. Removing response from reply queue.".format(obj_type_str(obj), obj.id)
-			return
-		else:
-			print "*** Failed to reply " + repr(e) + " ***"
-			print "Buffering reply for later"
-			rate_limit_timer = time.time() + 60
-			reply_queue.append((obj, response, log))
-			return
-		
-	print "Replied to {:s} {:s}.".format(obj_type_str(obj), obj.id)
-	
-	if isinstance(obj, praw.models.Comment):
-		comments_replied_to.append(obj.id)
-	else:
-		submissions_replied_to.append(obj.id)
-
-	with open("{:s}s_replied_to.txt".format(obj_type_str(obj)), "a") as f:
-		f.write(obj.id + "\n")
-		
-def get_submission_body( submission ):
-	if submission.selftext == '':
-		if official_forum.is_post( submission.url ):
-			return official_forum.get_op_body( submission.url )
-		else:
-			return submission.url
-	else:
-		return submission.selftext 
-		
-def get_submission_author( submission ):
-	if submission.selftext == '' and official_forum.is_post( submission.url ):
-		return official_forum.get_op_author( submission.url )
-	else:
-		return submission.author
-		
-class PastebinLimitException(Exception):
-	pass
-
-def get_response( reply_object, body, author = None, ignore_blacklist = False ):
-	if not (reply_object and ( isinstance( reply_object, praw.models.Comment ) or isinstance( reply_object, praw.models.Submission ) ) ):
-		raise Exception("get_response passed invalid reply_object")
-	elif not ( body and ( isinstance( body, str ) or isinstance( body, unicode ) ) ):
-		raise Exception("get_response passed invalid body")
-		
-	# If author isn't passed in as a parameter, then default to the author of the object we're replying to
-	if not author:
-		author = reply_object.author
-	
-	#print "Processing " + reply_object.id
-		
-	if reply_object.author == r.user.me():
-		#print "Author is self, ignoring"
-		return
-
-	if "pastebin.com/" in body:
-		responses = []
-		bins_responded_to = {}
-	
-		for match in re.finditer('pastebin\.com/\w+', body):
-			bin = "https://" + match.group(0)
-			paste_key = pastebin.strip_url_to_key(bin)
-			
-			if (not paste_key_is_blacklisted(paste_key) or ignore_blacklist) and paste_key not in bins_responded_to:
-				try:
-					xml = pastebin.get_as_xml(paste_key)
-				except (zlib.error, TypeError):
-					print "Pastebin does not decode to XML data."
-					blacklist_pastebin(paste_key)
-					continue
-				except urllib2.HTTPError as e:
-					print "urllib2 {:s}".format(repr(e))
-					
-					if "Service Temporarily Unavailable" not in repr(e):
-						blacklist_pastebin(paste_key)
-						
-					continue
-				
-				if xml.tag == "PathOfBuilding":
-					if xml.find('Build').find('PlayerStat') is not None:
-						try:
-							build = build_t(xml, bin, author)
-							response = build.get_response()
-						except EligibilityException:
-							blacklist_pastebin(paste_key)
-							raise
-							continue
-						except Exception as e:
-							print repr(e)
-						
-							# dump xml for debugging later
-							try:
-								c = util.get_url_data("http://pastebin.com/raw/" + paste_key)
-							except urllib2.HTTPError as e2:
-								print "An exception occurred when parsing a comment, but debug data was unable to be dumped."
-							c = c.replace("-", "+").replace("_", "/")
-							
-							if not os.path.exists("error/" + reply_object.id):
-								os.makedirs("error/" + reply_object.id)
-							
-							with open("error/" + reply_object.id + "/pastebin.xml", "w") as f:
-								f.write( pastebin.decode_base64_and_inflate(c) )
-							with open("error/" + reply_object.id + "/info.txt", "w") as f:
-								comment_id = False
-								if isinstance(reply_object, praw.models.Comment):
-									comment_id = reply_object.permalink
-								else:
-									comment_id = reply_object.permalink
-									
-								f.write( "pastebin_url\t{:s}\ncomment_id\t{:s}\ncomment_url\t{:s}\nerror_text\t{:s}".format( bin, reply_object.id,
-								 comment_id, repr(e) ))
-							with open("error/" + reply_object.id + "/traceback.txt", "w") as f:
-								traceback.print_exc( file = f )
-							
-							print "Dumped info to error/{:s}/".format( reply_object.id )
-							blacklist_pastebin(paste_key)
-							continue
-							
-						responses.append(response)
-						bins_responded_to[paste_key] = True
-					else:
-						print "XML does not contain player stats."
-						blacklist_pastebin(paste_key)
-				else:
-					print "Pastebin does not contain Path of Building XML."
-					blacklist_pastebin(paste_key)
-		
-		if len(responses) > 5:
-			raise PastebinLimitException("Ignoring {} {} because it has greater than 5 valid pastebins. ({})".format(obj_type_str(reply_object), reply_object.id, len(responses)))
-		elif len(responses) > 0:
-			comment_body = ""
-			if len(responses) > 1:
-				for res in responses:
-					if comment_body != "":
-						comment_body += "\n\n[](#quote_break)  \n"
-					comment_body += '>' + res.replace('\n', "\n>")
-			else:
-				for res in responses:
-					comment_body = res + "  \n*****"
-				
-			comment_body += '\n\n' + BOT_FOOTER
-			
-			return comment_body
 			
 def parse_generic( reply_object, body, author = None ):
 	if not ( reply_object and ( isinstance( reply_object, praw.models.Comment ) or isinstance( reply_object, praw.models.Submission ) ) ):
@@ -239,7 +50,7 @@ def parse_generic( reply_object, body, author = None ):
 	
 	try:
 		# get response text
-		response = get_response( reply_object, body, author = author )
+		response = get_response( r, reply_object, body, author = author )
 	except (EligibilityException, PastebinLimitException) as e:
 		print(str(e))
 		
@@ -250,61 +61,14 @@ def parse_generic( reply_object, body, author = None ):
 	
 	# post reply
 	if config.username == "PoBPreviewBot" or "pathofexile" not in config.subreddits:
-		buffered_reply(reply_object, response)
+		reply_queue.reply(reply_object, response)
 	else:
 		#print "Reply body:\n" + response
 		with open("saved_replies.txt", "a") as f:
 			f.write(response + "\n\n\n")
 			
 	return True
-					
-def deletion_sort(a):
-	return int(a['time'])
-					
-def get_deletion_check_list():
-	cl = []
-	
-	if not os.path.isfile("active_comments.txt"):
-		cl = []
-	else:
-		with open("active_comments.txt", "r") as f:
-			buf = f.read()
-			buf = buf.split("\n")
-			buf = filter(None, buf)
-			for line in buf:
-				s = line.split("\t")
-				cl.append( {
-					'id': s[0],
-					'time': s[1],
-					'parent_id': s[2],
-				} )
-			cl.sort(key=deletion_sort)
-			
-	return cl
-					
-def log_reply(comment, parent):
-	check_time = time.time() + calc_deletion_check_time(comment)
-	str = "{:s}\t{:.0f}\t{:s}\n".format(comment.id, check_time, parent)
-	
-	i = 0
-	
-	for entry in deletion_check_list:
-		if check_time < entry['time']:
-			break
-		i += 1
-	
-	deletion_check_list.insert(i, {
-		'id': comment.id,
-		'time': check_time,
-		'parent_id': parent,
-	} )
-	
-	if i == 0:
-		schedule_next_deletion()
-	
-	with open("active_comments.txt", "a") as f:
-		f.write(str)
-	
+		
 def track_comment(comment):
 	if len(processed_comments_list) >= 250:
 		del processed_comments_dict[processed_comments_list[0]]
@@ -349,13 +113,6 @@ def get_num_entries_to_pull(history):
 		
 	return math.floor(min(max( max(history), config.min_pull_count ), config.max_pull_count))
 	
-def has_reply_buffered(id):
-	for entry in reply_queue:
-		if id == entry[0].id:
-			return True
-	
-	return False
-	
 def reply_to_summon(comment):
 	errs = []
 	parent = comment.parent()
@@ -367,36 +124,36 @@ def reply_to_summon(comment):
 	
 	try:
 		if isinstance(parent, praw.models.Comment):
-			p_response = get_response(parent, parent.body, ignore_blacklist = True)
+			p_response = get_response(r, parent, parent.body, ignore_blacklist = True)
 		else:
-			p_response = get_response(parent, get_submission_body( parent ), author = get_submission_author( parent ), ignore_blacklist = True)
+			p_response = get_response(r, parent, util.get_submission_body( parent ), author = util.get_submission_author( parent ), ignore_blacklist = True)
 	except (EligibilityException, PastebinLimitException) as e:
 		errs.append("* {}".format(str(e)))
 	
 	response = None
 		
-	if p_response is not None and parent.id not in comments_replied_to and parent.id not in submissions_replied_to and not has_reply_buffered(parent.id):
+	if p_response is not None and parent.id not in comments_replied_to and parent.id not in submissions_replied_to and not reply_queue.contains_id(parent.id):
 		if config.username == "PoBPreviewBot" or "pathofexile" not in config.subreddits:
-			buffered_reply(parent, p_response)
+			reply_queue.reply(parent, p_response)
 		response = "Seems like I missed comment {}! I've replied to it now, sorry about that.".format(parent.id)
 	elif len(errs) > 0:
 		response = "The {} {} was not responded to for the following reason{}:\n\n{}".format(obj_type_str(parent), parent.id, "s" if len(errs) > 1 else "", "  \n".join(errs))
 	else:
-		response = BOT_INTRO
+		response = config.BOT_INTRO
 	
 	if response is None:
 		return
 	
 	if config.username == "PoBPreviewBot" or "pathofexile" not in config.subreddits:
-		buffered_reply(comment, response, log = False)
+		reply_queue.reply(comment, response, log = False)
 	
 last_time_comments_parsed = {}
 for sub in config.subreddits:
 	last_time_comments_parsed[sub] = 0
 	
-@retry(retry_on_exception=is_praw_error,
+@retry(retry_on_exception=util.is_praw_error,
 	   wait_exponential_multiplier=config.praw_error_wait_time,
-	   wait_func=praw_error_retry)
+	   wait_func=util.praw_error_retry)
 def parse_comments(subreddit):
 	num = get_num_entries_to_pull(comment_flow_history[subreddit])
 	
@@ -409,7 +166,7 @@ def parse_comments(subreddit):
 		for comment in comments:
 			if comment.id not in processed_comments_dict:
 				track_comment(comment)
-				if comment.id not in comments_replied_to and not has_reply_buffered(comment.id):
+				if comment.id not in comments_replied_to and not reply_queue.contains_id(comment.id):
 					replied = parse_generic( comment, comment.body )
 					
 					if not replied and ( "u/" + config.username ).lower() in comment.body.lower():
@@ -431,9 +188,9 @@ last_time_submissions_parsed = {}
 for sub in config.subreddits:
 	last_time_submissions_parsed[sub] = 0
 
-@retry(retry_on_exception=is_praw_error,
+@retry(retry_on_exception=util.is_praw_error,
 	   wait_exponential_multiplier=config.praw_error_wait_time,
-	   wait_func=praw_error_retry)
+	   wait_func=util.praw_error_retry)
 def parse_submissions(subreddit):
 	num = get_num_entries_to_pull(submission_flow_history[subreddit])
 	
@@ -446,8 +203,8 @@ def parse_submissions(subreddit):
 		for submission in submissions:
 			if submission.id not in processed_submissions_dict:
 				track_submission(submission)
-				if submission.id not in submissions_replied_to and not has_reply_buffered(submission.id):
-					parse_generic( submission, get_submission_body( submission ), author = get_submission_author( submission ) )
+				if submission.id not in submissions_replied_to and not reply_queue.contains_id(submission.id):
+					parse_generic( submission, util.get_submission_body( submission ), author = util.get_submission_author( submission ) )
 		
 		if num_new_submissions < num or num >= config.max_pull_count:
 			break
@@ -460,216 +217,46 @@ def parse_submissions(subreddit):
 	last_time_submissions_parsed[subreddit] = time.time()
 	
 	save_submission_count(subreddit)
-	
-next_time_to_maintain_comments = 0
-
-def schedule_next_deletion():
-	global next_time_to_maintain_comments
-	
-	if len(deletion_check_list):
-		next_time_to_maintain_comments = int(deletion_check_list[0]['time'])
-	else:
-		next_time_to_maintain_comments = time.time() + 1000000
-		
-	#print "Next deletion scheduled for " + str(next_time_to_maintain_comments)
-
-@retry(retry_on_exception=is_praw_error,
-	   wait_exponential_multiplier=config.praw_error_wait_time,
-	   wait_func=praw_error_retry)
-def check_comment_for_deletion(parent, comment):
-	if comment.is_root:
-		if parent.selftext == "[deleted]" or parent.selftext == "[removed]":
-			comment.delete()
-			print "Deleted comment {:s} as parent submission {:s} was deleted.".format( comment.id, comment.parent_id )
 			
-			return True
-	else:
-		if parent.body == "[deleted]":
-			comment.delete()
-			print "Deleted comment {:s} as parent comment {:s} was deleted.".format( comment.id, comment.parent_id )
-			
-			return True
-			
-	return False
-
-@retry(retry_on_exception=is_praw_error,
-	   wait_exponential_multiplier=config.praw_error_wait_time,
-	   wait_func=praw_error_retry)	
-def check_comment_for_edit(t, parent, comment, scheduled_time):
-	# has the comment been edited recently OR the comment is new (edit tag is not visible so we need to check to be safe)
+def get_sleep_time():
+	next_update_time = 10000000000
 	
-	if ( isinstance(parent.edited, float) and parent.edited >= scheduled_time - 60 ) or t - parent.created_utc < 400 or ( comment.is_root and parent.selftext == '' and official_forum.is_post( parent.url ) ) or scheduled_time == 0:
-		new_comment_body = None
-		
-		try:
-			if isinstance(parent, praw.models.Comment):
-				new_comment_body = get_response(parent, parent.body)
-			else:
-				new_comment_body = get_response(parent, get_submission_body( parent ), author = get_submission_author( parent ) )
-		except (EligibilityException, PastebinLimitException) as e:
-			print(e)
-		
-		if new_comment_body is None:
-			comment.delete()
-			
-			if isinstance(parent, praw.models.Comment):
-				comments_replied_to.remove(parent.id)
-				write_replied_to_file(comments=True)
-			else:
-				submissions_replied_to.remove(parent.id)
-				write_replied_to_file(submissions=True)
-				
-			print "Parent {:s} no longer links to any builds, deleted response comment {:s}.".format(parent.id, comment.id)
-			return True
-		elif new_comment_body != comment.body:
-			comment.edit(new_comment_body)
-			print "Edited comment {:s} to reflect changes in parent {:s}.".format(comment.id, parent.id)
-		#else:
-		#	print "{:s}'s response body is unchanged.".format(parent.id)
-	#else:
-	#	if isinstance(parent.edited, float):
-	#		print("{} was last edited {:.0f}s ago ({:.0f}s before the edit window).".format(obj_type_str(parent), t - parent.edited, scheduled_time - 60 - parent.edited))
-	#	elif t - parent.created_utc >= 400:
-	#		print("{} is more than 400s old ({:.0f}s) and is not edited.".format(obj_type_str(parent), t - parent.created_utc))
-			
-	return False
-			
-def write_maintenance_list_to_file():
-	str = ""
-	
-	for entry in deletion_check_list:
-		str += "{:s}\t{:.0f}\t{:s}\n".format(entry['id'], int(entry['time']), entry['parent_id'])
-	
-	with open("active_comments.txt", "w") as f:
-		f.write( str )
-		
-
-def write_replied_to_file(comments=False, submissions=False):
-	if comments:
-		with open("comments_replied_to.txt", "w") as f:
-			f.write( "\n".join( comments_replied_to ) + "\n" )
-	if submissions:
-		with open("submissions_replied_to.txt", "w") as f:
-			f.write( "\n".join( submissions_replied_to ) + "\n" )
-		
-def maintenance_list_insert(entry):
-	# binary search for the index to insert at
-	
-	# define search boundaries
-	lower = -1
-	upper = len(deletion_check_list)
-	
-	# while our boundaries have not crossed
-	while abs( lower - upper ) > 1:
-		# take the average
-		middle = int( math.floor( ( lower + upper ) / 2  ) )
-		
-		# move the upper or lower boundary to halve the search space
-		if int(deletion_check_list[middle]['time']) > int(entry['time']):
-			upper = middle
-		else:
-			lower = middle
-			
-	#print "Inserting {:s} ({:.0f}) at idx={:.0f}.".format(entry['id'], float(entry['time']), upper)
-	#if lower >= 0:
-	#	print float(deletion_check_list[lower]['time'])
-	#if upper < len(deletion_check_list):
-	#	print float(deletion_check_list[upper]['time'])
-		
-	deletion_check_list.insert(upper, entry)
-	
-@retry(retry_on_exception=is_praw_error,
-	   wait_exponential_multiplier=config.praw_error_wait_time,
-	   wait_func=praw_error_retry)
-def get_praw_comment_by_id(id):
-	return praw.models.Comment(r, id=id)
-	
-@retry(retry_on_exception=is_praw_error,
-	   wait_exponential_multiplier=config.praw_error_wait_time,
-	   wait_func=praw_error_retry)	
-def get_praw_comment_parent(comment):
-	return comment.parent()
-	
-def maintain_comments(t):
-	# confirm that there are any comments that need to be checked
-	if int(deletion_check_list[0]['time']) > t:
-		return
-	
-	# pop the first entry
-	entry = deletion_check_list.pop(0)
-	
-	#print "Maintaining comment {:s}.".format(entry['id'])
-	
-	# create a comment object from the id in the entry
-	comment = get_praw_comment_by_id(entry['id'])
-	parent = get_praw_comment_parent(comment)
-	
-	deleted = False
-	
-	# Make sure the reply has not already been deleted
-	if comment.body == "[deleted]":
-		print "Reply {} has already been deleted, removing from list of active comments.".format(comment.id)
-		deleted = True
-	
-	try:
-		if not deleted:
-			deleted = check_comment_for_deletion(parent, comment)
-
-		if not deleted:
-			deleted = check_comment_for_edit(t, parent, comment, int(entry['time']))
-	except urllib2.HTTPError as e:
-		print "An HTTPError occurred while maintaining comment {}. Skipping the check for now.".format(comment.id)
-	except Forbidden as e:
-		print "Attempted to perform forbidden action on comment {:s}. Removing from list of active comments.\n{:s}".format(comment.id, comment.permalink())
-		# Comment may or may not be deleted, but for one reason or another we can't modify it anymore, so no point in trying to keep track of it.
-		deleted = True
-			
-	if not deleted and t - comment.created_utc < config.preserve_comments_after:
-		# calculate the next time we should perform maintenance on this comment
-		entry['time'] = t + calc_deletion_check_time(comment)
-		
-		# reinsert the entry at its chronologically correct place in the list
-		maintenance_list_insert(entry)
-	
-	# write the updated maintenance list to file
-	write_maintenance_list_to_file()
-	
-	# schedule for the next check
-	schedule_next_deletion()
-		
-def run_bot():
-	t = time.time()
-	
-	if rate_limit_timer > 0 and t >= rate_limit_timer and len(reply_queue) > 0:
-		rep = reply_queue.pop()
-		buffered_reply(rep[0], rep[1], rep[2])
-	
-	for sub in config.subreddits:
-		if t - last_time_comments_parsed[sub] >= config.comment_parse_interval:
-			parse_comments(sub)
-	
-	for sub in config.subreddits:
-		if t - last_time_submissions_parsed[sub] >= config.submission_parse_interval:
-			parse_submissions(sub)
-	
-	if t >= next_time_to_maintain_comments:
-		maintain_comments(t)
-		
-	# calculate the next time we need to do something
-	
-	next_update_time = next_time_to_maintain_comments
+	if len(maintain_list) > 0:
+		next_update_time = min(next_update_time, maintain_list.next_time())
 		 
 	for sub in config.subreddits:
 		next_update_time = min( next_update_time,
 		last_time_comments_parsed[sub] + config.comment_parse_interval,
 		last_time_submissions_parsed[sub] + config.submission_parse_interval )
 		 
-	if rate_limit_timer > 0:
-		next_update_time = min(rate_limit_timer, next_update_time)
+	if len(reply_queue) > 0:
+		next_update_time = min( next_update_time, reply_queue.throttled_until() )
 	
-	if next_update_time > t:
-		#print "Sleeping for {:n}s...".format(next_update_time - t)
-		time.sleep( next_update_time - t )
+	return next_update_time - time.time()
+		
+def run_bot():
+	reply_queue.process()
+	
+	t = time.time()
+	
+	for sub in config.subreddits:
+		if t - last_time_comments_parsed[sub] >= config.comment_parse_interval:
+			#print "[{}] Reading comments from /r/{}".format(time.strftime("%H:%M:%S"), sub)
+			parse_comments(sub)
+	
+	for sub in config.subreddits:
+		if t - last_time_submissions_parsed[sub] >= config.submission_parse_interval:
+			#print "[{}] Reading submissions from /r/{}".format(time.strftime("%H:%M:%S"), sub)
+			parse_submissions(sub)
+	
+	maintain_list.process()
+		
+	# calculate the next time we need to do something
+	st = get_sleep_time()
+	
+	if st > 0:
+		#print "[{}] Sleeping for {:.2f}s...".format( time.strftime("%H:%M:%S"), st )
+		time.sleep( st )
 			
 			
 def get_saved_comments():
@@ -695,71 +282,18 @@ def get_saved_submissions():
 		
 	return submissions_replied_to
 	
-def blacklist_pastebin(paste_key):
-	if paste_key in pastebin_blacklist:
-		return
-	
-	pastebin_blacklist[paste_key] = True
-
-	with open("pastebin_blacklist.txt", "a") as f:
-		f.write(paste_key + "\n")
-		
-	print "Blacklisted paste key " + paste_key + "."
-		
-def get_blacklisted_pastebins():
-	pastebin_blacklist = {}
-	
-	if os.path.isfile("pastebin_blacklist.txt"):
-		dupe = False
-	
-		with open("pastebin_blacklist.txt", "r") as f:
-			list = f.read()
-			list = list.split("\n")
-			list = filter(None, list)
-			
-			for entry in list:
-				if entry in pastebin_blacklist:
-					dupe = True
-					
-				pastebin_blacklist[entry] = True
-				
-		# if the list contained duplicates, write
-		# back to the file with the duplicates removed
-		if dupe:
-			print "Deduplicating pastebin blacklist."
-			with open("pastebin_blacklist.txt", "w") as f:
-				list = []
-				
-				for k in pastebin_blacklist:
-					list.append(k)
-					
-				f.write( ( '\n'.join(list) ) + '\n' )
-		
-	return pastebin_blacklist
-	
-def paste_key_is_blacklisted(paste_key):
-	return paste_key in pastebin_blacklist
-	
 	
 r = bot_login()
 comments_replied_to = get_saved_comments()
 #print comments_replied_to
 submissions_replied_to = get_saved_submissions()
 #print submissions_replied_to
-pastebin_blacklist = get_blacklisted_pastebins()
-#print pastebin_blacklist
-deletion_check_list = get_deletion_check_list()
+maintain_list = maintain_list_t( "active_comments.txt", r, comments_replied_to, submissions_replied_to )
 	
-if '-force' in sys.argv and sys.argv.index('-force') < len(sys.argv):
-	deletion_check_list = force_edit( sys.argv[ sys.argv.index('-force') + 1 ], deletion_check_list )	
-	write_maintenance_list_to_file()
-	
-schedule_next_deletion()
-#print deletion_check_list
+if '-force' in sys.argv:
+	maintain_list.flag_for_edits(sys.argv)
 
-rate_limit_timer = 0
-
-reply_queue = deque()
+reply_queue = reply_handler_t( maintain_list )
 
 processed_comments_list = []
 processed_comments_dict = {}

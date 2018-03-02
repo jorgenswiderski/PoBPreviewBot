@@ -1,10 +1,16 @@
 import urllib2
 import config
 import re
-import time
-import math
-import random
 from retrying import retry
+import praw
+
+import official_forum
+
+from prawcore.exceptions import RequestException
+from prawcore.exceptions import ServerError
+from prawcore.exceptions import ResponseException
+from prawcore.exceptions import Forbidden
+from praw.exceptions import APIException
 
 def floatToSigFig(n):
 	negative = False
@@ -57,32 +63,67 @@ def parse_time_str(str):
 		return int(mo.group(1)) * 60
 	else:
 		raise Exception("time_str did not follow XdXhXm format.")
-						
-def calc_deletion_check_time(comment, comment_age = None):
-	if comment_age is None:
-		comment_age = time.time() - comment.created_utc
 	
-	# 0 < x < 15 minutes
-	# fixed interval of 60s
-	t = 60
+def obj_type_str(obj):
+	if isinstance(obj, praw.models.Comment):
+		return "comment"
+	else:
+		return "submission"	
+		
+def praw_obj_str(obj):
+	return "{} {}".format(obj_type_str(obj), obj.id)
 	
-	# 15m < x < 4h
-	if comment_age > 900:
-		# increase linearly up to 15 minutes
-		t *= min( comment_age, 14400 ) / ( 14400 / 15 )
+praw_errors = (RequestException, ServerError, APIException, ResponseException)
+	
+def is_praw_error(e):
+	print e
+	if isinstance(e, praw_errors):
+		print "Praw error: {:s}".format(repr(e))
+		print traceback.format_exc()
+		return True
+	else:
+		return False
+	
+def praw_error_retry(attempt_number, ms_since_first_attempt):
+	delay = config.praw_error_wait_time * ( 2 ** ( attempt_number - 1 ) )
+	print "Sleeping for {:.0f}s...".format(delay)
+	return delay * 1000
+	
+@retry(retry_on_exception=is_praw_error,
+	   wait_exponential_multiplier=config.praw_error_wait_time,
+	   wait_func=praw_error_retry)
+def get_praw_comment_by_id(reddit, id):
+	return praw.models.Comment(reddit, id=id)
+	
+def get_submission_body( submission ):
+	if submission.selftext == '':
+		if official_forum.is_post( submission.url ):
+			return official_forum.get_op_body( submission.url )
+		else:
+			return submission.url
+	else:
+		return submission.selftext 
 		
-	# 4h < x < 1w
-	if comment_age > 14400:
-		# increase exponentially up to 6 hours
-		t *= math.pow( 1.078726, ( min( comment_age, 604800 ) - 900 ) / 14400 )
+def get_submission_author( submission ):
+	if submission.selftext == '' and official_forum.is_post( submission.url ):
+		return official_forum.get_op_author( submission.url )
+	else:
+		return submission.author
 		
-	if comment_age > 604800:
-		# 2 weeks: 15.1 hrs
-		# 3 weeks: 24.0 hrs
-		# 4 weeks: 38.1 hrs
-		t *= math.pow( 2, ( comment_age - 604800 ) / 604800 )
-		
-	if config.deletion_check_interval_rng > 0:
-		t *= 1.0 + config.deletion_check_interval_rng * ( 2.0 * random.random() - 1.0 )
-		
-	return t
+def is_number(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        pass
+ 
+	'''
+    try:
+        import unicodedata
+        unicodedata.numeric(s)
+        return True
+    except (TypeError, ValueError):
+        pass
+	'''
+ 
+	return False
