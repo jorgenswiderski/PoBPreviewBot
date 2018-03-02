@@ -1,6 +1,6 @@
-from data.passive_skills import opts 
+from data.passive_skills import passiveSkillTreeData as data 
 
 nodes = {}
 
-for node in opts['passiveSkillTreeData']['nodes']:
+for node in data['nodes']:
 	nodes[node['id']] = node
