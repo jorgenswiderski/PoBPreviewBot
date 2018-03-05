@@ -26,30 +26,31 @@ def write_replied_to_file(comments=False, submissions=False):
 			f.write( "\n".join( submissions ) + "\n" )
 
 class entry_t:
-	def __init__(self, list, comment_id, created, time=None):
+	def __init__(self, list, comment_id, created, time=None, last_time=None):
 		self.list = list
 		self.comment_id = comment_id
 		self.comment = None
 		self.parent = None
-		
-		if created is None:
-			self.created_utc = self.get_comment().created_utc
-		else:
-			self.created_utc = int(created)
+		self.created_utc = int(created)
 		
 		if time is None:
 			self.update_check_time()
 		else:
 			self.time = int(time)
+			
+		if last_time is None:
+			self.last_time = 0
+		else:
+			self.last_time = int(last_time)
 		
 	@classmethod
 	def from_str(cls, list, str):
 		split = str.strip().split('\t')
 		
-		return cls(list, split[0], split[2], time=split[1])
+		return cls(list, split[0], split[2], time=split[1], last_time=split[3])
 		
 	def __str__(self):
-		return "{:s}\t{:.0f}\t{:.0f}".format(self.comment_id, self.time, self.created_utc)
+		return "{:s}\t{:.0f}\t{:.0f}\t{:.0f}".format(self.comment_id, self.time, self.created_utc, self.last_time)
 			
 	@retry(retry_on_exception=util.is_praw_error,
 		   wait_exponential_multiplier=config.praw_error_wait_time,
@@ -132,6 +133,8 @@ class entry_t:
 			# calculate the next time we should perform maintenance on this comment
 			self.update_check_time()
 			
+			self.last_time = time.time()
+			
 			# reinsert the entry at its chronologically correct place in the list
 			self.list.add_entry(self)
 			
@@ -163,7 +166,7 @@ class entry_t:
 		
 		# has the comment been edited recently OR the comment is new (edit tag is not visible so we need to check to be safe)
 		
-		if ( isinstance(parent.edited, float) and parent.edited >= self.time - 60 ) or time.time() - parent.created_utc < 400 or ( comment.is_root and parent.selftext == '' and official_forum.is_post( parent.url ) ) or self.time == 0:
+		if ( isinstance(parent.edited, float) and parent.edited >= self.last_time - 10 ) or time.time() - parent.created_utc < 400 or ( comment.is_root and parent.selftext == '' and official_forum.is_post( parent.url ) ) or self.time == 0:
 			new_comment_body = None
 			
 			try:
@@ -289,6 +292,8 @@ class maintain_list_t:
 			print "Flagged {} comments for update:\n{}".format( len( filtered ), ", ".join( map( lambda e: e.comment_id, filtered ) ) )
 		else:
 			print "Flagged {} comments for update.".format( len( filtered ) )
+			
+		self.sort()
 		
 		self.save_to_file()
 		
