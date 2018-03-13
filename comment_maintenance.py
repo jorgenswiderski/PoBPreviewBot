@@ -58,6 +58,10 @@ class entry_t:
 	def get_comment(self):
 		if self.comment is None:
 			self.comment = util.get_praw_comment_by_id(self.list.reddit, self.comment_id)
+		
+			# Fetch the comment now in a place where RequestExceptions can be handled properly.
+			if not self.comment._fetched:
+				self.comment._fetch()
 			
 		return self.comment
 			
@@ -67,6 +71,10 @@ class entry_t:
 	def get_parent(self):
 		if self.parent is None:
 			self.parent = self.get_comment().parent()
+		
+			# Fetch the comment now in a place where RequestExceptions can be handled properly.
+			if not self.parent._fetched:
+				self.parent._fetch()
 			
 		return self.parent
 	
