@@ -212,7 +212,48 @@ class gem_t:
 			return True
 		
 		return False
+		
+	def get_num_mines_laid(self):
+		if not self.is_mine():
+			raise Exception("get_num_mines_laid() called on non-mine gem!")
+			
+		mines = 1
+			
+		if self.main_gem.is_supported_by("Minefield"):
+			mines += 2
+		
+		# Check for item mods
+		mines += len(self.build.item_mod_search("Place an additional Mine"))
+		
+		matches = self.build.item_mod_search("Place (\d+) additional Mines")
+		
+		for match_obj in matches:
+			mines += int(match_obj.group(1))
+			
+		return mines
 	
+	def get_num_traps_thrown(self):
+		if not self.is_trap():
+			raise Exception("get_num_traps_thrown() called on non-trap gem!")
+			
+		traps = 1
+			
+		if self.main_gem.is_supported_by("Multiple Traps"):
+			traps += 2
+			
+		if self.main_gem.is_supported_by("Cluster Traps"):
+			traps += 3
+		
+		# Check for item mods
+		traps += len(self.build.item_mod_search("Skills which Throw Traps throw an additional Trap"))
+		
+		matches = self.build.item_mod_search("Skills which Throw Traps throw (\d+) additional Traps")
+		
+		for match_obj in matches:
+			traps += int(match_obj.group(1))
+			
+		return traps
+		
 class item_t:
 	re_variant = re.compile("^Variant: .+")
 	re_reqs = re.compile("^Requires Level \d+")
@@ -482,6 +523,22 @@ class build_t:
 	def __check_build_eligibility__(self):
 		if self.main_gem.is_supported_by("Cast on Critical Strike"):
 			raise UnsupportedException('Cast on Critical Strike builds are currently not supported.')
+	
+	# Utility function for searching all equipped gear for a particular modifier.
+	# Args:		A regex pattern that determines if a mod matches
+	# Returns:	A list of match objects, one for each matching mod.
+	def item_mod_search(self, pattern):
+		pattern = pattern.lower()
+		matches = []
+			
+		for key in self.equipped_items:
+			item = self.equipped_items[key]
+			for mod in item.mods:
+				match_obj = re.search( pattern, mod.lower() )
+				if match_obj is not None:
+					matches.append(match_obj)
+					
+		return matches
 		
 	def get_class(self):
 		if hasattr(self, 'ascendancy_name'):
@@ -564,23 +621,10 @@ class build_t:
 			tl += 1
 		
 		# Parse equipped items for ones that grant additional Totems
-		patt = "Can have up to (\d+) additional Totems? summoned at a time".lower()
-			
-		for key in self.equipped_items:
-			item = self.equipped_items[key]
-			for mod in item.mods:
-				mo = re.search( patt, mod.lower() )
-				if mo is not None:
-					tl += int(mo.group(1))
+		matches = self.item_mod_search("Can have up to (\d+) additional Totems? summoned at a time")
 		
-		# covered by the above mod parsing code
-		'''
-		if self.has_item_equipped("Tukohama's Fortress"):
-			tl += 1
-			
-		if self.has_item_equipped("Soul Mantle"):
-			tl += 1
-		'''
+		for match_obj in matches:
+			tl += int(match_obj.group(1))
 			
 		return tl
 		
@@ -641,8 +685,11 @@ class build_t:
 	def get_speed_multiplier(self):
 		sm = 1.000
 		
-		if self.main_gem.is_mine() and self.main_gem.is_supported_by("Minefield"):
-			sm *= 3.000
+		if self.main_gem.is_mine():
+			sm *= self.main_gem.get_num_mines_laid()
+			
+		if self.main_gem.is_trap():
+			sm *= self.main_gem.get_num_traps_thrown()
 				
 		return sm
 		
