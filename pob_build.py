@@ -42,6 +42,9 @@ stats_to_parse = [
 			"MineLayingTime",
 			"TrapThrowingTime",
 			"WithPoisonAverageDamage",
+			"Str",
+			"Dex",
+			"Int",
 			#"TrapCooldown",
 		],
 	},
@@ -187,11 +190,8 @@ class gem_t:
 		if self.name == "Searing Bond":
 			tl += 1
 			
-		'''
-		# XML does not include attributes
 		if self.name == "Siege Ballista Totem" and self.build.has_item_equipped("Iron Commander"):
-			tl += math.floor( self.build.get_attribute("Dexterity") / 200 )
-		'''
+			tl += math.floor( self.build.get_stat("Dex") / 200 )
 			
 		if self.build.has_item_equipped("Skirmish") and ( self.is_supported_by("Ranged Attack Totem") or self.name == "Ancestral Protector" or self.name == "Ancestral Warchief" ):
 			tl += 1
