@@ -189,11 +189,13 @@ class entry_t:
 				comment.delete()
 				
 				if isinstance(parent, praw.models.Comment):
-					self.list.comments_replied_to.remove(parent.id)
-					write_replied_to_file(comments=self.list.comments_replied_to)
+					if parent.id in self.list.comments_replied_to:
+						self.list.comments_replied_to.remove(parent.id)
+						write_replied_to_file(comments=self.list.comments_replied_to)
 				else:
-					self.list.submissions_replied_to.remove(parent.id)
-					write_replied_to_file(submissions=self.list.submissions_replied_to)
+					if parent.id in self.list.submissions_replied_to:
+						self.list.submissions_replied_to.remove(parent.id)
+						write_replied_to_file(submissions=self.list.submissions_replied_to)
 					
 				print "Parent {:s} no longer links to any builds, deleted response comment {:s}.".format(parent.id, self.comment_id)
 				return True
