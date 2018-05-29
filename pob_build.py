@@ -629,7 +629,8 @@ class build_t:
 		return tl
 		
 	def show_average_damage(self):
-		if self.main_gem.is_trap() and self.build.get_stat("TrapCooldown") > 0:
+		# Hack to override trap cooldown for certain traps in the 3.2-3.3 interim.
+		if self.main_gem.is_trap() and ( self.build.get_stat("TrapCooldown") > 0 and not ( self.main_gem.name == "Lightning Trap" or self.main_gem.name == "Fire Trap" or self.main_gem.name == "Ice Trap" or self.main_gem.is_supported_by("Trap") ) ):
 			return True
 		if self.main_gem.is_mine():
 			return True
