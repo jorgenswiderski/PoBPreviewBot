@@ -219,7 +219,7 @@ class gem_t:
 			
 		mines = 1
 			
-		if self.main_gem.is_supported_by("Minefield"):
+		if self.is_supported_by("Minefield"):
 			mines += 2
 		
 		# Check for item mods
@@ -238,10 +238,10 @@ class gem_t:
 			
 		traps = 1
 			
-		if self.main_gem.is_supported_by("Multiple Traps"):
+		if self.is_supported_by("Multiple Traps"):
 			traps += 2
 			
-		if self.main_gem.is_supported_by("Cluster Traps"):
+		if self.is_supported_by("Cluster Traps"):
 			traps += 3
 		
 		# Check for item mods
@@ -431,6 +431,10 @@ class build_t:
 		
 		nthSkill = int(self.main_socket_group.xml.attrib['mainActiveSkill'])
 		self.main_gem = self.main_socket_group.getNthActiveGem(nthSkill)
+		
+		# FIXME: 3.1-3.2 interim hack to override the cooldown of certain traps
+		if self.main_gem.name == "Lightning Trap" or self.main_gem.name == "Fire Trap" or self.main_gem.name == "Ice Trap" or self.main_gem.is_supported_by("Trap"):
+			self.stats['player']['TrapCooldown'] = 0
 		
 	def __parse_stats__(self):
 		self.stats = {}
@@ -630,7 +634,7 @@ class build_t:
 		
 	def show_average_damage(self):
 		# Hack to override trap cooldown for certain traps in the 3.2-3.3 interim.
-		if self.main_gem.is_trap() and ( self.build.get_stat("TrapCooldown") > 0 and not ( self.main_gem.name == "Lightning Trap" or self.main_gem.name == "Fire Trap" or self.main_gem.name == "Ice Trap" or self.main_gem.is_supported_by("Trap") ) ):
+		if self.main_gem.is_trap():
 			return True
 		if self.main_gem.is_mine():
 			return True
@@ -648,6 +652,8 @@ class build_t:
 		
 	def show_dps(self):
 		if self.main_gem.is_mine():
+			return True
+		if self.main_gem.is_trap() and self.get_stat("TrapCooldown") == 0:
 			return True
 		if self.show_average_damage():
 			return False
@@ -1062,6 +1068,9 @@ class build_t:
 		
 		if self.get_stat('CritChance') >= 20:
 			line += " | {:.2f}% **Crit** | {:n}% **Multi**".format(self.get_stat('CritChance'), self.get_stat('CritMultiplier')*100)
+			
+		if self.main_gem.is_trap() and self.get_stat("TrapCooldown") > 0:
+			line += " | {:.2f}s **Cooldown**".format(self.get_stat("TrapCooldown"))
 			
 		body += '^' + line.replace(' ', ' ^')
 		
