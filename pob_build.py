@@ -554,7 +554,7 @@ class build_t:
 		if self.has_passive_skill("Ancestral Bond"):
 			tl += 1
 			
-		if self.has_passive_skill("Hierophant") and self.main_gem.item is not None and self.main_gem.item.slot == "Helmet":
+		if self.has_passive_skill("Hierophant"): # Ascendant Hierophant
 			tl += 1
 		
 		if self.has_passive_skill("Pursuit of Faith"):
@@ -562,7 +562,8 @@ class build_t:
 		
 		if self.has_passive_skill("Ritual of Awakening"):
 			tl += 1
-			
+		
+		# Parse equipped items for ones that grant additional Totems
 		patt = "Can have up to (\d+) additional Totems? summoned at a time".lower()
 			
 		for key in self.equipped_items:
