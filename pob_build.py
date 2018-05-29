@@ -45,7 +45,7 @@ stats_to_parse = [
 			"Str",
 			"Dex",
 			"Int",
-			#"TrapCooldown",
+			"TrapCooldown",
 		],
 	},
 	{
@@ -585,7 +585,7 @@ class build_t:
 		return tl
 		
 	def show_average_damage(self):
-		if self.main_gem.is_trap():
+		if self.main_gem.is_trap() and self.build.get_stat("TrapCooldown") > 0:
 			return True
 		if self.main_gem.is_mine():
 			return True
@@ -662,7 +662,7 @@ class build_t:
 		if self.main_gem.is_mine():
 			return "Mines/sec"
 		elif self.main_gem.is_trap():
-			return "Throws/sec"
+			return "Traps/sec"
 		else:
 			return "Use/sec"
 			
