@@ -934,19 +934,26 @@ class build_t:
 			"Belt",
 		]
 		
+		# Ignore off-hand slot because I currently don't have any
+		# good way of determining whether a weapon is a two-hander.
+		
 		# Add required weapon slots based on which weapon swap is active
 		if self.active_weapon_set == 0:
-			required_slots += [ "Weapon 1", "Weapon 2" ]
+			#required_slots += [ "Weapon 1" , "Weapon 2" ]
+			required_slots += [ "Weapon 1" ]
 		else:
-			required_slots += [ "Weapon 1 Swap", "Weapon 2 Swap" ]
+			#required_slots += [ "Weapon 1 Swap", "Weapon 2 Swap" ]
+			required_slots += [ "Weapon 1 Swap" ]
 				
 		# Remove some required slots if specific uniques are equipped
 		
+		'''
 		if self.has_item_equipped("White Wind"):
 			if "Weapon 2" in required_slots:
 				required_slots.remove("Weapon 2")
 			if "Weapon 2 Swap" in required_slots:
 				required_slots.remove("Weapon 2 Swap")
+		'''
 			
 		if self.has_item_equipped("Facebreaker"):
 			if "Weapon 1" in required_slots:
