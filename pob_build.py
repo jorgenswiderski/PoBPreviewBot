@@ -64,6 +64,10 @@ class EligibilityException(Exception):
 class UnsupportedException(EligibilityException):
 	pass
 	
+# Thrown when creating a support gem that does not have gem data in data/support_gems.tsv
+class GemDataException(Exception):
+	pass
+	
 class socket_group_t:
 	def __init__(self, skill_xml, build):
 		self.xml = skill_xml
@@ -117,7 +121,7 @@ class gem_t:
 		self.level = int(self.xml.attrib['level'])
 		self.quality = int(self.xml.attrib['quality'])
 		
-		self.data = self.get_gem_data(self.name)
+		self.__init_gem_data__()
 		
 	def __parse_name__(self):
 		name = self.xml.attrib['nameSpec']
@@ -132,6 +136,13 @@ class gem_t:
 			self.name = skill_overrides[name]
 		else:
 			self.name = name
+			
+	def __init_gem_data__(self):
+		try:
+			self.data = self.get_gem_data(self.name)
+		except GemDataException:
+			if self.is_support():
+				raise
 	
 	@staticmethod
 	def get_gem_data(name):
@@ -139,6 +150,8 @@ class gem_t:
 		
 		if name in support_gem_data:
 			return support_gem_data[name]
+		else:
+			raise GemDataException("Could not find gem data for {}!".format(name))
 		
 	def get_support_gem_dict(self):
 		dict = {}
