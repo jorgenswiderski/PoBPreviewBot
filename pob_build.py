@@ -46,6 +46,9 @@ stats_to_parse = [
 			"Dex",
 			"Int",
 			"TrapCooldown",
+			"Spec:LifeInc",
+			"Spec:ManaInc",
+			"Spec:EnergyShieldInc",
 		],
 	},
 	{
@@ -532,8 +535,11 @@ class build_t:
 				
 				if self.equipped_items[key].slot is None:
 					self.equipped_items[key].slot = key
-			
-				
+					
+		if xml_items.attrib['useSecondWeaponSet'].lower() == "true":
+			self.active_weapon_set = 1
+		else:
+			self.active_weapon_set = 0
 			
 		#print repr(self.equipped_items)
 		
@@ -574,11 +580,8 @@ class build_t:
 	def has_item_equipped(self, name):
 		for i in self.equipped_items:
 			if self.equipped_items[i].name.lower() == name.lower():
-				# check to make sure main socket group is not in an inactive weapon set
 				if "Weapon" in i:
-					useSecondWeaponSet = self.xml.find('Items').attrib['useSecondWeaponSet'].lower() == "true"
-					
-					if ( useSecondWeaponSet and "Swap" in i ) or ( not useSecondWeaponSet and "Swap" not in i ):
+					if ( self.active_weapon_set == 1 and "Swap" in i ) or ( self.active_weapon_set == 0	and "Swap" not in i ):
 						return True
 				else:
 					return True
@@ -916,7 +919,55 @@ class build_t:
 		if len(dps_config) == 0:
 			return ""
 		
-		return "  \n\n" + " **Config:** {:s}".format(", ".join(dps_config)).replace(' ', " ^^")	
+		return "  \n\n" + " **Config:** {:s}".format(", ".join(dps_config)).replace(' ', " ^^")
+		
+	def is_fully_geared(self):
+		# Universally required slots
+		required_slots = [
+			"Helmet",
+			"Body Armour",
+			"Gloves",
+			"Boots",
+			"Amulet",
+			"Ring 1",
+			"Ring 2",
+			"Belt",
+		]
+		
+		# Add required weapon slots based on which weapon swap is active
+		if self.active_weapon_set == 0:
+			required_slots += [ "Weapon 1", "Weapon 2" ]
+		else:
+			required_slots += [ "Weapon 1 Swap", "Weapon 2 Swap" ]
+				
+		# Remove some required slots if specific uniques are equipped
+		
+		if self.has_item_equipped("White Wind"):
+			if "Weapon 2" in required_slots:
+				required_slots.remove("Weapon 2")
+			if "Weapon 2 Swap" in required_slots:
+				required_slots.remove("Weapon 2 Swap")
+			
+		if self.has_item_equipped("Facebreaker"):
+			if "Weapon 1" in required_slots:
+				required_slots.remove("Weapon 1")
+			if "Weapon 1 Swap" in required_slots:
+				required_slots.remove("Weapon 1 Swap")
+			
+		if self.has_item_equipped("Bringer of Rain"):
+			required_slots.remove("Body Armour")
+			
+		if self.has_item_equipped("Thief's Torment"):
+			required_slots.remove("Ring 1")
+			required_slots.remove("Ring 2")
+		
+		slots_filled = 0
+		
+		for slot in required_slots:
+			if slot in self.equipped_items:
+				slots_filled += 1
+				
+		return slots_filled >= len(required_slots)	
 		
 	def get_response(self):
 		response = self.get_response_header()
@@ -985,28 +1036,40 @@ class build_t:
 		show_ehp = False
 		
 		if self.has_passive_skill("Chaos Inoculation"):
-			body = "{:n} **ES**".format(self.get_stat('EnergyShield'))
-			total_ehp += self.get_stat('EnergyShield')
+			if self.is_fully_geared():
+				body = "{:n} **ES**".format(self.get_stat('EnergyShield'))
+				total_ehp += self.get_stat('EnergyShield')
+			else:
+				body = "{:n}% **ES**".format(self.get_stat("Spec:EnergyShieldInc"))
 		else:
-			body = "{:n} **Life**".format(self.get_stat('LifeUnreserved'))
-			total_ehp += self.get_stat('LifeUnreserved')
+			if self.is_fully_geared():
+				body = "{:n} **Life**".format(self.get_stat('LifeUnreserved'))
+				total_ehp += self.get_stat('LifeUnreserved')
+			else:
+				body = "{:n}% **Life**".format(self.get_stat("Spec:LifeInc"))
 			
 			if self.is_MoM():
-				# Display the full amount of unreserved mana
-				body += " | {:n} **Mana**".format(self.get_stat('ManaUnreserved'))
-				
-				# Calculate the maximum amount of mana that contributes to the player's EHP
-				mom_pct = self.get_MoM_percent()
-				max_ehp_mana = self.get_stat('LifeUnreserved') * ( mom_pct / ( 1 - mom_pct ) )
-				# Add up to the max amount
-				total_ehp += int( min( self.get_stat('ManaUnreserved'), max_ehp_mana ) )
-				
-				show_ehp = True
+				if self.is_fully_geared():
+					# Display the full amount of unreserved mana
+					body += " | {:n} **Mana**".format(self.get_stat('ManaUnreserved'))
+					
+					# Calculate the maximum amount of mana that contributes to the player's EHP
+					mom_pct = self.get_MoM_percent()
+					max_ehp_mana = self.get_stat('LifeUnreserved') * ( mom_pct / ( 1 - mom_pct ) )
+					# Add up to the max amount
+					total_ehp += int( min( self.get_stat('ManaUnreserved'), max_ehp_mana ) )
+					
+					show_ehp = True
+				else:
+					body += " | {:n}% **Mana**".format(self.get_stat("Spec:ManaInc"))
 				
 			if self.is_hybrid() or self.is_low_life():
-				body += " | {:n} **ES**".format(self.get_stat('EnergyShield'))
-				total_ehp += self.get_stat('EnergyShield')
-				show_ehp = True
+				if self.is_fully_geared():
+					body += " | {:n} **ES**".format(self.get_stat('EnergyShield'))
+					total_ehp += self.get_stat('EnergyShield')
+					show_ehp = True
+				else:
+					body += " | {:n}% **ES**".format(self.get_stat("Spec:EnergyShieldInc"))
 		
 		if show_ehp:
 			body += " | {:n} **total** **EHP**".format(total_ehp)
