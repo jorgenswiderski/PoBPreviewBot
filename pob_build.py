@@ -448,10 +448,6 @@ class build_t:
 		nthSkill = int(self.main_socket_group.xml.attrib['mainActiveSkill'])
 		self.main_gem = self.main_socket_group.getNthActiveGem(nthSkill)
 		
-		# FIXME: 3.1-3.2 interim hack to override the cooldown of certain traps
-		if self.main_gem.name == "Lightning Trap" or self.main_gem.name == "Fire Trap" or self.main_gem.name == "Ice Trap" or self.main_gem.is_supported_by("Trap"):
-			self.stats['player']['TrapCooldown'] = 0
-		
 	def __parse_stats__(self):
 		self.stats = {}
 	
