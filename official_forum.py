@@ -1,5 +1,6 @@
 import re
 import time
+import urllib2
 from bs4 import BeautifulSoup
 
 import util
@@ -21,7 +22,11 @@ def get_soup_from_url( url ):
 	global soup_cache
 	
 	if url != cache_url or time.time() > cache_time + 5:
-		html = util.get_url_data(url)
+		try:
+			html = util.get_url_data(url)
+		except urllib2.URLError:
+			return None
+			
 		soup_cache = BeautifulSoup(html, 'html.parser')
 		cache_time = time.time()
 		cache_url = url
@@ -30,6 +35,9 @@ def get_soup_from_url( url ):
 	
 def get_op_body( url ):
 	soup = get_soup_from_url( url )
+	
+	if not soup:
+		return None
 	
 	op_body = soup.select("div.forum-table-container tr:nth-of-type(1) > td.content-container > div.content")
 	
@@ -40,6 +48,9 @@ def get_op_body( url ):
 	
 def get_op_author( url ):
 	soup = get_soup_from_url( url )
+	
+	if not soup:
+		return None
 	
 	author_link = soup.select("div.forum-table-container tr:nth-of-type(1) div.posted-by a:nth-of-type(2)")
 	

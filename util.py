@@ -99,17 +99,23 @@ def get_praw_comment_by_id(reddit, id):
 def get_submission_body( submission ):
 	if submission.selftext == '':
 		if official_forum.is_post( submission.url ):
-			return official_forum.get_op_body( submission.url )
-		else:
-			return submission.url
+			body = official_forum.get_op_body( submission.url )
+			
+			if body:
+				return body
+		
+		return submission.url
 	else:
 		return submission.selftext 
 		
 def get_submission_author( submission ):
 	if submission.selftext == '' and official_forum.is_post( submission.url ):
-		return official_forum.get_op_author( submission.url )
-	else:
-		return submission.author
+		author = official_forum.get_op_author( submission.url )
+		
+		if author:
+			return author
+	
+	return submission.author
 		
 def is_number(s):
     try:
