@@ -58,7 +58,7 @@ class reply_handler_t:
 			self.queue[0].attempt_post()
 			
 			if self.queue[0].resolved:
-				self.queue.popleft()
+				rep = self.queue.popleft()
 				self.queue_dict[ rep.object.id ] -= 1
 				
 				if self.queue_dict[ rep.object.id ] <= 0:
