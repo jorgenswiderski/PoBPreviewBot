@@ -760,6 +760,11 @@ class build_t:
 				else:
 					stats.append( ( total, "avg damage" ) )
 				
+				ignite = self.get_stat('IgniteDPS')
+				
+				if ignite * 4 >= 0.05 * total:
+					stats.append( ( ignite, "ignite DPS" ) )
+				
 			if self.show_dps():
 				dps = {}
 				
