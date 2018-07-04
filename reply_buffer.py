@@ -96,7 +96,10 @@ class reply_t:
 		except APIException as e:
 			if "DELETED_COMMENT" in str(e):
 				self.resolved = True
-				print "Parent {} {} has been deleted before it could be responded to. Removing response from reply queue.".format(util.praw_obj_str(self.object))
+				print "Parent {} has been deleted before it could be responded to. Removing response from reply queue.".format(util.praw_obj_str(self.object))
+			elif "TOO_OLD" in str(e):
+				self.resolved = True
+				print "Ignoring {} as it is too old to be responded to.".format(util.praw_obj_str(self.object))
 			else:
 				print "*** Failed to reply " + repr(e) + " ***"
 				print "Buffering reply for later"
