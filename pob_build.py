@@ -171,6 +171,12 @@ class gem_t:
 		return dict
 			
 	def is_support(self):
+		# Seemingly will only work for skill gems, not for supports granted by items.
+		#return "/SupportGem" in self.xml.attrib['gemId']
+		
+		if self.id == "Endurance Charge on Melee Stun":
+			return True
+	
 		return "Support" in self.id
 		
 	def is_supported_by(self, support):
