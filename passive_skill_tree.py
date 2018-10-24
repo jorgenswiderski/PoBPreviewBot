@@ -2,5 +2,5 @@ from data.passive_skills import passiveSkillTreeData as data
 
 nodes = {}
 
-for node in data['nodes']:
-	nodes[node['id']] = node
+for key, value in data['nodes'].iteritems():
+	nodes[str(key)] = value
