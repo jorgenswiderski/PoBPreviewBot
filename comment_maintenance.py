@@ -12,7 +12,10 @@ from response import get_response
 import official_forum
 
 from prawcore.exceptions import Forbidden
+from praw.exceptions import APIException
 from pob_build import EligibilityException
+
+not_author_blacklist = {};
 	
 class PastebinLimitException(Exception):
 	pass
@@ -115,27 +118,28 @@ class entry_t:
 		self.time = 0
 	
 	def maintain(self):
-		#print "[{}] Maintaining comment {:s}.".format( time.strftime("%H:%M:%S"), self.comment_id )
-		
-		deleted = False
-		
-		# Make sure the reply has not already been deleted
-		if self.get_comment().body == "[deleted]":
-			print "Reply {} has already been deleted, removing from list of active comments.".format(self.comment_id)
-			deleted = True
-		
-		try:
-			if not deleted:
-				deleted = self.check_for_deletion()
+		if self.comment_id not in not_author_blacklist:
+			#print "[{}] Maintaining comment {:s}.".format( time.strftime("%H:%M:%S"), self.comment_id )
+			
+			deleted = False
+			
+			# Make sure the reply has not already been deleted
+			if self.get_comment().body == "[deleted]":
+				print "Reply {} has already been deleted, removing from list of active comments.".format(self.comment_id)
+				deleted = True
+			
+			try:
+				if not deleted:
+					deleted = self.check_for_deletion()
 
-			if not deleted:
-				deleted = self.check_for_edit()
-		except urllib2.HTTPError as e:
-			print "An HTTPError occurred while maintaining comment {}. Skipping the check for now.".format(self.comment_id)
-		except Forbidden as e:
-			print "Attempted to perform forbidden action on comment {:s}. Removing from list of active comments.\n{:s}".format(self.comment_id, self.get_comment().permalink())
-			# Comment may or may not be deleted, but for one reason or another we can't modify it anymore, so no point in trying to keep track of it.
-			deleted = True
+				if not deleted:
+					deleted = self.check_for_edit()
+			except urllib2.HTTPError as e:
+				print "An HTTPError occurred while maintaining comment {}. Skipping the check for now.".format(self.comment_id)
+			except Forbidden as e:
+				print "Attempted to perform forbidden action on comment {:s}. Removing from list of active comments.\n{:s}".format(self.comment_id, self.get_comment().permalink())
+				# Comment may or may not be deleted, but for one reason or another we can't modify it anymore, so no point in trying to keep track of it.
+				deleted = True
 				
 		if not deleted and time.time() - self.created_utc < config.preserve_comments_after:
 			# calculate the next time we should perform maintenance on this comment
@@ -200,8 +204,15 @@ class entry_t:
 				print "Parent {:s} no longer links to any builds, deleted response comment {:s}.".format(parent.id, self.comment_id)
 				return True
 			elif new_comment_body != comment.body:
-				comment.edit(new_comment_body)
-				print "Edited comment {:s} to reflect changes in parent {:s}.".format(self.comment_id, parent.id)
+				try:
+					comment.edit(new_comment_body)
+					print "Edited comment {:s} to reflect changes in parent {:s}.".format(self.comment_id, parent.id)
+				except APIException as e:
+					if "NOT_AUTHOR" in str(e):
+						print "Attempted to modify comment {} that we do not own. Ignoring for the remainder of this execution.".format(self.comment_id)
+						not_author_blacklist[self.comment_id] = True
+					else:
+						raise e
 			#else:
 			#	print "{:s}'s response body is unchanged.".format(parent.id)
 		#else:
