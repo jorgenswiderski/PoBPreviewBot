@@ -1010,7 +1010,7 @@ class build_t:
 		
 		# Crit descriptor
 		crit_desc = ""
-		if self.get_stat("CritChance") >= 20:
+		if self.get_stat("CritChance") >= 20 and not self.has_passive_skill("Elemental Overload"):
 			crit_desc = " Crit"
 		
 		# Skill Descriptor
@@ -1156,7 +1156,7 @@ class build_t:
 		if self.main_gem.is_totem():
 			line += " | {} **Totems**".format(self.main_gem.get_totem_limit())
 		
-		if self.get_stat('CritChance') >= 20:
+		if self.get_stat('CritChance') >= 20 and not self.has_passive_skill("Elemental Overload"):
 			line += " | {:.2f}% **Crit** | {:n}% **Multi**".format(self.get_stat('CritChance'), self.get_stat('CritMultiplier')*100)
 			
 		if self.main_gem.is_trap() and self.get_stat("TrapCooldown") > 0:
