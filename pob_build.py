@@ -656,7 +656,7 @@ class build_t:
 			return True
 		if self.main_gem.is_mine():
 			return True
-		if "Vaal " in self.main_gem.name and self.main_gem.name != "Vaal Cyclone":
+		if "Vaal " in self.main_gem.name and self.main_gem.name != "Vaal Cyclone" and self.main_gem.name != "Vaal Righteous Fire":
 			return True
 		if self.main_gem.name == "Lightning Warp":
 			return True
