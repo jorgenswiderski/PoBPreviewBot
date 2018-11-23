@@ -16,6 +16,7 @@ import live_secret_config as sconfig
 #import secret_config as sconfig
 import pastebin
 import util
+import status
 from util import obj_type_str
 from comment_maintenance import maintain_list_t
 from reply_buffer import reply_handler_t
@@ -24,8 +25,9 @@ from response import get_response
 from pob_build import EligibilityException
 from comment_maintenance import PastebinLimitException
 
-
 locale.setlocale(locale.LC_ALL, '')
+
+file("bot.pid", 'w').write(str(os.getpid()))
 
 def bot_login():
 	print "Logging in..."
@@ -250,6 +252,8 @@ def run_bot():
 			parse_submissions(sub)
 	
 	maintain_list.process()
+	
+	status.update()
 		
 	# calculate the next time we need to do something
 	st = get_sleep_time()
