@@ -76,16 +76,24 @@ class socket_group_t:
 		self.xml = skill_xml
 		self.build = build
 		
-		self.__get_parent_item__()
+		self.__parse_active_skill__()
+		self.__parse_parent_item__()
 		self.__create_gems__()
 		
+	def __parse_active_skill__(self):
+		# index of the active skill in this socket group. 1-indexed. a value of 0 indicates the group has no active skill
+		if self.xml.attrib['mainActiveSkill'] == 'nil':
+			self.activeSkill = 0
+		else:
+			self.activeSkill = int(self.xml.attrib['mainActiveSkill']);
+	
 	def __create_gems__(self):
 		self.gems = []
 		
 		for gem_xml in self.xml.findall('Gem'):
-			self.gems.append(gem_t(gem_xml, self))
+			gem_t(gem_xml, self)
 			
-	def __get_parent_item__(self):
+	def __parse_parent_item__(self):
 		if 'slot' in self.xml.attrib:
 			slot = self.xml.attrib['slot']
 			
@@ -95,19 +103,30 @@ class socket_group_t:
 		
 		self.item = None
 		
-	def getNthActiveGem(self, n):
-		currentSkill = 1
+	def getGemOfNthActiveSkill(self, n):
+		currentSkill = 0
+		
 		for gem in self.gems:
 			if not gem.is_support() and gem.enabled:
-				if currentSkill == n:
-					return gem
+				if gem.is_vaal():
+					currentSkill += 2
 				else:
 					currentSkill += 1
+			
+				if currentSkill >= n:
+					return gem
+				
 					
 		if currentSkill > 1:
 			raise Exception('mainActiveSkill exceeds total number of active skill gems in socket group.')
 		else:
 			raise EligibilityException('Active skill group contains no active skill gems. {}'.format(ERR_CHECK_ACTIVE_SKILL))
+			
+	def getActiveGem(self):
+		if self.activeSkill == 0:
+			return False
+	
+		return self.getGemOfNthActiveSkill(self.activeSkill)
 	
 class gem_t:
 	def __init__(self, gem_xml, socket_group):
@@ -115,30 +134,42 @@ class gem_t:
 		
 		self.build = socket_group.build
 		self.socket_group = socket_group
-		self.item = socket_group.item
 		
-		self.__parse_name__()
+		# Append to list now so that self is present in the list when we iterate through gems later.
+		self.socket_group.gems.append(self)
+		
+		self.item = socket_group.item
 		
 		self.enabled = self.xml.attrib['enabled'].lower() == "true"
 		self.id = self.xml.attrib['skillId']
 		self.level = int(self.xml.attrib['level'])
 		self.quality = int(self.xml.attrib['quality'])
 		
+		self.__init_active_skill__()
+		self.__parse_name__()
 		self.__init_gem_data__()
 		
 	def __parse_name__(self):
-		name = self.xml.attrib['nameSpec']
+		self.name = self.xml.attrib['nameSpec']
 		
 		# Extremely rarely, a skill can be exported without a proper "nameSpec" attribute in which case we can't tell what the name of the skill is.
 		# No proper solution at the moment, so just throw an exception.
 		# Github issue: https://github.com/Openarl/PathOfBuilding/issues/835
-		if name == "":
+		if self.name == "":
 			raise EligibilityException('Active skill has malformed name, please re-export the build.')
 		
-		if name in skill_overrides:
-			self.name = skill_overrides[name]
-		else:
-			self.name = name
+		# If active skill is the secondary skill of a vaal gem
+		if self.is_vaal() and self.activeSkill == 2:
+			# Then change the name (and therefore the data) to the non-vaal variant
+			m = re.match(r"Vaal (.+)", self.name)
+			
+			if not m:
+				raise Exception("Vaal skill does not match expected name format. n={}".format(self.name))
+				
+			self.name = m.group(1)
+			
+		if self.name in skill_overrides:
+			self.name = skill_overrides[self.name]
 			
 	def __init_gem_data__(self):
 		try:
@@ -147,6 +178,35 @@ class gem_t:
 			if self.is_support():
 				raise
 	
+	# For gems that grant multiple skills (vaal gems), we need to determine which of these skills is set as the active skill.
+	# Nov 11 2018: Right now the XML is a bit bare as far as including information about these cases go, so we just have to assume that a gem grants multiple skills only if it is a vaal gem.
+	def __init_active_skill__(self):
+		# 1-indexed
+		self.activeSkill = 1
+		
+		#print self.socket_group.activeSkill
+		#print self.is_vaal()
+	
+		if self.socket_group.activeSkill > 0 and self.is_vaal():
+			#print "activeSkill={}".format(self.socket_group.activeSkill)
+		
+			currentSkill = 0
+			#print "currentSkill={}".format(currentSkill)
+			
+			for gem in self.socket_group.gems:
+				if not gem.is_support() and gem.enabled:
+					if gem.is_vaal():
+						currentSkill += 2
+					else:
+						currentSkill += 1
+						
+					#print "currentSkill={}".format(currentSkill)
+					
+					if currentSkill == self.socket_group.activeSkill:
+						self.activeSkill = 2
+						#print "Build is using secondary skill of vaal gem."
+						return
+
 	@staticmethod
 	def get_gem_data(name):
 		name = name.lower()
@@ -178,6 +238,9 @@ class gem_t:
 			return True
 	
 		return "Support" in self.id
+		
+	def is_vaal(self):
+		return "Vaal " in self.xml.attrib['nameSpec']
 		
 	def is_supported_by(self, support):
 		if self.is_support():
@@ -448,11 +511,10 @@ class build_t:
 		if self.main_socket_group is None:
 			self.__parse_main_socket_group__()
 		
-		if self.main_socket_group.xml.attrib['mainActiveSkill'] == 'nil':
-			raise EligibilityException('Active skill group contains no active skill gems. {}'.format(ERR_CHECK_ACTIVE_SKILL))
+		self.main_gem = self.main_socket_group.getActiveGem()
 		
-		nthSkill = int(self.main_socket_group.xml.attrib['mainActiveSkill'])
-		self.main_gem = self.main_socket_group.getNthActiveGem(nthSkill)
+		if not self.main_gem:
+			raise EligibilityException('Active skill group contains no active skill gems. {}'.format(ERR_CHECK_ACTIVE_SKILL))
 		
 	def __parse_stats__(self):
 		self.stats = {}
@@ -656,7 +718,7 @@ class build_t:
 			return True
 		if self.main_gem.is_mine():
 			return True
-		if "Vaal " in self.main_gem.name and self.main_gem.name != "Vaal Cyclone" and self.main_gem.name != "Vaal Righteous Fire":
+		if self.main_gem.is_vaal() and self.main_gem.name != "Vaal Cyclone" and self.main_gem.name != "Vaal Righteous Fire":
 			return True
 		if self.main_gem.name == "Lightning Warp":
 			return True
