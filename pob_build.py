@@ -678,7 +678,16 @@ class build_t:
 		return p
 
 	def is_hybrid(self):
-		return not self.has_passive_skill("Chaos Inoculation") and not self.is_low_life() and self.get_stat('EnergyShield') >= self.get_stat('LifeUnreserved') * 0.25
+		if self.has_passive_skill("Chaos Inoculation"):
+			return False
+		
+		if self.has_passive_skill("Eldritch Battery"):
+			return False
+		
+		if self.is_low_life():
+			return False
+			
+		return self.get_stat('EnergyShield') >= self.get_stat('LifeUnreserved') * 0.25
 		
 	def get_main_descriptor(self):
 		for unique in build_defining_uniques:
@@ -1132,11 +1141,20 @@ class build_t:
 					# Display the full amount of unreserved mana
 					body += " | {:n} **Mana**".format(self.get_stat('ManaUnreserved'))
 					
+					if self.has_passive_skill("Eldritch Battery"):
+						body += " | {:n} **ES**".format(self.get_stat('EnergyShield'))
+					
 					# Calculate the maximum amount of mana that contributes to the player's EHP
 					mom_pct = self.get_MoM_percent()
 					max_ehp_mana = self.get_stat('LifeUnreserved') * ( mom_pct / ( 1 - mom_pct ) )
+					
+					eff_max_mana = self.get_stat('ManaUnreserved')
+					
+					if self.has_passive_skill("Eldritch Battery"):
+						eff_max_mana += self.get_stat('EnergyShield')
+					
 					# Add up to the max amount
-					total_ehp += int( min( self.get_stat('ManaUnreserved'), max_ehp_mana ) )
+					total_ehp += int( min( eff_max_mana, max_ehp_mana ) )
 					
 					show_ehp = True
 				else:
