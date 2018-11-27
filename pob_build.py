@@ -1115,20 +1115,20 @@ class build_t:
 		show_ehp = False
 		
 		if self.has_passive_skill("Chaos Inoculation"):
-			if self.is_fully_geared() or self.level == 1:
+			if self.is_fully_geared():
 				body = "{:n} **ES**".format(self.get_stat('EnergyShield'))
 				total_ehp += self.get_stat('EnergyShield')
 			else:
 				body = "{:n}% **ES**".format(self.get_stat("Spec:EnergyShieldInc"))
 		else:
-			if self.is_fully_geared() or self.level == 1:
+			if self.is_fully_geared() and self.level > 1:
 				body = "{:n} **Life**".format(self.get_stat('LifeUnreserved'))
 				total_ehp += self.get_stat('LifeUnreserved')
 			else:
 				body = "{:n}% **Life**".format(self.get_stat("Spec:LifeInc"))
 			
 			if self.is_MoM():
-				if self.is_fully_geared() or self.level == 1:
+				if self.is_fully_geared() and self.level > 1:
 					# Display the full amount of unreserved mana
 					body += " | {:n} **Mana**".format(self.get_stat('ManaUnreserved'))
 					
@@ -1143,7 +1143,7 @@ class build_t:
 					body += " | {:n}% **Mana**".format(self.get_stat("Spec:ManaInc"))
 				
 			if self.is_hybrid() or self.is_low_life():
-				if self.is_fully_geared() or self.level == 1:
+				if self.is_fully_geared():
 					body += " | {:n} **ES**".format(self.get_stat('EnergyShield'))
 					total_ehp += self.get_stat('EnergyShield')
 					show_ehp = True
