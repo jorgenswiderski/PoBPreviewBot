@@ -24,7 +24,8 @@ def get_soup_from_url( url ):
 	if url != cache_url or time.time() > cache_time + 5:
 		try:
 			html = util.get_url_data(url)
-		except urllib2.URLError:
+		except urllib2.URLError as e:
+			print "Failed to retrieve any data\n{}\n{}".format(url, str(e))
 			return None
 			
 		soup_cache = BeautifulSoup(html, 'html.parser')
