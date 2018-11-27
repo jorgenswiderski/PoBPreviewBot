@@ -49,6 +49,7 @@ stats_to_parse = [
 			"Spec:LifeInc",
 			"Spec:ManaInc",
 			"Spec:EnergyShieldInc",
+			"Cooldown",
 		],
 	},
 	{
@@ -727,6 +728,8 @@ class build_t:
 		if self.main_gem.item is not None:
 			if self.main_gem.item.name == "Cospri's Malice" or self.main_gem.item.name == "The Poet's Pen" or self.main_gem.item.name == "Mjolner":
 				return True
+		if self.main_gem.is_supported_by("Cast when Damage Taken"):
+			return True
 			
 		return False
 		
@@ -1213,7 +1216,13 @@ class build_t:
 			
 		body += "**{:s}** {:s} *({:n}L)* - *{:s}*".format(self.main_gem.name, self.main_gem.get_support_gem_str(), 1+num_supports, dps_str) + '  \n'
 		
-		line = "{:.2f} **{}**".format(self.get_speed(), self.get_speed_str())
+		line = ""
+		
+		# ugly support for CwDT cd FIXME
+		if self.main_gem.is_supported_by("Cast when Damage Taken"):
+			line = "{:.2f}s **CD**".format(self.get_stat("Cooldown"))
+		else:
+			line = "{:.2f} **{}**".format(self.get_speed(), self.get_speed_str())
 		
 		if self.main_gem.is_totem():
 			line += " | {} **Totems**".format(self.main_gem.get_totem_limit())
