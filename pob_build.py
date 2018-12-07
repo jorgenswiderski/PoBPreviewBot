@@ -7,6 +7,8 @@ from name_overrides import build_defining_uniques
 from gem_data import support_gems as support_gem_data
 import praw.models
 
+import pastebin
+
 ERR_CHECK_ACTIVE_SKILL = 'Please make sure the correct skill is selected in the left panel when you export!'
 
 stats_to_parse = [
@@ -1057,6 +1059,9 @@ class build_t:
 				
 		return slots_filled >= len(required_slots)	
 		
+	def get_poebuddy_url(self):
+		return "https://poe.technology/poebuddy/?code={}".format( pastebin.strip_url_to_key( self.pastebin ) )
+		
 	def get_response(self):
 		response = self.get_response_header()
 		response += self.get_response_body()
@@ -1104,8 +1109,8 @@ class build_t:
 		
 		# Passive Skill Tree
 		
-		line2 = "Level {:n} [(Tree)]({:s}) | by {:s}\n*****\n".format(self.level, self.passives_url, self.author)
-		line2 = '^' + line2.replace(' ', ' ^')
+		line2 = "^(Level {:n}) ^[(Tree)]({:s}) [^((View in Browser)^)]({:s}) ^(| by {:s})\n*****\n".format(self.level, self.passives_url, self.get_poebuddy_url(), self.author)
+		#line2 = '^' + line2.replace(' ', ' ^')
 		
 		if hasattr(self, 'ascendancy_name'):
 			line2 = "[](#{:s}) ".format(self.ascendancy_name.lower()) + line2
