@@ -111,7 +111,7 @@ class socket_group_t:
 		
 		for gem in self.gems:
 			if not gem.is_support() and gem.enabled:
-				if gem.is_vaal():
+				if gem.is_vaal_gem():
 					currentSkill += 2
 				else:
 					currentSkill += 1
@@ -162,7 +162,7 @@ class gem_t:
 			raise EligibilityException('Active skill has malformed name, please re-export the build.')
 		
 		# If active skill is the secondary skill of a vaal gem
-		if self.is_vaal() and self.activeSkill == 2:
+		if self.is_vaal_gem() and self.activeSkill == 2:
 			# Then change the name (and therefore the data) to the non-vaal variant
 			m = re.match(r"Vaal (.+)", self.name)
 			
@@ -188,9 +188,9 @@ class gem_t:
 		self.activeSkill = 1
 		
 		#print self.socket_group.activeSkill
-		#print self.is_vaal()
+		#print self.is_vaal_gem()
 	
-		if self.socket_group.activeSkill > 0 and self.is_vaal():
+		if self.socket_group.activeSkill > 0 and self.is_vaal_gem():
 			#print "activeSkill={}".format(self.socket_group.activeSkill)
 		
 			currentSkill = 0
@@ -198,7 +198,7 @@ class gem_t:
 			
 			for gem in self.socket_group.gems:
 				if not gem.is_support() and gem.enabled:
-					if gem.is_vaal():
+					if gem.is_vaal_gem():
 						currentSkill += 2
 					else:
 						currentSkill += 1
@@ -242,7 +242,10 @@ class gem_t:
 	
 		return "Support" in self.id
 		
-	def is_vaal(self):
+	def is_vaal_skill(self):
+		return "Vaal " in self.name
+		
+	def is_vaal_gem(self):
 		return "Vaal " in self.xml.attrib['nameSpec']
 		
 	def is_supported_by(self, support):
@@ -730,7 +733,7 @@ class build_t:
 			return True
 		if self.main_gem.is_mine():
 			return True
-		if self.main_gem.is_vaal() and self.main_gem.name != "Vaal Cyclone" and self.main_gem.name != "Vaal Righteous Fire":
+		if self.main_gem.is_vaal_skill() and self.main_gem.name != "Vaal Cyclone" and self.main_gem.name != "Vaal Righteous Fire":
 			return True
 		if self.main_gem.name == "Lightning Warp":
 			return True

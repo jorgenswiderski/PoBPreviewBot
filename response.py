@@ -11,6 +11,8 @@ from pob_build import build_t
 import config
 
 from pob_build import EligibilityException
+import comment_maintenance 
+from util import obj_type_str
 		
 def get_blacklisted_pastebins():
 	pastebin_blacklist = {}
@@ -135,6 +137,17 @@ def get_response( reddit, reply_object, body, author = None, ignore_blacklist = 
 							print "Dumped info to error/{:s}/".format( reply_object.id )
 							blacklist_pastebin(paste_key)
 							continue
+						
+						'''
+						with open("xml_dump/{}.xml".format(paste_key), "w") as f:
+							try:
+								c = util.get_url_data("http://pastebin.com/raw/" + paste_key)
+								c = c.replace("-", "+").replace("_", "/")
+								f.write( pastebin.decode_base64_and_inflate(c) )
+								print "Dumped {} xml to xml_dump/{}.xml".format(reply_object.id, paste_key)
+							except:
+								pass
+						'''
 							
 						responses.append(response)
 						bins_responded_to[paste_key] = True
@@ -146,7 +159,7 @@ def get_response( reddit, reply_object, body, author = None, ignore_blacklist = 
 					blacklist_pastebin(paste_key)
 		
 		if len(responses) > 5:
-			raise PastebinLimitException("Ignoring {} {} because it has greater than 5 valid pastebins. ({})".format(obj_type_str(reply_object), reply_object.id, len(responses)))
+			raise comment_maintenance.PastebinLimitException("Ignoring {} {} because it has greater than 5 valid pastebins. ({})".format(obj_type_str(reply_object), reply_object.id, len(responses)))
 		elif len(responses) > 0:
 			comment_body = ""
 			if len(responses) > 1:
