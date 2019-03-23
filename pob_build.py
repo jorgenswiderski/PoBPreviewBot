@@ -433,7 +433,6 @@ class build_t:
 	config_bools = {
 		"conditionFullLife": "Full Life",
 		"conditionKilledRecently": "Killed Recently",
-		#"conditionOnConsecratedGround": "Cons. Ground",
 		"conditionEnemyMoving": "Enemy Moving",
 		"conditionEnemyShocked": "Shock",
 		#"conditionEnemyBlinded": "Blind",
@@ -445,6 +444,7 @@ class build_t:
 		"conditionEnemyIntimidated": "Intimidate",
 		"conditionEnemyBleeding": "Bleed",
 		#"buffFortify": "Fortify",
+		"conditionOnConsecratedGround": "Cons. Ground",
 	}
 	
 	config_numbers = {
@@ -454,6 +454,12 @@ class build_t:
 		"enemyChaosResist": "{:+n}% Chaos Res",
 		"enemyPhysicalReduction": "{:+n}% Phys Reduction",
 		"multiplierPoisonOnEnemy": "Poison \({:n}\)",
+		#"heraldOfAgonyVirulenceStack": "Virulence \({:n}\)",
+		"aspectOfTheSpiderWebStacks": "Spider's Web \({:n}\)",
+	}
+	
+	config_strs = {
+		"waveOfConvictionExposureType": "{} Exposure",
 	}
 	
 	# Dict of Wither Stacks by its corresponding skillPart
@@ -985,7 +991,12 @@ class build_t:
 		for opt_name in self.config_numbers:
 			val = self.__get_config_value__(opt_name)
 			if val and val != 0:
-				dps_config.append(self.config_numbers[opt_name].format(self.__get_config_value__(opt_name)))
+				dps_config.append(self.config_numbers[opt_name].format(val))
+				
+		for opt_name in self.config_strs:
+			val = self.__get_config_value__(opt_name)
+			if val and not isinstance(val, float):
+				dps_config.append(self.config_strs[opt_name].format(val.title()))
 				
 		if self.get_enabled_gem("Vaal Haste") is not None:
 			dps_config.append("Vaal Haste")
