@@ -86,7 +86,7 @@ def get_response( reddit, reply_object, body, author = None, ignore_blacklist = 
 			if (not paste_key_is_blacklisted(paste_key) or ignore_blacklist) and paste_key not in bins_responded_to:
 				try:
 					xml = pastebin.get_as_xml(paste_key)
-				except (zlib.error, TypeError):
+				except (zlib.error, TypeError, xml.etree.ElementTree.ParseError):
 					print "Pastebin does not decode to XML data."
 					blacklist_pastebin(paste_key)
 					continue
