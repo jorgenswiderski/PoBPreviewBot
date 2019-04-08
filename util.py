@@ -47,10 +47,13 @@ def urllib_error_retry(attempt_number, ms_since_first_attempt):
 	stop_max_attempt_number=8,
 	wait_func=urllib_error_retry)
 def get_url_data(raw_url):
-	url = urllib2.urlopen(raw_url)
+	hdr = { 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36' }
+
+	req = urllib2.Request(raw_url, headers=hdr)
+	page = urllib2.urlopen(req)
 	
-	data = url.read()
-	return data
+	contents = page.read()
+	return contents
 	
 def parse_time_str(str):
 	if "d" in str:
