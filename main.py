@@ -44,7 +44,7 @@ def parse_generic( reply_object, body, author = None ):
 	if not ( reply_object and ( isinstance( reply_object, praw.models.Comment ) or isinstance( reply_object, praw.models.Submission ) ) ):
 		raise Exception("parse_generic passed invalid reply_object")
 	elif not ( body and ( isinstance( body, str ) or isinstance( body, unicode ) ) ):
-		print body
+		print reply_object.permalink
 		print type(body)
 		raise Exception("parse_generic passed invalid body")
 	
