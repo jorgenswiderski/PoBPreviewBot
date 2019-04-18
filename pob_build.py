@@ -135,6 +135,12 @@ class gem_t:
 	def __init__(self, gem_xml, socket_group):
 		self.xml = gem_xml
 		
+		if 'skillId' not in self.xml.attrib:
+			# If the gem has no skillId that means it grants no skills.
+			# It is most likely an abyss jewel and can safely be ignored.
+			# Return out before this gem object is added to the socket group.
+			return
+		
 		self.build = socket_group.build
 		self.socket_group = socket_group
 		
