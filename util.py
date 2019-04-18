@@ -4,6 +4,7 @@ import re
 from retrying import retry
 import praw
 import traceback
+import json
 
 import official_forum
 
@@ -137,3 +138,60 @@ def is_number(s):
 	'''
  
 	return False
+
+def dump_debug_info(praw_object, paste_key=None, xml=None, extra_data={}, dir="error"):
+	if not ( isinstance(praw_object, praw.models.Comment) or isinstance(praw_object, praw.models.Submission) ):
+			raise ValueError("dump_debug_info was passed an invalid praw_object: {}".format(type(praw_object)))
+			
+	if not ( paste_key is None or isinstance(paste_key, str) ):
+		raise ValueError("dump_debug_info was passed an invalid paste_key: {}".format(type(paste_key)))
+		
+	id = praw_object.id
+	
+	if not os.path.exists(dir):
+		os.makedirs(dir)
+	
+	if not os.path.exists("{}/{}".format(dir, id)):
+		os.makedirs("{}/{}".format(dir, id))
+		
+	if xml is None and isinstance(paste_key, str):
+		try:
+			c = get_url_data("http://pastebin.com/raw/" + paste_key)
+		except urllib2.HTTPError as e2:
+			print "An exception occurred when attempting to dump debug data."
+			
+		c = c.replace("-", "+").replace("_", "/")
+		xml = pastebin.decode_base64_and_inflate(c)
+	
+	if xml is not None:
+		with open("{}/{}/pastebin.xml".format(dir, id), "w") as f:
+			f.write( xml )
+			
+	data = {
+		'error_text': repr(e),
+	}
+	
+	if paste_key is not None:
+		data['pastebin_url'] = "http://pastebin.com/raw/{}".format(paste_key)
+		
+	if praw_object is not None:
+		if isinstance(praw_object, praw.models.Comment):
+			data['type'] = "comment"
+		else:
+			data['type'] = "submission"
+		
+		data['url'] = praw_object.permalink
+		
+	data.update(extra_data)
+			
+	with open("{}/{}/info.txt".format(dir, id), "w") as f:
+		f.write( json.dumps(data) )
+		 
+	with open("{}/{}/traceback.txt".format(dir, id), "w") as f:
+		traceback.print_exc( file = f )
+	
+	print "Dumped info to {}/{}/".format(dir, id)
+
+
+
+

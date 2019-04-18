@@ -110,45 +110,14 @@ def get_response( reddit, reply_object, body, author = None, ignore_blacklist = 
 							continue
 						except Exception as e:
 							print repr(e)
-						
+							
 							# dump xml for debugging later
-							try:
-								c = util.get_url_data("http://pastebin.com/raw/" + paste_key)
-							except urllib2.HTTPError as e2:
-								print "An exception occurred when parsing a comment, but debug data was unable to be dumped."
-							c = c.replace("-", "+").replace("_", "/")
+							util.dump_debug_info(reply_object, xml=xml)
 							
-							if not os.path.exists("error/" + reply_object.id):
-								os.makedirs("error/" + reply_object.id)
-							
-							with open("error/" + reply_object.id + "/pastebin.xml", "w") as f:
-								f.write( pastebin.decode_base64_and_inflate(c) )
-							with open("error/" + reply_object.id + "/info.txt", "w") as f:
-								comment_id = False
-								if isinstance(reply_object, praw.models.Comment):
-									comment_id = reply_object.permalink
-								else:
-									comment_id = reply_object.permalink
-									
-								f.write( "pastebin_url\t{:s}\ncomment_id\t{:s}\ncomment_url\t{:s}\nerror_text\t{:s}".format( bin, reply_object.id,
-								 comment_id, repr(e) ))
-							with open("error/" + reply_object.id + "/traceback.txt", "w") as f:
-								traceback.print_exc( file = f )
-							
-							print "Dumped info to error/{:s}/".format( reply_object.id )
 							blacklist_pastebin(paste_key)
 							continue
 						
-						'''
-						with open("xml_dump/{}.xml".format(paste_key), "w") as f:
-							try:
-								c = util.get_url_data("http://pastebin.com/raw/" + paste_key)
-								c = c.replace("-", "+").replace("_", "/")
-								f.write( pastebin.decode_base64_and_inflate(c) )
-								print "Dumped {} xml to xml_dump/{}.xml".format(reply_object.id, paste_key)
-							except:
-								pass
-						'''
+						#util.dump_debug_info(reply_object, xml=xml, dir="xml_dump")
 							
 						responses.append(response)
 						bins_responded_to[paste_key] = True
