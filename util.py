@@ -6,6 +6,7 @@ import praw
 import traceback
 import json
 import os
+import defusedxml.ElementTree as ET
 
 import official_forum
 import pastebin
@@ -166,6 +167,12 @@ def dump_debug_info(praw_object, paste_key=None, xml=None, extra_data={}, dir="e
 		xml = pastebin.decode_base64_and_inflate(c)
 	
 	if xml is not None:
+		if isinstance(xml, ET):
+			xml = ET.tostring(xml.getroot())
+			
+		if not isinstance(xml, str):
+			raise ValueError("dump_debug_info was passed invalid xml: is not string or coercable to string")
+	
 		with open("{}/{}/pastebin.xml".format(dir, id), "w") as f:
 			f.write( xml )
 			
