@@ -5,8 +5,10 @@ from retrying import retry
 import praw
 import traceback
 import json
+import os
 
 import official_forum
+import pastebin
 
 from prawcore.exceptions import RequestException
 from prawcore.exceptions import ServerError
