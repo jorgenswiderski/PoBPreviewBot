@@ -45,9 +45,10 @@ def parse_generic( reply_object, body, author = None ):
 		raise ValueError("parse_generic passed invalid reply_object")
 	elif not ( body and ( isinstance( body, str ) or isinstance( body, unicode ) ) ):
 		# dump xml for debugging later
-		util.dump_debug_info(reply_object, xml=xml, extra_data={'body_type': type(body)})
+		exc = ValueError("parse_generic passed invalid body")
+		util.dump_debug_info(reply_object, exc=exc, xml=xml, extra_data={'body_type': type(body)})
 		blacklist_pastebin(paste_key)
-		raise ValueError("parse_generic passed invalid body")
+		raise exc
 	
 	response = None
 	

@@ -142,7 +142,7 @@ def is_number(s):
  
 	return False
 
-def dump_debug_info(praw_object, paste_key=None, xml=None, extra_data={}, dir="error"):
+def dump_debug_info(praw_object, exc=None, paste_key=None, xml=None, extra_data={}, dir="error"):
 	if not ( isinstance(praw_object, praw.models.Comment) or isinstance(praw_object, praw.models.Submission) ):
 			raise ValueError("dump_debug_info was passed an invalid praw_object: {}".format(type(praw_object)))
 			
@@ -181,10 +181,11 @@ def dump_debug_info(praw_object, paste_key=None, xml=None, extra_data={}, dir="e
 		else:
 			print "Failed to dump xml to file with type {}".format(type(xml))
 			
-	data = {
-		'error_text': repr(e),
-	}
-	
+	data = {}
+
+	if exc is not None:
+		data['error_text'] = repr(exc)
+		
 	if paste_key is not None:
 		data['pastebin_url'] = "http://pastebin.com/raw/{}".format(paste_key)
 		

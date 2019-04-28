@@ -112,7 +112,7 @@ def get_response( reddit, reply_object, body, author = None, ignore_blacklist = 
 							print repr(e)
 							
 							# dump xml for debugging later
-							util.dump_debug_info(reply_object, xml=xml)
+							util.dump_debug_info(reply_object, exc=e, xml=xml)
 							
 							blacklist_pastebin(paste_key)
 							continue
