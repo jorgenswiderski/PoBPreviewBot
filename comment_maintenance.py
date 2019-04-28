@@ -124,6 +124,14 @@ class entry_t:
 			
 			deleted = False
 			
+			# if we've already made a comment object, then
+			# force refresh on the comment, otherwise we won't be able to detect any changes
+			if self.comment is not None:
+				self.get_comment().refresh()
+				
+			if self.parent is not None:
+				self.get_parent().refresh()
+			
 			# Make sure the reply has not already been deleted
 			if self.get_comment().body == "[deleted]":
 				util.tprint("Reply {} has already been deleted, removing from list of active comments.".format(self.comment_id))
