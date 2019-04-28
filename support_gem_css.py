@@ -46,5 +46,9 @@ for k in gem_data.support_gems:
 	
 	css_str += gem_template.format(gem.get_url_suffix(), gem.color_str, gem.shortname)
 	
-with open("data\support_gems.css", "w") as f:
+out = "data\support_gems.css"
+
+with open(out, "w") as f:
 	f.write(css_str)
+	
+print "Gem CSS written to {}".format(out)
