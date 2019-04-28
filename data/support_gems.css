@@ -89,6 +89,7 @@ a[href$="Stun_Support#support-gem-red"]:hover:before { content: "Stun"; }
 a[href$="Slower_Projectiles_Support#support-gem-green"]:hover:before { content: "Slower Projectiles"; }
 a[href$="Empower_Support#support-gem-red"]:hover:before { content: "Empower"; }
 a[href$="Spell_Cascade_Support#support-gem-blue"]:hover:before { content: "Spell Cascade"; }
+a[href$="Greater_Volley_Support#support-gem-green"]:hover:before { content: "Greater Volley"; }
 a[href$="Remote_Mine_Support#support-gem-blue"]:hover:before { content: "Remote Mine"; }
 a[href$="Shroud_of_the_Lightless#support-gem-blue"]:hover:before { content: "Elemental Penetration"; }
 a[href$="Minion_Damage_Support#support-gem-blue"]:hover:before { content: "Minion Damage"; }
