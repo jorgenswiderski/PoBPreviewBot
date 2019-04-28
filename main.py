@@ -30,13 +30,13 @@ locale.setlocale(locale.LC_ALL, '')
 file("bot.pid", 'w').write(str(os.getpid()))
 
 def bot_login():
-	print "Logging in..."
+	util.tprint("Logging in...")
 	r = praw.Reddit(username = config.username,
 		password = sconfig.password,
 		client_id = sconfig.client_id,
 		client_secret = sconfig.client_secret,
 		user_agent = "linux:PoBPreviewBot:v1.0 (by /u/aggixx)")
-	print "Successfully logged in as {:s}.".format(config.username)
+	util.tprint("Successfully logged in as {:s}.".format(config.username))
 		
 	return r
 			
@@ -61,13 +61,13 @@ def parse_generic( reply_object, body, author = None ):
 	if response is None:
 		return False
 		
-	print "Found matching {:s} {:s}.".format(obj_type_str(reply_object), reply_object.id)
+	util.tprint("Found matching {:s} {:s}.".format(obj_type_str(reply_object), reply_object.id))
 	
 	# post reply
 	if config.username == "PoBPreviewBot" or "pathofexile" not in config.subreddits:
 		reply_queue.reply(reply_object, response)
 	else:
-		#print "Reply body:\n" + response
+		#util.tprint("Reply body:\n" + response)
 		with open("saved_replies.txt", "a") as f:
 			f.write(response + "\n\n\n")
 			
@@ -100,7 +100,7 @@ def save_comment_count(subreddit):
 	global num_new_comments
 	comment_flow_history[subreddit].append(num_new_comments)
 	num_new_comments = 0
-	#print comment_flow_history[subreddit]
+	#util.tprint(comment_flow_history[subreddit])
 
 def save_submission_count(subreddit):
 	if len(submission_flow_history[subreddit]) >= config.pull_count_tracking_window:
@@ -109,7 +109,7 @@ def save_submission_count(subreddit):
 	global num_new_submissions
 	submission_flow_history[subreddit].append(num_new_submissions)
 	num_new_submissions = 0
-	#print submission_flow_history[subreddit]
+	#util.tprint(submission_flow_history[subreddit])
 	
 def get_num_entries_to_pull(history):
 	if len(history) == 0:
@@ -162,7 +162,7 @@ def parse_comments(subreddit):
 	num = get_num_entries_to_pull(comment_flow_history[subreddit])
 	
 	while True:
-		#print "Pulling {:.0f} comments from /r/{:s}...".format(num, subreddit)
+		#util.tprint("Pulling {:.0f} comments from /r/{:s}...".format(num, subreddit))
 		
 		# Grab comments
 		comments = r.subreddit(subreddit).comments(limit=num)
@@ -199,7 +199,7 @@ def parse_submissions(subreddit):
 	num = get_num_entries_to_pull(submission_flow_history[subreddit])
 	
 	while True:
-		#print "Pulling {:.0f} submissions from /r/{:s}...".format(num, subreddit)
+		#util.tprint("Pulling {:.0f} submissions from /r/{:s}...".format(num, subreddit))
 		
 		# Grab submissions
 		submissions = r.subreddit(subreddit).new(limit=num)
@@ -245,12 +245,12 @@ def run_bot():
 	
 	for sub in config.subreddits:
 		if t - last_time_comments_parsed[sub] >= config.comment_parse_interval:
-			#print "[{}] Reading comments from /r/{}".format(time.strftime("%H:%M:%S"), sub)
+			#util.tprint("[{}] Reading comments from /r/{}".format(time.strftime("%H:%M:%S"), sub))
 			parse_comments(sub)
 	
 	for sub in config.subreddits:
 		if t - last_time_submissions_parsed[sub] >= config.submission_parse_interval:
-			#print "[{}] Reading submissions from /r/{}".format(time.strftime("%H:%M:%S"), sub)
+			#util.tprint("[{}] Reading submissions from /r/{}".format(time.strftime("%H:%M:%S"), sub))
 			parse_submissions(sub)
 	
 	maintain_list.process()
@@ -261,7 +261,7 @@ def run_bot():
 	st = get_sleep_time()
 	
 	if st > 0:
-		#print "[{}] Sleeping for {:.2f}s...".format( time.strftime("%H:%M:%S"), st )
+		#util.tprint("[{}] Sleeping for {:.2f}s...".format( time.strftime("%H:%M:%S"), st ))
 		time.sleep( st )
 			
 			
@@ -291,9 +291,9 @@ def get_saved_submissions():
 	
 r = bot_login()
 comments_replied_to = get_saved_comments()
-#print comments_replied_to
+#util.tprint(comments_replied_to)
 submissions_replied_to = get_saved_submissions()
-#print submissions_replied_to
+#util.tprint(submissions_replied_to)
 maintain_list = maintain_list_t( "active_comments.txt", r, comments_replied_to, submissions_replied_to )
 	
 if '-force' in sys.argv:
@@ -315,7 +315,7 @@ for sub in config.subreddits:
 	comment_flow_history[sub] = []
 	submission_flow_history[sub] = []
 
-print "Scanning subreddits " + repr(config.subreddits) + "..."
+util.tprint("Scanning subreddits " + repr(config.subreddits) + "...")
 
 while True:
 	run_bot()

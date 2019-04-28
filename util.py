@@ -7,6 +7,7 @@ import traceback
 import json
 import os
 import xml.etree.ElementTree as ET
+from datetime import datetime
 
 import official_forum
 import pastebin
@@ -44,7 +45,7 @@ def floatToSigFig(n):
 	
 def urllib_error_retry(attempt_number, ms_since_first_attempt):
 	delay = 1 * ( 2 ** ( attempt_number - 1 ) )
-	print "An error occurred during get_url_data(). Sleeping for {:.0f}s before retrying...".format(delay)
+	tprint("An error occurred during get_url_data(). Sleeping for {:.0f}s before retrying...".format(delay))
 	return delay * 1000
 	
 @retry(wait_exponential_multiplier=1000,
@@ -84,17 +85,18 @@ def praw_obj_str(obj):
 praw_errors = (RequestException, ServerError, APIException, ResponseException)
 	
 def is_praw_error(e):
-	print e
+	tprint(e)
+
 	if isinstance(e, praw_errors):
-		print "Praw error: {:s}".format(repr(e))
-		print traceback.format_exc()
+		tprint("Praw error: {:s}".format(repr(e)))
+		tprint(traceback.format_exc())
 		return True
 	else:
 		return False
 	
 def praw_error_retry(attempt_number, ms_since_first_attempt):
 	delay = config.praw_error_wait_time * ( 2 ** ( attempt_number - 1 ) )
-	print "Sleeping for {:.0f}s...".format(delay)
+	tprint("Sleeping for {:.0f}s...".format(delay))
 	return delay * 1000
 	
 @retry(retry_on_exception=is_praw_error,
@@ -161,7 +163,7 @@ def dump_debug_info(praw_object, exc=None, paste_key=None, xml=None, extra_data=
 		try:
 			c = get_url_data("http://pastebin.com/raw/" + paste_key)
 		except urllib2.HTTPError as e2:
-			print "An exception occurred when attempting to dump debug data."
+			tprint("An exception occurred when attempting to dump debug data.")
 			
 		c = c.replace("-", "+").replace("_", "/")
 		xml = pastebin.decode_base64_and_inflate(c)
@@ -179,7 +181,7 @@ def dump_debug_info(praw_object, exc=None, paste_key=None, xml=None, extra_data=
 			with open("{}/{}/pastebin.xml".format(dir, id), "w") as f:
 				f.write( xml_str )
 		else:
-			print "Failed to dump xml to file with type {}".format(type(xml))
+			tprint("Failed to dump xml to file with type {}".format(type(xml)))
 			
 	data = {}
 
@@ -205,7 +207,10 @@ def dump_debug_info(praw_object, exc=None, paste_key=None, xml=None, extra_data=
 	with open("{}/{}/traceback.txt".format(dir, id), "w") as f:
 		traceback.print_exc( file = f )
 	
-	print "Dumped info to {}/{}/".format(dir, id)
+	tprint("Dumped info to {}/{}/".format(dir, id))
+	
+def tprint(info):
+	print "{}> {}".format(datetime.now().strftime("%Y/%m/%d %H:%M:%S"), info)
 
 
 

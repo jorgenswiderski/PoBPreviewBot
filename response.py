@@ -35,7 +35,7 @@ def get_blacklisted_pastebins():
 		# if the list contained duplicates, write
 		# back to the file with the duplicates removed
 		if dupe:
-			print "Deduplicating pastebin blacklist."
+			util.tprint("Deduplicating pastebin blacklist.")
 			with open("pastebin_blacklist.txt", "w") as f:
 				list = []
 				
@@ -55,7 +55,7 @@ def blacklist_pastebin(paste_key):
 	with open("pastebin_blacklist.txt", "a") as f:
 		f.write(paste_key + "\n")
 		
-	print "Blacklisted paste key " + paste_key + "."
+	util.tprint("Blacklisted paste key " + paste_key + ".")
 	
 def paste_key_is_blacklisted(paste_key):
 	return paste_key in pastebin_blacklist
@@ -70,10 +70,10 @@ def get_response( reddit, reply_object, body, author = None, ignore_blacklist = 
 	if not author:
 		author = reply_object.author
 	
-	#print "Processing " + reply_object.id
+	#util.tprint("Processing " + reply_object.id)
 		
 	if reply_object.author == reddit.user.me():
-		#print "Author is self, ignoring"
+		#util.tprint("Author is self, ignoring")
 		return
 
 	if "pastebin.com/" in body:
@@ -88,11 +88,11 @@ def get_response( reddit, reply_object, body, author = None, ignore_blacklist = 
 				try:
 					xml = pastebin.get_as_xml(paste_key)
 				except (zlib.error, TypeError, etree.ElementTree.ParseError):
-					print "Pastebin does not decode to XML data."
+					util.tprint("Pastebin does not decode to XML data.")
 					blacklist_pastebin(paste_key)
 					continue
 				except urllib2.HTTPError as e:
-					print "urllib2 {:s}".format(repr(e))
+					util.tprint("urllib2 {:s}".format(repr(e)))
 					
 					if "Service Temporarily Unavailable" not in repr(e):
 						blacklist_pastebin(paste_key)
@@ -109,7 +109,7 @@ def get_response( reddit, reply_object, body, author = None, ignore_blacklist = 
 							raise
 							continue
 						except Exception as e:
-							print repr(e)
+							util.tprint(repr(e))
 							
 							# dump xml for debugging later
 							util.dump_debug_info(reply_object, exc=e, xml=xml)
@@ -122,10 +122,10 @@ def get_response( reddit, reply_object, body, author = None, ignore_blacklist = 
 						responses.append(response)
 						bins_responded_to[paste_key] = True
 					else:
-						print "XML does not contain player stats."
+						util.tprint("XML does not contain player stats.")
 						blacklist_pastebin(paste_key)
 				else:
-					print "Pastebin does not contain Path of Building XML."
+					util.tprint("Pastebin does not contain Path of Building XML.")
 					blacklist_pastebin(paste_key)
 		
 		if len(responses) > 5:
@@ -146,4 +146,4 @@ def get_response( reddit, reply_object, body, author = None, ignore_blacklist = 
 			return comment_body
 			
 pastebin_blacklist = get_blacklisted_pastebins()
-#print pastebin_blacklist
+#util.tprint(pastebin_blacklist)

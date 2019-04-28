@@ -25,7 +25,7 @@ def get_soup_from_url( url ):
 		try:
 			html = util.get_url_data(url)
 		except urllib2.URLError as e:
-			print "Failed to retrieve any data\n{}\n{}".format(url, str(e))
+			util.tprint("Failed to retrieve any data\n{}\n{}".format(url, str(e)))
 			return None
 			
 		soup_cache = BeautifulSoup(html, 'html.parser')

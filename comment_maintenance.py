@@ -119,13 +119,13 @@ class entry_t:
 	
 	def maintain(self):
 		if self.comment_id not in not_author_blacklist:
-			#print "[{}] Maintaining comment {:s}.".format( time.strftime("%H:%M:%S"), self.comment_id )
+			#util.tprint("[{}] Maintaining comment {:s}.".format( time.strftime("%H:%M:%S"), self.comment_id ))
 			
 			deleted = False
 			
 			# Make sure the reply has not already been deleted
 			if self.get_comment().body == "[deleted]":
-				print "Reply {} has already been deleted, removing from list of active comments.".format(self.comment_id)
+				util.tprint("Reply {} has already been deleted, removing from list of active comments.".format(self.comment_id))
 				deleted = True
 			
 			try:
@@ -135,9 +135,9 @@ class entry_t:
 				if not deleted:
 					deleted = self.check_for_edit()
 			except urllib2.HTTPError as e:
-				print "An HTTPError occurred while maintaining comment {}. Skipping the check for now.".format(self.comment_id)
+				util.tprint("An HTTPError occurred while maintaining comment {}. Skipping the check for now.".format(self.comment_id))
 			except Forbidden as e:
-				print "Attempted to perform forbidden action on comment {:s}. Removing from list of active comments.\n{:s}".format(self.comment_id, self.get_comment().permalink())
+				util.tprint("Attempted to perform forbidden action on comment {:s}. Removing from list of active comments.\n{:s}".format(self.comment_id, self.get_comment().permalink()))
 				# Comment may or may not be deleted, but for one reason or another we can't modify it anymore, so no point in trying to keep track of it.
 				deleted = True
 				
@@ -157,13 +157,13 @@ class entry_t:
 		if comment.is_root:
 			if parent.selftext == "[deleted]" or parent.selftext == "[removed]":
 				comment.delete()
-				print "Deleted comment {:s} as parent submission {:s} was deleted.".format( self.comment_id, parent.id )
+				util.tprint("Deleted comment {:s} as parent submission {:s} was deleted.".format( self.comment_id, parent.id ))
 				
 				return True
 		else:
 			if parent.body == "[deleted]":
 				comment.delete()
-				print "Deleted comment {:s} as parent comment {:s} was deleted.".format( self.comment_id, parent.id )
+				util.tprint("Deleted comment {:s} as parent comment {:s} was deleted.".format( self.comment_id, parent.id ))
 				
 				return True
 				
@@ -201,20 +201,20 @@ class entry_t:
 						self.list.submissions_replied_to.remove(parent.id)
 						write_replied_to_file(submissions=self.list.submissions_replied_to)
 					
-				print "Parent {:s} no longer links to any builds, deleted response comment {:s}.".format(parent.id, self.comment_id)
+				util.tprint("Parent {:s} no longer links to any builds, deleted response comment {:s}.".format(parent.id, self.comment_id))
 				return True
 			elif new_comment_body != comment.body:
 				try:
 					comment.edit(new_comment_body)
-					print "Edited comment {:s} to reflect changes in parent {:s}.".format(self.comment_id, parent.id)
+					util.tprint("Edited comment {:s} to reflect changes in parent {:s}.".format(self.comment_id, parent.id))
 				except APIException as e:
 					if "NOT_AUTHOR" in str(e):
-						print "Attempted to modify comment {} that we do not own. Ignoring for the remainder of this execution.".format(self.comment_id)
+						util.tprint("Attempted to modify comment {} that we do not own. Ignoring for the remainder of this execution.".format(self.comment_id))
 						not_author_blacklist[self.comment_id] = True
 					else:
 						raise e
 			#else:
-			#	print "{:s}'s response body is unchanged.".format(parent.id)
+			#	util.tprint("{:s}'s response body is unchanged.".format(parent.id))
 		#else:
 		#	if isinstance(parent.edited, float):
 		#		print("{} was last edited {:.0f}s ago ({:.0f}s before the edit window).".format(obj_type_str(parent), t - parent.edited, self.time - 60 - parent.edited))
@@ -275,11 +275,11 @@ class maintain_list_t:
 			else:
 				lower = middle
 				
-		#print "Inserting {:s} ({:.0f}) at idx={:.0f}.".format(entry['id'], float(entry['time']), upper)
+		#util.tprint("Inserting {:s} ({:.0f}) at idx={:.0f}.".format(entry['id'], float(entry['time']), upper))
 		#if lower >= 0:
-		#	print float(deletion_check_list[lower]['time'])
+		#	util.tprint(float(deletion_check_list[lower]['time']))
 		#if upper < len(deletion_check_list):
-		#	print float(deletion_check_list[upper]['time'])
+		#	util.tprint(float(deletion_check_list[upper]['time']))
 			
 		self.list.insert(upper, entry)
 			
@@ -295,7 +295,7 @@ class maintain_list_t:
 		with open(self.file_path, "w") as f:
 			f.write( '\n'.join( map( str, self.list ) ) + '\n' )
 			
-		#print "Saved maintenance list to file."
+		#util.tprint("Saved maintenance list to file.")
 
 	def flag_for_edits(self, args):
 		if not ( '-force' in args and args.index('-force') < len(args) ):
@@ -310,9 +310,9 @@ class maintain_list_t:
 			e.flag()
 				
 		if len(filtered) > 0 and len(filtered) <= 10:
-			print "Flagged {} comments for update:\n{}".format( len( filtered ), ", ".join( map( lambda e: e.comment_id, filtered ) ) )
+			util.tprint("Flagged {} comments for update:\n{}".format( len( filtered ), ", ".join( map( lambda e: e.comment_id, filtered ) ) ))
 		else:
-			print "Flagged {} comments for update.".format( len( filtered ) )
+			util.tprint("Flagged {} comments for update.".format( len( filtered ) ))
 			
 		self.sort()
 		

@@ -21,13 +21,13 @@ class reply_handler_t:
 		
 		if self.throttled():
 			self.append( rep )
-			print "Added response to {} to reply queue.".format(util.praw_obj_str(rep.object))
+			util.tprint("Added response to {} to reply queue.".format(util.praw_obj_str(rep.object)))
 		else:
 			rep.attempt_post()
 			
 			if not rep.resolved:
 				self.append( rep )
-				print "Reply failed. Added response to {} to reply queue.".format(util.praw_obj_str(rep.object))
+				util.tprint("Reply failed. Added response to {} to reply queue.".format(util.praw_obj_str(rep.object)))
 				
 	def throttled(self):
 		return reply_handler_t._throttled_until > time.time()
@@ -54,7 +54,7 @@ class reply_handler_t:
 				
 	def process(self):
 		while len(self.queue) > 0 and not self.throttled():
-			#print "[{}] Processing reply queue entry (of {})".format( time.strftime("%H:%M:%S"), len(self) )
+			#util.tprint("[{}] Processing reply queue entry (of {})".format( time.strftime("%H:%M:%S"), len(self) ))
 			self.queue[0].attempt_post()
 			
 			if self.queue[0].resolved:
@@ -79,7 +79,7 @@ class reply_t:
 		try:
 			comment = self.object.reply( self.message_body )
 			
-			print "Replied to {} with {}.".format(util.praw_obj_str(self.object), util.praw_obj_str(comment))
+			util.tprint("Replied to {} with {}.".format(util.praw_obj_str(self.object), util.praw_obj_str(comment)))
 	
 			if isinstance(self.object, praw.models.Comment):
 				self.handler.maintain_list.comments_replied_to.append(self.object.id)
@@ -96,13 +96,13 @@ class reply_t:
 		except APIException as e:
 			if "DELETED_COMMENT" in str(e):
 				self.resolved = True
-				print "Parent {} has been deleted before it could be responded to. Removing response from reply queue.".format(util.praw_obj_str(self.object))
+				util.tprint("Parent {} has been deleted before it could be responded to. Removing response from reply queue.".format(util.praw_obj_str(self.object)))
 			elif "TOO_OLD" in str(e):
 				self.resolved = True
-				print "Ignoring {} as it is too old to be responded to.".format(util.praw_obj_str(self.object))
+				util.tprint("Ignoring {} as it is too old to be responded to.".format(util.praw_obj_str(self.object)))
 			else:
-				print "*** Failed to reply " + repr(e) + " ***"
-				print "Buffering reply for later"
+				util.tprint("*** Failed to reply " + repr(e) + " ***")
+				util.tprint("Buffering reply for later")
 				reply_handler_t._throttled_until = time.time() + 60
 				
 				self.resolved = False

@@ -193,14 +193,14 @@ class gem_t:
 		# 1-indexed
 		self.activeSkill = 1
 		
-		#print self.socket_group.activeSkill
-		#print self.is_vaal_gem()
+		#util.tprint(self.socket_group.activeSkill)
+		#util.tprint(self.is_vaal_gem())
 	
 		if self.socket_group.activeSkill > 0 and self.is_vaal_gem():
-			#print "activeSkill={}".format(self.socket_group.activeSkill)
+			#util.tprint("activeSkill={}".format(self.socket_group.activeSkill))
 		
 			currentSkill = 0
-			#print "currentSkill={}".format(currentSkill)
+			#util.tprint("currentSkill={}".format(currentSkill))
 			
 			for gem in self.socket_group.gems:
 				if not gem.is_support() and gem.enabled:
@@ -209,11 +209,11 @@ class gem_t:
 					else:
 						currentSkill += 1
 						
-					#print "currentSkill={}".format(currentSkill)
+					#util.tprint("currentSkill={}".format(currentSkill))
 					
 					if currentSkill == self.socket_group.activeSkill:
 						self.activeSkill = 2
-						#print "Build is using secondary skill of vaal gem."
+						#util.tprint("Build is using secondary skill of vaal gem.")
 						return
 
 	@staticmethod
@@ -370,7 +370,7 @@ class item_t:
 	def __parse_xml__(self):
 		rows = self.xml.text.split('\n')
 		
-		#print repr(rows)
+		#util.tprint(repr(rows))
 		
 		reg = re.compile("Rarity: ([A-Z])+")
 		s = reg.search(rows[1])
@@ -572,7 +572,7 @@ class build_t:
 			
 		#nodes = b.replace(ver >= 4 and chr(8) or chr(7), chr(-1))
 		nodes = b
-		#print nodes
+		#util.tprint(nodes)
 		
 		self.passives_by_name = {}
 		self.passives_by_id = {}
@@ -584,7 +584,7 @@ class build_t:
 				self.passives_by_name[passives.nodes[id]['dn']] = id
 				self.passives_by_id[id] = True
 			
-		#print allocNodes
+		#util.tprint(allocNodes)
 		
 	def __parse_items__(self):
 		self.items = {}
@@ -623,7 +623,7 @@ class build_t:
 		else:
 			self.active_weapon_set = 0
 			
-		#print repr(self.equipped_items)
+		#util.tprint(repr(self.equipped_items))
 		
 	def __check_build_eligibility__(self):
 		if self.main_gem.is_supported_by("Cast on Critical Strike"):
@@ -967,19 +967,19 @@ class build_t:
 		xml_input = self.xml_config.find("*[@name='{:s}']".format(name))
 		
 		if xml_input is None:
-			#print "{:s}: {:s}".format(name, None)
+			#util.tprint("{:s}: {:s}".format(name, None))
 			return None
 			
 		if 'boolean' in xml_input.attrib:
-			#print "{:s}: {:s}".format(name, xml_input.attrib['boolean'].lower())
+			#util.tprint("{:s}: {:s}".format(name, xml_input.attrib['boolean'].lower()))
 			return xml_input.attrib['boolean'].lower()
 			
 		if 'number' in xml_input.attrib:
-			#print "{:s}: {:n}".format(name, float(xml_input.attrib['number']))
+			#util.tprint("{:s}: {:n}".format(name, float(xml_input.attrib['number'])))
 			return float(xml_input.attrib['number'])
 			
 		if 'string' in xml_input.attrib:
-			#print "{:s}: {:s}".format(name, xml_input.attrib['string'].lower())
+			#util.tprint("{:s}: {:s}".format(name, xml_input.attrib['string'].lower()))
 			return xml_input.attrib['string'].lower()
 			
 	def __get_config_array__(self):
@@ -1137,7 +1137,7 @@ class build_t:
 			
 		header += line2
 		
-		#print header
+		#util.tprint(header)
 		return header
 	
 	def get_response_body(self):
@@ -1280,5 +1280,5 @@ class build_t:
 		
 		body += self.__get_config_string__()
 		
-		#print body
+		#util.tprint(body)
 		return body

@@ -31,7 +31,7 @@ def get_as_xml(paste_key):
 	try:
 		contents = util.get_url_data(raw_url)
 	except urllib2.URLError as e:
-		print "Failed to retrieve any data\n{}\n{}".format(raw_url, str(e))
+		util.tprint("Failed to retrieve any data\n{}\n{}".format(raw_url, str(e)))
 		return None
 	
 	return decode_to_xml(contents)
