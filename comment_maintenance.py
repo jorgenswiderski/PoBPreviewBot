@@ -127,10 +127,16 @@ class entry_t:
 			# if we've already made a comment object, then
 			# force refresh on the comment, otherwise we won't be able to detect any changes
 			if self.comment is not None:
-				self.get_comment().refresh()
+				self.comment.refresh()
 				
 			if self.parent is not None:
-				self.get_parent().refresh()
+				if isinstance(self.parent, praw.models.Comment):
+					self.parent.refresh()
+				else:
+					# There doesn't seem to be a way to refresh a submission, so we
+					# have to use the internal function "fetch"
+					self.parent._fetch()
+					
 			
 			# Make sure the reply has not already been deleted
 			if self.get_comment().body == "[deleted]":
