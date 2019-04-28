@@ -5,6 +5,7 @@ import random
 import math
 import urllib2
 from retrying import retry
+import datetime
 
 import util
 import config
@@ -119,7 +120,7 @@ class entry_t:
 	
 	def maintain(self):
 		if self.comment_id not in not_author_blacklist:
-			#util.tprint("[{}] Maintaining comment {:s}.".format( time.strftime("%H:%M:%S"), self.comment_id ))
+			#util.tprint("Maintaining comment {:s}.".format( self.comment_id ))
 			
 			deleted = False
 			
@@ -177,6 +178,7 @@ class entry_t:
 		comment = self.get_comment()
 		
 		# has the comment been edited recently OR the comment is new (edit tag is not visible so we need to check to be safe)
+		# grace period is apparently 180 seconds, but lets check for a bit longer to be safe
 		
 		if ( isinstance(parent.edited, float) and parent.edited >= self.last_time - 10 ) or time.time() - parent.created_utc < 400 or ( comment.is_root and parent.selftext == '' and official_forum.is_post( parent.url ) ) or self.time == 0:
 			new_comment_body = None
@@ -213,13 +215,18 @@ class entry_t:
 						not_author_blacklist[self.comment_id] = True
 					else:
 						raise e
-			#else:
-			#	util.tprint("{:s}'s response body is unchanged.".format(parent.id))
-		#else:
-		#	if isinstance(parent.edited, float):
-		#		print("{} was last edited {:.0f}s ago ({:.0f}s before the edit window).".format(obj_type_str(parent), t - parent.edited, self.time - 60 - parent.edited))
-		#	elif t - parent.created_utc >= 400:
-		#		print("{} is more than 400s old ({:.0f}s) and is not edited.".format(obj_type_str(parent), t - parent.created_utc))
+		'''
+			else:
+				util.tprint("{:s}'s response body is unchanged.".format(parent.id))
+		else:
+			if isinstance(parent.edited, float):
+				time_since_edit = math.ceil(time.time() - parent.edited)
+				seconds_before_cutoff = math.ceil(self.time - 60 - parent.edited)
+				util.tprint("{} was last edited [{}] ago ([{}] before the edit window).".format(util.obj_type_str(parent), datetime.timedelta(seconds=time_since_edit), datetime.timedelta(seconds=seconds_before_cutoff)))
+			elif time.time() - parent.created_utc >= 400:
+				age = math.ceil(time.time() - parent.created_utc)
+				util.tprint("{} is more than 400s old [{}] and is not edited.".format(util.obj_type_str(parent), str(datetime.timedelta(seconds=age))))
+		'''		
 				
 		return False
 		
