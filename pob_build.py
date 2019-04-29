@@ -132,6 +132,15 @@ class socket_group_t:
 		return self.getGemOfNthActiveSkill(self.activeSkill)
 	
 class gem_t:
+	# Gem name overrides ======================================================
+	# Sometimes an item modifier that grants a support gem can be worded,
+	# spelled, or punctuated incorrectly. In that case, that incorrect name
+	# must be overriden to the correct one in order to retrieve the proper gem
+	# data. See gem_t.get_gem_data for implementation.
+	data_overrides = {
+		'power charge on critical strike': 'power charge on critical'
+	}
+
 	def __init__(self, gem_xml, socket_group):
 		self.xml = gem_xml
 		
@@ -220,6 +229,13 @@ class gem_t:
 	def get_gem_data(name):
 		name = name.lower()
 		
+		# Check if the name has been manually overriden to something else.
+		if name in gem_t.data_overrides:
+			# If so, use that name instead
+			name = gem_t.data_overrides[name].lower()
+		# This can happen in the case of a support gem granted by an item
+		# whose mod is incorrectly worded.
+			
 		if name in support_gem_data:
 			return support_gem_data[name]
 		else:
