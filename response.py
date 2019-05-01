@@ -98,6 +98,10 @@ def get_response( reddit, reply_object, body, author = None, ignore_blacklist = 
 						blacklist_pastebin(paste_key)
 						
 					continue
+				except urllib2.URLError as e:
+					util.tprint("Failed to retrieve any data\nURL: {}\n{}".format(raw_url, str(e)))
+					dump_debug_info(reply_object, exc=e, paste_key=paste_key)
+					continue
 				
 				if xml.tag == "PathOfBuilding":
 					if xml.find('Build').find('PlayerStat') is not None:

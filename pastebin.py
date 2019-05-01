@@ -28,10 +28,6 @@ def decode_to_xml(enc):
 def get_as_xml(paste_key):
 	raw_url = 'https://pastebin.com/raw/' + paste_key
 	
-	try:
-		contents = util.get_url_data(raw_url)
-	except urllib2.URLError as e:
-		util.tprint("Failed to retrieve any data\n{}\n{}".format(raw_url, str(e)))
-		return None
+	contents = util.get_url_data(raw_url)
 	
 	return decode_to_xml(contents)
