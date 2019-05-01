@@ -162,11 +162,10 @@ def dump_debug_info(praw_object, exc=None, paste_key=None, xml=None, extra_data=
 	if xml is None and isinstance(paste_key, str):
 		try:
 			c = get_url_data("http://pastebin.com/raw/" + paste_key)
-		except urllib2.HTTPError as e2:
-			tprint("An exception occurred when attempting to dump debug data.")
-			
-		c = c.replace("-", "+").replace("_", "/")
-		xml = pastebin.decode_base64_and_inflate(c)
+			c = c.replace("-", "+").replace("_", "/")
+			xml = pastebin.decode_base64_and_inflate(c)
+		except urllib2.URLError as e:
+			tprint("An exception occurred when attempting to fetch xml for debug dump.")
 	
 	if xml is not None:
 		if isinstance(xml, ET.ElementTree):
