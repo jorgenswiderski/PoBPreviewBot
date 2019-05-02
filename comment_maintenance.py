@@ -117,48 +117,84 @@ class entry_t:
 		
 	def flag(self):
 		self.time = 0
+		
+	def __refresh__(self, object):
+		try:
+			if isinstance(object, praw.models.Comment):
+				object.refresh()
+			else:
+				# There doesn't seem to be a way to refresh a submission, so we
+				# have to use the internal function "fetch"
+				object._fetch()
+		except praw.exceptions.ClientException as e:
+			# Dump info
+			util.tprint("ClientException occurred when refreshing for maintenance of comment {}".format(self.comment_id))
+			util.dump_debug_info(object, exc=e, extra_data={
+				'entry_t': json.dumps(self),
+			})
+			
+			# Reraise the exception so refresh() knows we failed
+			raise e
+		
+	def refresh(self):
+		try:
+			if self.comment is not None:
+				self.__refresh__(self.comment)
+				
+			if self.parent is not None:
+				self.__refresh__(self.parent)
+		except praw.exceptions.ClientException:
+			return False
+			
+		return True
 	
 	def maintain(self):
-		if self.comment_id not in not_author_blacklist:
+		# Whether the comment has been deleted, and therefore doesn't need to
+		# be maintained anymore.
+		deleted = False
+		# Whether we failed to maintain the comment, and therefore need to check it again soon.
+		failure = False
+		
+		if self.comment_id in not_author_blacklist:
+			failure = True
+		else:
 			#util.tprint("Maintaining comment {:s}.".format( self.comment_id ))
-			
-			deleted = False
 			
 			# if we've already made a comment object, then
 			# force refresh on the comment, otherwise we won't be able to detect any changes
-			if self.comment is not None:
-				self.comment.refresh()
+			if self.refresh():
+				# Make sure the reply has not already been deleted
+				if self.get_comment().body == "[deleted]":
+					util.tprint("Reply {} has already been deleted, removing from list of active comments.".format(self.comment_id))
+					deleted = True
 				
-			if self.parent is not None:
-				if isinstance(self.parent, praw.models.Comment):
-					self.parent.refresh()
-				else:
-					# There doesn't seem to be a way to refresh a submission, so we
-					# have to use the internal function "fetch"
-					self.parent._fetch()
-					
-			
-			# Make sure the reply has not already been deleted
-			if self.get_comment().body == "[deleted]":
-				util.tprint("Reply {} has already been deleted, removing from list of active comments.".format(self.comment_id))
-				deleted = True
-			
-			try:
-				if not deleted:
-					deleted = self.check_for_deletion()
+				try:
+					if not deleted:
+						deleted = self.check_for_deletion()
 
-				if not deleted:
-					deleted = self.check_for_edit()
-			except urllib2.HTTPError as e:
-				util.tprint("An HTTPError occurred while maintaining comment {}. Skipping the check for now.".format(self.comment_id))
-			except Forbidden as e:
-				util.tprint("Attempted to perform forbidden action on comment {:s}. Removing from list of active comments.\n{:s}".format(self.comment_id, self.get_comment().permalink()))
-				# Comment may or may not be deleted, but for one reason or another we can't modify it anymore, so no point in trying to keep track of it.
-				deleted = True
+					if not deleted:
+						deleted = self.check_for_edit()
+				except urllib2.HTTPError as e:
+					util.tprint("An HTTPError occurred while maintaining comment {}. Skipping the check for now.".format(self.comment_id))
+				except Forbidden as e:
+					util.tprint("Attempted to perform forbidden action on comment {:s}. Removing from list of active comments.\n{:s}".format(self.comment_id, self.get_comment().permalink()))
+					# Comment may or may not be deleted, but for one reason or another we can't modify it anymore, so no point in trying to keep track of it.
+					deleted = True
+			else:
+				failure = True
 				
 		if not deleted and time.time() - self.created_utc < config.preserve_comments_after:
 			# calculate the next time we should perform maintenance on this comment
 			self.update_check_time()
+			
+			if failure:
+				# If there was a failure to maintain the comment, postpone
+				# trying it again for 10 minutes. This will hopefully prevent
+				# chain failures from blocking or saturating the queue.
+				fail_time = time.time() + 600
+				
+				if fail_time < self.time:
+					self.time = fail_time
 			
 			self.last_time = time.time()
 			
