@@ -131,7 +131,7 @@ class entry_t:
 			# Dump info
 			util.tprint("ClientException occurred when refreshing for maintenance of comment {}".format(self.comment_id))
 			util.dump_debug_info(object, exc=e, extra_data={
-				'entry_t': json.dumps(self),
+				'entry_t': json.dumps(self.__dict__),
 			})
 			
 			# Reraise the exception so refresh() knows we failed
