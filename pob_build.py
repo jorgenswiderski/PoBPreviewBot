@@ -135,10 +135,15 @@ class gem_t:
 	# Gem name overrides ======================================================
 	# Sometimes an item modifier that grants a support gem can be worded,
 	# spelled, or punctuated incorrectly. In that case, that incorrect name
-	# must be overriden to the correct one in order to retrieve the proper gem
-	# data. See gem_t.get_gem_data for implementation.
+	# must be overriden in order to retrieve the proper gem data. For
+	# simplicity's sake, just override to the exact id of the gem. See
+	# gem_t.get_gem_data for implementation.
 	data_overrides = {
-		'power charge on critical strike': 'power charge on critical'
+		# wrong wording
+		'power charge on critical strike': 'SupportPowerChargeOnCrit',
+		# Gem has no name in the gem data
+		'greater volley': 'UniqueSupportGreaterVolley',
+		'elemental penetration': 'SupportElementalPenetration',
 	}
 
 	def __init__(self, gem_xml, socket_group):
@@ -191,7 +196,7 @@ class gem_t:
 			
 	def __init_gem_data__(self):
 		try:
-			self.data = self.get_gem_data(self.name)
+			self.data = self.get_gem_data(id=self.id)
 		except GemDataException:
 			if self.is_support():
 				raise
@@ -226,20 +231,31 @@ class gem_t:
 						return
 
 	@staticmethod
-	def get_gem_data(name):
-		name = name.lower()
-		
-		# Check if the name has been manually overriden to something else.
-		if name in gem_t.data_overrides:
-			# If so, use that name instead
-			name = gem_t.data_overrides[name].lower()
-		# This can happen in the case of a support gem granted by an item
-		# whose mod is incorrectly worded.
+	def get_gem_data(name=None, id=None):
+		# If an override exists for the name, use its overriden ID instead.
+		if name is not None and name in gem_t.data_overrides:
+			id = gem_t.data_overrides[name]
+			name = None
+	
+		if id is not None:
+			if id in support_gem_data:
+				return support_gem_data[id]
 			
-		if name in support_gem_data:
-			return support_gem_data[name]
-		else:
+			raise GemDataException("Could not find gem data for {}!".format(id))
+		elif name is not None:
+			name = name.lower()
+			
+			for id in support_gem_data:
+				data = support_gem_data[id]
+				
+				if data.is_support and name == data.short_name.lower():
+					return data
+			
 			raise GemDataException("Could not find gem data for {}!".format(name))
+		else:
+			exc = ValueError("gem_t.get_gem_data was passed no parameters.")
+			util.dump_debug_info(self.build.praw_object, exc=exc, xml=self.build.xml)
+			return
 		
 	def get_support_gem_dict(self):
 		dict = {}
@@ -247,7 +263,7 @@ class gem_t:
 		# Support gems from xml (socketed into the item)
 		for gem in self.socket_group.gems:
 			if gem.enabled and gem.is_support():
-				dict[gem.data.shortname.lower()] = gem.data
+				dict[gem.data.id] = gem.data
 
 		# Merge in all the support gems granted by the item's mods
 		if self.item is not None:
@@ -281,7 +297,10 @@ class gem_t:
 		str = ""
 		
 		for name, data in self.get_support_gem_dict().items():
-			str += "[{:s}]({:s}#support-gem-{:s})".format(data.shortcode, data.wiki_url, data.color_str)
+			if data.wiki_url is not None:
+				str += "[{:s}]({:s}#support-gem-{:s})".format(data.letter, data.wiki_url, data.get_color_str())
+			else:
+				str += "[{:s}](#support-gem-{:s})".format(data.letter, data.get_color_str())
 				
 		return str
 	
@@ -374,7 +393,8 @@ class item_t:
 	re_support_mod = re.compile("socketed gems are supported by level \d+ (.+)")
 	re_variant_tag = re.compile("{variant:([\d,]+)}")
 
-	def __init__(self, item_xml):
+	def __init__(self, build, item_xml):
+		self.build = build
 		self.xml = item_xml
 		self.id = int(self.xml.attrib['id'])
 		
@@ -421,14 +441,16 @@ class item_t:
 		for r in self.mods:
 			# Match in lower case just in case the mod has improper capitalization
 			s = self.re_support_mod.search(r.lower())
+			
 			if s:
 				name = s.group(1).strip()
-				data = gem_t.get_gem_data(name)
+				data = gem_t.get_gem_data(name=name)
 				
 				if data:
-					self.support_mods[data.shortname.lower()] = data
+					self.support_mods[data.id] = data
 				else:
-					print("Warning: Support gem '{}' was not found in gem data and was ommitted in gem str!".format(name));
+					util.tprint("Warning: Support gem '{}' was not found in gem data and was ommitted in gem str!".format(name));
+					util.dump_debug_info(self.build.praw_object, xml=self.build.xml)
 	
 	def grants_support_gem(self, support):
 		return support.lower() in self.support_mods
@@ -492,11 +514,12 @@ class build_t:
 		"4": 15,
 	}
 	
-	def __init__(self, xml, pastebin_url, author):
+	def __init__(self, xml, pastebin_url, author, praw_object):
 		self.xml = xml
 		self.xml_build = self.xml.find('Build')
 		self.xml_config = self.xml.find('Config')
 		self.pastebin = pastebin_url
+		self.praw_object = praw_object
 		
 		self.__parse_items__()
 		self.__parse_author__(author)
@@ -608,7 +631,7 @@ class build_t:
 		xml_items = self.xml.find('Items')
 		
 		for i in xml_items.findall('Item'):
-			self.items[int(i.attrib['id'])] = item_t(i)
+			self.items[int(i.attrib['id'])] = item_t(self, i)
 			
 		self.equipped_items = {}
 			

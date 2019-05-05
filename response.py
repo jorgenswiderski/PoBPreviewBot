@@ -106,7 +106,7 @@ def get_response( reddit, reply_object, body, author = None, ignore_blacklist = 
 				if xml.tag == "PathOfBuilding":
 					if xml.find('Build').find('PlayerStat') is not None:
 						try:
-							build = build_t(xml, bin, author)
+							build = build_t(xml, bin, author, reply_object)
 							response = build.get_response()
 						except EligibilityException:
 							blacklist_pastebin(paste_key)
