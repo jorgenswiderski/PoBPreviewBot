@@ -10,10 +10,10 @@ import random
 from retrying import retry
 import sys
 
-#import live_config as config
-#import live_secret_config as sconfig
-import config
-import secret_config as sconfig
+import live_config as config
+import live_secret_config as sconfig
+#import config
+#import secret_config as sconfig
 import pastebin
 import util
 import status
