@@ -339,6 +339,12 @@ class gem_t:
 	def is_trap(self):
 		return " Trap" in self.name or self.is_supported_by("Trap")
 		
+	def is_attack(self):
+		return self.data.tags is not None and "attack" in self.data.tags
+		
+	def is_spell(self):
+		return self.data.tags is not None and "spell" in self.data.tags
+		
 	def has_stackable_dot(self):
 		if self.name == "Scorching Ray":
 			return True
@@ -865,6 +871,10 @@ class build_t:
 			return "Mines/sec"
 		elif self.main_gem.is_trap():
 			return "Traps/sec"
+		elif self.main_gem.is_attack():
+			return "Attacks/sec"
+		elif self.main_gem.is_spell():
+			return "Casts/sec"
 		else:
 			return "Use/sec"
 			
@@ -1298,24 +1308,29 @@ class build_t:
 			
 		body += "**{:s}** {:s} *({:n}L)* - *{:s}*".format(self.main_gem.name, self.main_gem.get_support_gem_str(), 1+num_supports, dps_str) + '  \n'
 		
-		line = ""
+		pieces = []
 		
-		# ugly support for CwDT cd FIXME
-		if self.main_gem.is_supported_by("Cast when Damage Taken"):
-			line = "{:.2f}s **CD**".format(self.get_stat("Cooldown"))
-		else:
-			line = "{:.2f} **{}**".format(self.get_speed(), self.get_speed_str())
+		# Add a speed str as long as the skill is not instant cast.
+		if not (self.main_gem.data.cast_time is not None and self.main_gem.data.cast_time == 0):
+			# FIXME: ugly support for CwDT cd
+			if self.main_gem.is_supported_by("Cast when Damage Taken"):
+				pieces.append("{:.2f}s **CD**".format(self.get_stat("Cooldown")))
+			else:
+				pieces.append("{:.2f} **{}**".format(self.get_speed(), self.get_speed_str()))
 		
 		if self.main_gem.is_totem():
-			line += " | {} **Totems**".format(self.main_gem.get_totem_limit())
+			pieces.append("{} **Totems**".format(self.main_gem.get_totem_limit()))
 		
 		if self.get_stat('CritChance') >= 20 and not self.has_passive_skill("Elemental Overload"):
-			line += " | {:.2f}% **Crit** | {:n}% **Multi**".format(self.get_stat('CritChance'), self.get_stat('CritMultiplier')*100)
+			pieces.append("{:.2f}% **Crit**".format(self.get_stat('CritChance')))
+			pieces.append("{:n}% **Multi**".format(self.get_stat('CritMultiplier')*100))
 			
 		if self.main_gem.is_trap() and self.get_stat("TrapCooldown") > 0:
-			line += " | {:.2f}s **Cooldown**".format(self.get_stat("TrapCooldown"))
-			
-		body += '^' + line.replace(' ', ' ^')
+			pieces.append("{:.2f}s **Cooldown**".format(self.get_stat("TrapCooldown")))
+		
+		if len(pieces) > 0:
+			line = " | ".join(pieces)
+			body += '^' + line.replace(' ', ' ^')
 		
 		body += self.__get_config_string__()
 		
