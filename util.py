@@ -203,9 +203,10 @@ def dump_debug_info(praw_object, exc=None, paste_key=None, xml=None, extra_data=
 			
 	with open("{}/{}/info.txt".format(dir, id), "w") as f:
 		f.write( json.dumps(data) )
-		 
-	with open("{}/{}/traceback.txt".format(dir, id), "w") as f:
-		traceback.print_exc( file = f )
+	
+	if exc is not None:
+		with open("{}/{}/traceback.txt".format(dir, id), "w") as f:
+			traceback.print_exc( file = f )
 	
 	tprint("Dumped info to {}/{}/".format(dir, id))
 	
