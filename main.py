@@ -26,6 +26,7 @@ from util import obj_type_str
 from comment_maintenance import maintain_list_t
 from reply_buffer import reply_handler_t
 from response import get_response
+from logger import init_logging
 
 from pob_build import EligibilityException
 from comment_maintenance import PastebinLimitException
@@ -35,11 +36,13 @@ from comment_maintenance import PastebinLimitException
 
 def bot_login():
 	logging.info("Logging in...")
+	
 	r = praw.Reddit(username = config.username,
 		password = sconfig.password,
 		client_id = sconfig.client_id,
 		client_secret = sconfig.client_secret,
 		user_agent = "linux:PoBPreviewBot:v1.0 (by /u/aggixx)")
+		
 	logging.info("Successfully logged in as {:s}.".format(config.username))
 		
 	return r
@@ -107,7 +110,7 @@ def save_comment_count(subreddit):
 	global num_new_comments
 	comment_flow_history[subreddit].append(num_new_comments)
 	num_new_comments = 0
-	logging.debug(comment_flow_history[subreddit])
+	logging.debug("Flow history for {}: {}".format(subreddit, comment_flow_history[subreddit]))
 
 def save_submission_count(subreddit):
 	if len(submission_flow_history[subreddit]) >= config.pull_count_tracking_window:
@@ -244,12 +247,12 @@ def run_bot():
 	
 	for sub in config.subreddits:
 		if t - last_time_comments_parsed[sub] >= config.comment_parse_interval:
-			logging.debug("[{}] Reading comments from /r/{}".format(time.strftime("%H:%M:%S"), sub))
+			logging.debug("Reading comments from /r/{}".format(sub))
 			parse_comments(sub)
 	
 	for sub in config.subreddits:
 		if t - last_time_submissions_parsed[sub] >= config.submission_parse_interval:
-			logging.debug("[{}] Reading submissions from /r/{}".format(time.strftime("%H:%M:%S"), sub))
+			logging.debug("Reading submissions from /r/{}".format(sub))
 			parse_submissions(sub)
 	
 	maintain_list.process()
@@ -260,7 +263,7 @@ def run_bot():
 	st = get_sleep_time()
 	
 	if st > 0:
-		logging.debug("[{}] Sleeping for {:.2f}s...".format( time.strftime("%H:%M:%S"), st ))
+		logging.debug("Sleeping for {:.2f}s...".format( st ))
 		time.sleep( st )
 			
 			
@@ -294,13 +297,7 @@ def get_saved_submissions():
 locale.setlocale(locale.LC_ALL, '')
 file("bot.pid", 'w').write(str(os.getpid()))
 
-# Initialize logging
-logging.basicConfig(
-	filename='log.txt',
-	level=logging.DEBUG,
-	format='%(asctime)s %(levelname)s> %(message)s',
-	datefmt='%Y/%m/%d %H:%M:%S'
-)
+init_logging()
 	
 last_time_comments_parsed = {}
 for sub in config.subreddits:

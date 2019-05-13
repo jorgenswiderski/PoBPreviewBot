@@ -93,7 +93,7 @@ def praw_obj_str(obj):
 praw_errors = (RequestException, ServerError, APIException, ResponseException)
 	
 def is_praw_error(e):
-	logging.error((e)
+	logging.error(e)
 
 	if isinstance(e, praw_errors):
 		logging.error("Praw error: {:s}".format(repr(e)))

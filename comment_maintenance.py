@@ -10,7 +10,8 @@ import logging
 
 # 3rd Party
 import praw
-import urllib2from retrying import retry
+import urllib2
+from retrying import retry
 
 from prawcore.exceptions import Forbidden
 from praw.exceptions import APIException
@@ -342,7 +343,7 @@ class maintain_list_t:
 			else:
 				lower = middle
 				
-		logging.debug("Inserting {:s} ({:.0f}) {} at idx={:.0f}.".format(entry['id'], float(entry['time']), self, upper))
+		logging.debug("Inserting {:s} ({:.0f}) maintain list at idx={:.0f}.".format(entry.comment_id, float(entry.time), upper))
 		'''
 		if lower >= 0:
 			logging.info(float(deletion_check_list[lower]['time']))
