@@ -34,13 +34,13 @@ from comment_maintenance import PastebinLimitException
 # START FUNCTION DEFINITION
 
 def bot_login():
-	util.tprint("Logging in...")
+	logging.info("Logging in...")
 	r = praw.Reddit(username = config.username,
 		password = sconfig.password,
 		client_id = sconfig.client_id,
 		client_secret = sconfig.client_secret,
 		user_agent = "linux:PoBPreviewBot:v1.0 (by /u/aggixx)")
-	util.tprint("Successfully logged in as {:s}.".format(config.username))
+	logging.info("Successfully logged in as {:s}.".format(config.username))
 		
 	return r
 			
@@ -68,7 +68,7 @@ def parse_generic( reply_object, body, author = None ):
 	if response is None:
 		return False
 		
-	util.tprint("Found matching {:s} {:s}.".format(obj_type_str(reply_object), reply_object.id))
+	logging.info("Found matching {:s} {:s}.".format(obj_type_str(reply_object), reply_object.id))
 	
 	# post reply
 	if config.username == "PoBPreviewBot" or "pathofexile" not in config.subreddits:
@@ -337,7 +337,7 @@ for sub in config.subreddits:
 	comment_flow_history[sub] = []
 	submission_flow_history[sub] = []
 
-util.tprint("Scanning subreddits " + repr(config.subreddits) + "...")
+logging.info("Scanning subreddits " + repr(config.subreddits) + "...")
 
 while True:
 	run_bot()

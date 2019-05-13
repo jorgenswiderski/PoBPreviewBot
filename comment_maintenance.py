@@ -140,7 +140,7 @@ class entry_t:
 				object._fetch()
 		except praw.exceptions.ClientException as e:
 			# Dump info
-			util.tprint("ClientException occurred when refreshing for maintenance of comment {}".format(self.comment_id))
+			logging.warning("ClientException occurred when refreshing for maintenance of comment {}".format(self.comment_id))
 			util.dump_debug_info(object, exc=e, extra_data={
 				'entry_t': json.dumps(self.__dict__),
 			})
@@ -177,7 +177,7 @@ class entry_t:
 			if self.refresh():
 				# Make sure the reply has not already been deleted
 				if self.get_comment().body == "[deleted]":
-					util.tprint("Reply {} has already been deleted, removing from list of active comments.".format(self.comment_id))
+					logging.warning("Reply {} has already been deleted, removing from list of active comments.".format(self.comment_id))
 					deleted = True
 				
 				try:
@@ -187,9 +187,9 @@ class entry_t:
 					if not deleted:
 						deleted = self.check_for_edit()
 				except urllib2.HTTPError as e:
-					util.tprint("An HTTPError occurred while maintaining comment {}. Skipping the check for now.".format(self.comment_id))
+					logging.error("An HTTPError occurred while maintaining comment {}. Skipping the check for now.".format(self.comment_id))
 				except Forbidden as e:
-					util.tprint("Attempted to perform forbidden action on comment {:s}. Removing from list of active comments.\n{:s}".format(self.comment_id, self.get_comment().permalink()))
+					logging.error("Attempted to perform forbidden action on comment {:s}. Removing from list of active comments.\n{:s}".format(self.comment_id, self.get_comment().permalink()))
 					# Comment may or may not be deleted, but for one reason or another we can't modify it anymore, so no point in trying to keep track of it.
 					deleted = True
 			else:
@@ -220,13 +220,13 @@ class entry_t:
 		if comment.is_root:
 			if parent.selftext == "[deleted]" or parent.selftext == "[removed]":
 				comment.delete()
-				util.tprint("Deleted comment {:s} as parent submission {:s} was deleted.".format( self.comment_id, parent.id ))
+				logging.info("Deleted comment {:s} as parent submission {:s} was deleted.".format( self.comment_id, parent.id ))
 				
 				return True
 		else:
 			if parent.body == "[deleted]":
 				comment.delete()
-				util.tprint("Deleted comment {:s} as parent comment {:s} was deleted.".format( self.comment_id, parent.id ))
+				logging.info("Deleted comment {:s} as parent comment {:s} was deleted.".format( self.comment_id, parent.id ))
 				
 				return True
 				
@@ -265,30 +265,28 @@ class entry_t:
 						self.list.submissions_replied_to.remove(parent.id)
 						write_replied_to_file(submissions=self.list.submissions_replied_to)
 					
-				util.tprint("Parent {:s} no longer links to any builds, deleted response comment {:s}.".format(parent.id, self.comment_id))
+				logging.info("Parent {:s} no longer links to any builds, deleted response comment {:s}.".format(parent.id, self.comment_id))
 				return True
 			elif new_comment_body != comment.body:
 				try:
 					comment.edit(new_comment_body)
-					util.tprint("Edited comment {:s} to reflect changes in parent {:s}.".format(self.comment_id, parent.id))
+					logging.info("Edited comment {:s} to reflect changes in parent {:s}.".format(self.comment_id, parent.id))
 				except APIException as e:
 					if "NOT_AUTHOR" in str(e):
-						util.tprint("Attempted to modify comment {} that we do not own. Ignoring for the remainder of this execution.".format(self.comment_id))
+						logging.warning("Attempted to modify comment {} that we do not own. Ignoring for the remainder of this execution.".format(self.comment_id))
 						not_author_blacklist[self.comment_id] = True
 					else:
 						raise e
-		'''
 			else:
-				util.tprint("{:s}'s response body is unchanged.".format(parent.id))
+				logging.debug("{:s}'s response body is unchanged.".format(parent.id))
 		else:
 			if isinstance(parent.edited, float):
 				time_since_edit = math.ceil(time.time() - parent.edited)
 				seconds_before_cutoff = math.ceil(self.time - 60 - parent.edited)
-				util.tprint("{} was last edited [{}] ago ([{}] before the edit window).".format(util.obj_type_str(parent), datetime.timedelta(seconds=time_since_edit), datetime.timedelta(seconds=seconds_before_cutoff)))
+				logging.debug("{} was last edited [{}] ago ([{}] before the edit window).".format(util.obj_type_str(parent), datetime.timedelta(seconds=time_since_edit), datetime.timedelta(seconds=seconds_before_cutoff)))
 			elif time.time() - parent.created_utc >= 400:
 				age = math.ceil(time.time() - parent.created_utc)
-				util.tprint("{} is more than 400s old [{}] and is not edited.".format(util.obj_type_str(parent), str(datetime.timedelta(seconds=age))))
-		'''		
+				logging.debug("{} is more than 400s old [{}] and is not edited.".format(util.obj_type_str(parent), str(datetime.timedelta(seconds=age))))	
 				
 		return False
 		
@@ -345,10 +343,12 @@ class maintain_list_t:
 				lower = middle
 				
 		logging.debug("Inserting {:s} ({:.0f}) {} at idx={:.0f}.".format(entry['id'], float(entry['time']), self, upper))
-		#if lower >= 0:
-		#	util.tprint(float(deletion_check_list[lower]['time']))
-		#if upper < len(deletion_check_list):
-		#	util.tprint(float(deletion_check_list[upper]['time']))
+		'''
+		if lower >= 0:
+			logging.info(float(deletion_check_list[lower]['time']))
+		if upper < len(deletion_check_list):
+			logging.info(float(deletion_check_list[upper]['time']))
+		'''
 			
 		self.list.insert(upper, entry)
 			
@@ -378,10 +378,8 @@ class maintain_list_t:
 		for e in filtered:
 			e.flag()
 				
-		if len(filtered) > 0 and len(filtered) <= 10:
-			util.tprint("Flagged {} comments for update:\n{}".format( len( filtered ), ", ".join( map( lambda e: e.comment_id, filtered ) ) ))
-		else:
-			util.tprint("Flagged {} comments for update.".format( len( filtered ) ))
+		logging.info("Flagged {} comments for update.".format( len( filtered ) ))
+		logging.debug(", ".join( map( lambda e: e.comment_id, filtered ) ) )
 			
 		self.sort()
 		

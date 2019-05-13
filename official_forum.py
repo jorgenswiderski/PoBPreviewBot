@@ -1,10 +1,17 @@
+# Python
 import re
 import time
+import logging
+
+# 3rd Party
 import urllib2
 from bs4 import BeautifulSoup
 
+# Self
 import util
 import config
+
+# =============================================================================
 
 soup_cache = None
 cache_time = 0
@@ -25,7 +32,7 @@ def get_soup_from_url( url ):
 		try:
 			html = util.get_url_data(url)
 		except urllib2.URLError as e:
-			util.tprint("Failed to retrieve any data\n{}\n{}".format(url, str(e)))
+			logging.error("Failed to retrieve any data\n{}\n{}".format(url, str(e)))
 			return None
 			
 		soup_cache = BeautifulSoup(html, 'html.parser')

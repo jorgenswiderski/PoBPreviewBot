@@ -14,6 +14,8 @@ from name_overrides import skill_overrides
 from name_overrides import build_defining_uniques
 from gem_data import support_gems as support_gem_data
 
+# =============================================================================
+
 ERR_CHECK_ACTIVE_SKILL = 'Please make sure the correct skill is selected in the left panel when you export!'
 
 stats_to_parse = [
@@ -461,7 +463,7 @@ class item_t:
 				if data:
 					self.support_mods[data.id] = data
 				else:
-					util.tprint("Warning: Support gem '{}' was not found in gem data and was ommitted in gem str!".format(name));
+					logging.warning("Support gem '{}' was not found in gem data and was ommitted in gem str!".format(name));
 					util.dump_debug_info(self.build.praw_object, xml=self.build.xml)
 	
 	def grants_support_gem(self, support):

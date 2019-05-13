@@ -149,7 +149,7 @@ def load_gems_from_file(path):
 		elif 'active_skill' in data:
 			gem = active_gem_data_t(id, data)
 		else:
-			util.tprint("Could not initialize gem {}".format(id))
+			logging.warning("Could not initialize gem {}".format(id))
 			continue
 			
 		support_gems[ id ] = gem
