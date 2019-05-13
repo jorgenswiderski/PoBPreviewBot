@@ -60,6 +60,7 @@ stats_to_parse = [
 		'stats': [
 			"TotalDPS",
 			"WithPoisonDPS",
+			'Speed',
 		],
 	},
 ]
@@ -751,6 +752,9 @@ class build_t:
 			
 		return self.get_stat('EnergyShield') >= self.get_stat('LifeUnreserved') * 0.25
 		
+	def deals_minion_damage(self):
+		return self.get_stat('TotalDPS', minion=True) > 0
+		
 	def get_main_descriptor(self):
 		for unique in build_defining_uniques:
 			if self.has_item_equipped(unique):
@@ -854,8 +858,8 @@ class build_t:
 				
 		return sm
 		
-	def get_speed(self):
-		speed = self.get_stat('Speed')
+	def get_speed(self, minion=False):
+		speed = self.get_stat('Speed', minion=minion)
 	
 		if self.main_gem.is_mine():
 			speed = 1 / float(self.get_stat('MineLayingTime'))
@@ -867,6 +871,14 @@ class build_t:
 		return speed
 		
 	def get_speed_str(self):
+		if self.deals_minion_damage():
+			'''
+			If its minion damage, I have no idea how to properly figure out
+			whether something is an attack or spell. So just default to "use"
+			even though its less than ideal. Better to show "use" than no speed
+			at all.
+			'''
+			return "Use/sec"
 		if self.main_gem.is_mine():
 			return "Mines/sec"
 		elif self.main_gem.is_trap():
@@ -883,7 +895,7 @@ class build_t:
 		return element[0]
 		
 	def get_dps_breakdown(self):
-		if self.get_stat('TotalDPS', minion=True) > 0:
+		if self.deals_minion_damage():
 			if self.get_stat('ActiveMinionLimit') > 1:
 				return [
 					(self.get_stat('TotalDPS', minion=True) * self.get_stat('ActiveMinionLimit'), "total DPS"),
@@ -1310,13 +1322,17 @@ class build_t:
 		
 		pieces = []
 		
-		# Add a speed str as long as the skill is not instant cast.
-		if not (self.main_gem.data.cast_time is not None and self.main_gem.data.cast_time == 0):
-			# FIXME: ugly support for CwDT cd
-			if self.main_gem.is_supported_by("Cast when Damage Taken"):
-				pieces.append("{:.2f}s **CD**".format(self.get_stat("Cooldown")))
-			else:
-				pieces.append("{:.2f} **{}**".format(self.get_speed(), self.get_speed_str()))
+		if self.deals_minion_damage():
+			# Minion speed str
+			pieces.append("{:.2f} **{}**".format(self.get_speed(minion=True), self.get_speed_str()))
+		else:
+			# Add a speed str as long as the skill is not instant cast.
+			if not (self.main_gem.data.cast_time is not None and self.main_gem.data.cast_time == 0):
+				# FIXME: ugly support for CwDT cd
+				if self.main_gem.is_supported_by("Cast when Damage Taken"):
+					pieces.append("{:.2f}s **CD**".format(self.get_stat("Cooldown")))
+				else:
+					pieces.append("{:.2f} **{}**".format(self.get_speed(), self.get_speed_str()))
 		
 		if self.main_gem.is_totem():
 			pieces.append("{} **Totems**".format(self.main_gem.get_totem_limit()))
