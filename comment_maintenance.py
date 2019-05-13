@@ -1,21 +1,29 @@
+# Python
 import time
 import os
-import praw
 import random
 import math
-import urllib2
-from retrying import retry
+
 import datetime
 import json
+import logging
 
+# 3rd Party
+import praw
+import urllib2from retrying import retry
+
+from prawcore.exceptions import Forbidden
+from praw.exceptions import APIException
+
+# Self
 import util
 import config
 from response import get_response
 import official_forum
 
-from prawcore.exceptions import Forbidden
-from praw.exceptions import APIException
 from pob_build import EligibilityException
+
+# =============================================================================
 
 not_author_blacklist = {};
 	
@@ -162,7 +170,7 @@ class entry_t:
 		if self.comment_id in not_author_blacklist:
 			failure = True
 		else:
-			#util.tprint("Maintaining comment {:s}.".format( self.comment_id ))
+			logging.debug("Maintaining comment {:s}.".format( self.comment_id ))
 			
 			# if we've already made a comment object, then
 			# force refresh on the comment, otherwise we won't be able to detect any changes
@@ -336,7 +344,7 @@ class maintain_list_t:
 			else:
 				lower = middle
 				
-		#util.tprint("Inserting {:s} ({:.0f}) at idx={:.0f}.".format(entry['id'], float(entry['time']), upper))
+		logging.debug("Inserting {:s} ({:.0f}) {} at idx={:.0f}.".format(entry['id'], float(entry['time']), self, upper))
 		#if lower >= 0:
 		#	util.tprint(float(deletion_check_list[lower]['time']))
 		#if upper < len(deletion_check_list):
@@ -356,7 +364,7 @@ class maintain_list_t:
 		with open(self.file_path, "w") as f:
 			f.write( '\n'.join( map( str, self.list ) ) + '\n' )
 			
-		#util.tprint("Saved maintenance list to file.")
+		logging.debug("Saved maintenance list to file.")
 
 	def flag_for_edits(self, args):
 		if not ( '-force' in args and args.index('-force') < len(args) ):

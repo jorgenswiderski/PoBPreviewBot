@@ -1,12 +1,17 @@
+# Python
 from collections import deque
 import time
 import math
+import logging
+
+# 3rd Party
 import praw
 
+from praw.exceptions import APIException
+
+# Self
 import util
 from comment_maintenance import maintain_list_t
-
-from praw.exceptions import APIException
 
 class reply_handler_t:
 	_throttled_until = 0
@@ -54,7 +59,7 @@ class reply_handler_t:
 				
 	def process(self):
 		while len(self.queue) > 0 and not self.throttled():
-			#util.tprint("[{}] Processing reply queue entry (of {})".format( time.strftime("%H:%M:%S"), len(self) ))
+			logging.debug("Processing reply queue entry (of {})".format( len(self) ))
 			self.queue[0].attempt_post()
 			
 			if self.queue[0].resolved:

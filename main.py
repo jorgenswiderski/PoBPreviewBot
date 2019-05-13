@@ -1,19 +1,24 @@
-import praw
+# Python
 import time
 import os
 import re
-import defusedxml.ElementTree as ET
 import locale
 from collections import deque
 import math
 import random
-from retrying import retry
 import sys
+import logging
 
-import live_config as config
-import live_secret_config as sconfig
-#import config
-#import secret_config as sconfig
+# 3rd Party
+import praw
+import defusedxml.ElementTree as ET
+from retrying import retry
+
+# Self
+#import live_config as config
+#import live_secret_config as sconfig
+import config
+import secret_config as sconfig
 import pastebin
 import util
 import status
@@ -25,9 +30,8 @@ from response import get_response
 from pob_build import EligibilityException
 from comment_maintenance import PastebinLimitException
 
-locale.setlocale(locale.LC_ALL, '')
-
-file("bot.pid", 'w').write(str(os.getpid()))
+# =============================================================================
+# START FUNCTION DEFINITION
 
 def bot_login():
 	util.tprint("Logging in...")
@@ -70,7 +74,7 @@ def parse_generic( reply_object, body, author = None ):
 	if config.username == "PoBPreviewBot" or "pathofexile" not in config.subreddits:
 		reply_queue.reply(reply_object, response)
 	else:
-		#util.tprint("Reply body:\n" + response)
+		logging.debug("Reply body:\n" + response)
 		with open("saved_replies.txt", "a") as f:
 			f.write(response + "\n\n\n")
 			
@@ -103,7 +107,7 @@ def save_comment_count(subreddit):
 	global num_new_comments
 	comment_flow_history[subreddit].append(num_new_comments)
 	num_new_comments = 0
-	#util.tprint(comment_flow_history[subreddit])
+	logging.debug(comment_flow_history[subreddit])
 
 def save_submission_count(subreddit):
 	if len(submission_flow_history[subreddit]) >= config.pull_count_tracking_window:
@@ -112,7 +116,7 @@ def save_submission_count(subreddit):
 	global num_new_submissions
 	submission_flow_history[subreddit].append(num_new_submissions)
 	num_new_submissions = 0
-	#util.tprint(submission_flow_history[subreddit])
+	logging.debug(submission_flow_history[subreddit])
 	
 def get_num_entries_to_pull(history):
 	if len(history) == 0:
@@ -154,10 +158,6 @@ def reply_to_summon(comment):
 	if config.username == "PoBPreviewBot" or "pathofexile" not in config.subreddits:
 		reply_queue.reply(comment, response, log = False)
 	
-last_time_comments_parsed = {}
-for sub in config.subreddits:
-	last_time_comments_parsed[sub] = 0
-	
 @retry(retry_on_exception=util.is_praw_error,
 	   wait_exponential_multiplier=config.praw_error_wait_time,
 	   wait_func=util.praw_error_retry)
@@ -165,7 +165,7 @@ def parse_comments(subreddit):
 	num = get_num_entries_to_pull(comment_flow_history[subreddit])
 	
 	while True:
-		#util.tprint("Pulling {:.0f} comments from /r/{:s}...".format(num, subreddit))
+		logging.debug("Pulling {:.0f} comments from /r/{:s}...".format(num, subreddit))
 		
 		# Grab comments
 		comments = r.subreddit(subreddit).comments(limit=num)
@@ -190,10 +190,6 @@ def parse_comments(subreddit):
 	last_time_comments_parsed[subreddit] = time.time()
 	
 	save_comment_count(subreddit)
-	
-last_time_submissions_parsed = {}
-for sub in config.subreddits:
-	last_time_submissions_parsed[sub] = 0
 
 @retry(retry_on_exception=util.is_praw_error,
 	   wait_exponential_multiplier=config.praw_error_wait_time,
@@ -202,7 +198,7 @@ def parse_submissions(subreddit):
 	num = get_num_entries_to_pull(submission_flow_history[subreddit])
 	
 	while True:
-		#util.tprint("Pulling {:.0f} submissions from /r/{:s}...".format(num, subreddit))
+		logging.debug("Pulling {:.0f} submissions from /r/{:s}...".format(num, subreddit))
 		
 		# Grab submissions
 		submissions = r.subreddit(subreddit).new(limit=num)
@@ -248,12 +244,12 @@ def run_bot():
 	
 	for sub in config.subreddits:
 		if t - last_time_comments_parsed[sub] >= config.comment_parse_interval:
-			#util.tprint("[{}] Reading comments from /r/{}".format(time.strftime("%H:%M:%S"), sub))
+			logging.debug("[{}] Reading comments from /r/{}".format(time.strftime("%H:%M:%S"), sub))
 			parse_comments(sub)
 	
 	for sub in config.subreddits:
 		if t - last_time_submissions_parsed[sub] >= config.submission_parse_interval:
-			#util.tprint("[{}] Reading submissions from /r/{}".format(time.strftime("%H:%M:%S"), sub))
+			logging.debug("[{}] Reading submissions from /r/{}".format(time.strftime("%H:%M:%S"), sub))
 			parse_submissions(sub)
 	
 	maintain_list.process()
@@ -264,7 +260,7 @@ def run_bot():
 	st = get_sleep_time()
 	
 	if st > 0:
-		#util.tprint("[{}] Sleeping for {:.2f}s...".format( time.strftime("%H:%M:%S"), st ))
+		logging.debug("[{}] Sleeping for {:.2f}s...".format( time.strftime("%H:%M:%S"), st ))
 		time.sleep( st )
 			
 			
@@ -291,12 +287,35 @@ def get_saved_submissions():
 		
 	return submissions_replied_to
 	
+# END FUNCTION DEFINITION
+# =============================================================================
+# START MAIN
+
+locale.setlocale(locale.LC_ALL, '')
+file("bot.pid", 'w').write(str(os.getpid()))
+
+# Initialize logging
+logging.basicConfig(
+	filename='log.txt',
+	level=logging.DEBUG,
+	format='%(asctime)s %(levelname)s> %(message)s',
+	datefmt='%Y/%m/%d %H:%M:%S'
+)
+	
+last_time_comments_parsed = {}
+for sub in config.subreddits:
+	last_time_comments_parsed[sub] = 0
+	
+last_time_submissions_parsed = {}
+for sub in config.subreddits:
+	last_time_submissions_parsed[sub] = 0
+	
 	
 r = bot_login()
 comments_replied_to = get_saved_comments()
-#util.tprint(comments_replied_to)
+logging.debug(comments_replied_to)
 submissions_replied_to = get_saved_submissions()
-#util.tprint(submissions_replied_to)
+logging.debug(submissions_replied_to)
 maintain_list = maintain_list_t( "active_comments.txt", r, comments_replied_to, submissions_replied_to )
 	
 if '-force' in sys.argv:

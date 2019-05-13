@@ -1,8 +1,14 @@
+# Python
 from enum import Enum
 import os
 import re
 import json
+import logging
+
+# Self
 import util
+
+# =============================================================================
 
 class gem_color(Enum):
 	WHITE = 0
@@ -147,7 +153,7 @@ def load_gems_from_file(path):
 			continue
 			
 		support_gems[ id ] = gem
-		#util.tprint("Initialized gem {}".format(id))
+		logging.debug("Initialized gem {}".format(id))
 			
 	return support_gems
 	

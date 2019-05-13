@@ -1,19 +1,26 @@
-import praw
+# Python
 import re
 import os
-import urllib2
 import traceback
 import zlib
+import logging
 
+from xml import etree
+
+# 3rd Party
+import urllib2
+import praw
+
+# Self
 import util
+from util import obj_type_str
 import pastebin
 from pob_build import build_t
 import config
+import comment_maintenance
 
 from pob_build import EligibilityException
-from xml import etree
-import comment_maintenance 
-from util import obj_type_str
+
 		
 def get_blacklisted_pastebins():
 	pastebin_blacklist = {}
@@ -70,10 +77,10 @@ def get_response( reddit, reply_object, body, author = None, ignore_blacklist = 
 	if not author:
 		author = reply_object.author
 	
-	#util.tprint("Processing " + reply_object.id)
+	logging.debug("Processing " + reply_object.id)
 		
 	if reply_object.author == reddit.user.me():
-		#util.tprint("Author is self, ignoring")
+		logging.debug("Author is self, ignoring")
 		return
 
 	if "pastebin.com/" in body:
@@ -150,4 +157,4 @@ def get_response( reddit, reply_object, body, author = None, ignore_blacklist = 
 			return comment_body
 			
 pastebin_blacklist = get_blacklisted_pastebins()
-#util.tprint(pastebin_blacklist)
+logging.debug("Pastebin blacklist loaded with {} entries.".format(len(pastebin_blacklist)))
