@@ -1,22 +1,29 @@
-import urllib2
-import config
+# Python
 import re
-from retrying import retry
-import praw
 import traceback
 import json
 import os
 import xml.etree.ElementTree as ET
 from datetime import datetime
+import logging
 
-import official_forum
-import pastebin
+# 3rd Party
+import urllib2
+from retrying import retry
+import praw
 
 from prawcore.exceptions import RequestException
 from prawcore.exceptions import ServerError
 from prawcore.exceptions import ResponseException
 from prawcore.exceptions import Forbidden
 from praw.exceptions import APIException
+
+# Self
+import config
+import official_forum
+import pastebin
+
+# =============================================================================
 
 def floatToSigFig(n):
 	negative = False
@@ -45,7 +52,7 @@ def floatToSigFig(n):
 	
 def urllib_error_retry(attempt_number, ms_since_first_attempt):
 	delay = 1 * ( 2 ** ( attempt_number - 1 ) )
-	tprint("An error occurred during get_url_data(). Sleeping for {:.0f}s before retrying...".format(delay))
+	logging.error("An error occurred during get_url_data(). Sleeping for {:.0f}s before retrying...".format(delay))
 	return delay * 1000
 	
 @retry(wait_exponential_multiplier=1000,
@@ -86,18 +93,18 @@ def praw_obj_str(obj):
 praw_errors = (RequestException, ServerError, APIException, ResponseException)
 	
 def is_praw_error(e):
-	tprint(e)
+	logging.error((e)
 
 	if isinstance(e, praw_errors):
-		tprint("Praw error: {:s}".format(repr(e)))
-		tprint(traceback.format_exc())
+		logging.error("Praw error: {:s}".format(repr(e)))
+		logging.error(traceback.format_exc())
 		return True
 	else:
 		return False
 	
 def praw_error_retry(attempt_number, ms_since_first_attempt):
 	delay = config.praw_error_wait_time * ( 2 ** ( attempt_number - 1 ) )
-	tprint("Sleeping for {:.0f}s...".format(delay))
+	logging.info("Sleeping for {:.0f}s...".format(delay))
 	return delay * 1000
 	
 @retry(retry_on_exception=is_praw_error,
@@ -166,7 +173,7 @@ def dump_debug_info(praw_object, exc=None, paste_key=None, xml=None, extra_data=
 			c = c.replace("-", "+").replace("_", "/")
 			xml = pastebin.decode_base64_and_inflate(c)
 		except urllib2.URLError as e:
-			tprint("An exception occurred when attempting to fetch xml for debug dump.")
+			logging.error("An exception occurred when attempting to fetch xml for debug dump.")
 	
 	if xml is not None:
 		if isinstance(xml, ET.ElementTree):
@@ -181,7 +188,7 @@ def dump_debug_info(praw_object, exc=None, paste_key=None, xml=None, extra_data=
 			with open("{}/{}/pastebin.xml".format(dir, id), "w") as f:
 				f.write( xml_str )
 		else:
-			tprint("Failed to dump xml to file with type {}".format(type(xml)))
+			logging.error("Failed to dump xml to file with type {}".format(type(xml)))
 			
 	data = {}
 
@@ -208,10 +215,7 @@ def dump_debug_info(praw_object, exc=None, paste_key=None, xml=None, extra_data=
 		with open("{}/{}/traceback.txt".format(dir, id), "w") as f:
 			traceback.print_exc( file = f )
 	
-	tprint("Dumped info to {}/{}/".format(dir, id))
-	
-def tprint(info):
-	print "{}> {}".format(datetime.now().strftime("%Y/%m/%d %H:%M:%S"), info)
+	logging.info("Dumped info to {}/{}/".format(dir, id))
 
 
 
