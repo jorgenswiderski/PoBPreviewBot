@@ -57,6 +57,8 @@ class entry_t:
 		else:
 			self.last_time = int(last_time)
 		
+		self.retired = self.get_age() >= config.preserve_comments_after
+		
 	@classmethod
 	def from_str(cls, list, str):
 		split = str.strip().split('\t')
@@ -120,10 +122,11 @@ class entry_t:
 			
 		return t
 		
+	def get_age(self):
+		return time.time() - self.created_utc
+		
 	def update_check_time(self):
-		t = time.time()
-		comment_age = t - self.created_utc
-		self.time = t + entry_t.get_check_time(comment_age)
+		self.time = time.time() + entry_t.get_check_time(self.get_age())
 		
 	def flag(self):
 		self.time = 0
@@ -196,23 +199,30 @@ class entry_t:
 			else:
 				failure = True
 				
-		if not deleted and time.time() - self.created_utc < config.preserve_comments_after:
-			# calculate the next time we should perform maintenance on this comment
-			self.update_check_time()
-			
-			if failure:
-				# If there was a failure to maintain the comment, postpone
-				# trying it again for 10 minutes. This will hopefully prevent
-				# chain failures from blocking or saturating the queue.
-				fail_time = time.time() + 600
+		if not deleted:
+			if self.get_age() < config.preserve_comments_after:
+				# calculate the next time we should perform maintenance on this comment
+				self.update_check_time()
 				
-				if fail_time < self.time:
-					self.time = fail_time
-			
-			self.last_time = time.time()
-			
-			# reinsert the entry at its chronologically correct place in the list
-			self.list.add_entry(self)
+				if failure:
+					# If there was a failure to maintain the comment, postpone
+					# trying it again for 10 minutes. This will hopefully prevent
+					# chain failures from blocking or saturating the queue.
+					fail_time = time.time() + 600
+					
+					if fail_time < self.time:
+						self.time = fail_time
+				
+				self.last_time = time.time()
+				
+				# reinsert the entry at its chronologically correct place in the list
+				self.list.add_entry(self)
+			else:
+				self.retire()
+				
+	def retire(self):
+		self.retired = True
+		self.list.retired_list.append(self)
 			
 	def check_for_deletion(self):
 		comment = self.get_comment()
@@ -299,6 +309,7 @@ class maintain_list_t:
 		self.submissions_replied_to = submissions
 		
 		self.list = []
+		self.retired_list = []
 		
 		if not os.path.isfile(file_path):
 			self.list = []
@@ -313,8 +324,17 @@ class maintain_list_t:
 			buf = filter(None, buf)
 			
 			for line in buf:
-				self.list.append( entry_t.from_str( self, line ) )
+				entry = entry_t.from_str( self, line )
 				
+				# Only append to list if the comment is young enough
+				if entry.retired:
+					self.retired_list.append( entry )
+					logging.debug( "Did not add comment {} to maintain list (too old)".format(entry.comment_id) )
+				else:
+					self.list.append( entry )
+			
+			logging.debug("Populated maintain_list_t with {} entries.".format(len(self)))
+		
 	def __len__(self):
 		return len(self.list)
 	
@@ -363,8 +383,8 @@ class maintain_list_t:
 			
 	def save_to_file(self):
 		with open(self.file_path, "w") as f:
-			f.write( '\n'.join( map( str, self.list ) ) + '\n' )
-			
+			f.write( '\n'.join( map( str, self.list + self.retired_list ) ) + '\n' )
+			 
 		logging.debug("Saved maintenance list to file.")
 
 	def flag_for_edits(self, args):
