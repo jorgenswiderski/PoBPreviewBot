@@ -266,7 +266,6 @@ def run_bot():
 		logging.debug("Sleeping for {:.2f}s...".format( st ))
 		time.sleep( st )
 			
-			
 def get_saved_comments():
 	if not os.path.isfile("comments_replied_to.txt"):
 		comments_replied_to = []
@@ -336,5 +335,10 @@ for sub in config.subreddits:
 
 logging.info("Scanning subreddits " + repr(config.subreddits) + "...")
 
-while True:
-	run_bot()
+try:
+	while True:
+		run_bot()
+# If ANY unhandled exception occurs, catch it, log it, THEN crash.
+except BaseException:
+	logging.exception("Fatal error occurred.")
+	raise
