@@ -19,8 +19,9 @@ from praw.exceptions import APIException
 # Self
 import util
 import config
-from response import get_response
 import official_forum
+from response import get_response
+from praw_wrapper import praw_object_wrapper_t
 
 from response import PastebinLimitException
 from pob_build import EligibilityException
@@ -71,7 +72,8 @@ class entry_t:
 		   wait_func=util.praw_error_retry)
 	def get_comment(self):
 		if self.comment is None:
-			self.comment = util.get_praw_comment_by_id(self.list.reddit, self.comment_id)
+			comment = util.get_praw_comment_by_id(self.list.reddit, self.comment_id)
+			self.comment = praw_object_wrapper_t(comment)
 		
 			# Fetch the comment now in a place where RequestExceptions can be handled properly.
 			if not self.comment._fetched:
@@ -84,7 +86,8 @@ class entry_t:
 		   wait_func=util.praw_error_retry)
 	def get_parent(self):
 		if self.parent is None:
-			self.parent = self.get_comment().parent()
+			parent = self.get_comment().parent()
+			self.parent = praw_object_wrapper_t(parent)
 		
 			# Fetch the comment now in a place where RequestExceptions can be handled properly.
 			if not self.parent._fetched:
@@ -255,17 +258,14 @@ class entry_t:
 			new_comment_body = None
 			
 			try:
-				if isinstance(parent, praw.models.Comment):
-					new_comment_body = get_response(self.list.reddit, parent, parent.body)
-				else:
-					new_comment_body = get_response(self.list.reddit, parent, util.get_submission_body( parent ), author = util.get_submission_author( parent ) )
+				new_comment_body = get_response( parent )
 			except (EligibilityException, PastebinLimitException) as e:
 				print(e)
 			
 			if new_comment_body is None:
 				comment.delete()
 				
-				if isinstance(parent, praw.models.Comment):
+				if parent.is_comment():
 					if parent.id in self.list.comments_replied_to:
 						self.list.comments_replied_to.remove(parent.id)
 						write_replied_to_file(comments=self.list.comments_replied_to)
