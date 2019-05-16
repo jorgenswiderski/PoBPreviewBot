@@ -23,6 +23,8 @@ from pob_build import EligibilityException
 
 # =============================================================================
 
+class PastebinLimitException(Exception):
+	pass
 		
 def get_blacklisted_pastebins():
 	pastebin_blacklist = {}
@@ -72,21 +74,16 @@ def blacklist_pastebin(paste_key):
 def paste_key_is_blacklisted(paste_key):
 	return paste_key in pastebin_blacklist
 
-def get_response( reddit, reply_object, body, author = None, ignore_blacklist = False ):
-	if not (reply_object and ( isinstance( reply_object, praw.models.Comment ) or isinstance( reply_object, praw.models.Submission ) ) ):
-		raise Exception("get_response passed invalid reply_object")
-	elif not ( body is not None and ( isinstance( body, str ) or isinstance( body, unicode ) ) ):
-		raise Exception("get_response passed invalid body")
+def get_response( wrapped_object ):
+	'''
+	if not (wrapped_object is not None and isinstance( wrapped_object, praw_object_wrapper_t )):
+		raise Exception("get_response passed invalid wrapped_object")
+	'''
 		
-	# If author isn't passed in as a parameter, then default to the author of the object we're replying to
-	if not author:
-		author = reply_object.author
+	author = wrapped_object.get_author()
+	body = wrapped_object.get_body()
 	
-	logging.debug("Processing " + reply_object.id)
-		
-	if reply_object.author == reddit.user.me():
-		logging.debug("Author is self, ignoring")
-		return
+	logging.debug("Processing {}".format(str(wrapped_object)))
 
 	if "pastebin.com/" in body:
 		responses = []
@@ -145,7 +142,7 @@ def get_response( reddit, reply_object, body, author = None, ignore_blacklist = 
 					blacklist_pastebin(paste_key)
 		
 		if len(responses) > 5:
-			raise comment_maintenance.PastebinLimitException("Ignoring {} {} because it has greater than 5 valid pastebins. ({})".format(obj_type_str(reply_object), reply_object.id, len(responses)))
+			raise PastebinLimitException("Ignoring {} {} because it has greater than 5 valid pastebins. ({})".format(obj_type_str(reply_object), reply_object.id, len(responses)))
 		elif len(responses) > 0:
 			comment_body = ""
 			if len(responses) > 1:
@@ -160,6 +157,38 @@ def get_response( reddit, reply_object, body, author = None, ignore_blacklist = 
 			comment_body += '\n\n' + config.BOT_FOOTER
 			
 			return comment_body
+			
+def reply_to_summon(bot, comment):
+	errs = []
+	parent = comment.parent()
+	
+	if parent.author == bot.reddit.user.me():
+		return
+		
+	p_response = None
+	
+	try:
+		if isinstance(parent, praw.models.Comment):
+			p_response = get_response( comment )
+	except (EligibilityException, PastebinLimitException) as e:
+		errs.append("* {}".format(str(e)))
+	
+	response = None
+		
+	if p_response is not None and parent.id not in bot.replied_to['comments'] and parent.id not in bot.replied_to['submissions'] and not bot.reply_queue.contains_id(parent.id):
+		if config.username == "PoBPreviewBot" or "pathofexile" not in config.subreddits:
+			bot.reply_queue.reply(parent, p_response)
+		response = "Seems like I missed comment {}! I've replied to it now, sorry about that.".format(parent.id)
+	elif len(errs) > 0:
+		response = "The {} {} was not responded to for the following reason{}:\n\n{}".format(obj_type_str(parent), parent.id, "s" if len(errs) > 1 else "", "  \n".join(errs))
+	else:
+		response = config.BOT_INTRO
+	
+	if response is None:
+		return
+	
+	if config.username == "PoBPreviewBot" or "pathofexile" not in config.subreddits:
+		bot.reply_queue.reply(comment, response, log = False)
 			
 pastebin_blacklist = get_blacklisted_pastebins()
 logging.debug("Pastebin blacklist loaded with {} entries.".format(len(pastebin_blacklist)))

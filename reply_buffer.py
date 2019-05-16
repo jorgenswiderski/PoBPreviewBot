@@ -18,8 +18,9 @@ from comment_maintenance import maintain_list_t
 class reply_handler_t:
 	_throttled_until = 0
 
-	def __init__(self, maintain_list):
-		self.maintain_list = maintain_list
+	def __init__(self, bot):
+		self.bot = bot
+		self.maintain_list = bot.maintain_list
 		self.queue_dict = {}
 		self.queue = deque()
 		
@@ -58,9 +59,12 @@ class reply_handler_t:
 		
 	def __len__(self):
 		return len(self.queue)
+		
+	def is_active(self):
+		return len(self.queue) > 0 and not self.throttled()
 				
 	def process(self):
-		while len(self.queue) > 0 and not self.throttled():
+		while self.is_active():
 			logging.debug("Processing reply queue entry (of {})".format( len(self) ))
 			self.queue[0].attempt_post()
 			

@@ -27,5 +27,8 @@ def init():
 	if os.path.exists(file):
 		with open(file, 'r') as f:
 			global status
-			status = util.byteify(json.load(f))
-			#logging.debug(status)
+			
+			try:
+				status = util.byteify(json.load(f))
+			except ValueError:
+				pass

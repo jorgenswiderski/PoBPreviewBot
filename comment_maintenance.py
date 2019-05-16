@@ -3,7 +3,7 @@ import time
 import os
 import random
 import math
-
+import threading
 import datetime
 import json
 import logging
@@ -22,14 +22,12 @@ import config
 from response import get_response
 import official_forum
 
+from response import PastebinLimitException
 from pob_build import EligibilityException
 
 # =============================================================================
 
 not_author_blacklist = {};
-	
-class PastebinLimitException(Exception):
-	pass
 
 def write_replied_to_file(comments=False, submissions=False):
 	if comments:
@@ -302,11 +300,12 @@ class entry_t:
 		return False
 		
 class maintain_list_t:
-	def __init__(self, file_path, reddit, comments, submissions):
+	def __init__(self, bot, file_path):
+		self.bot = bot
 		self.file_path = file_path
-		self.reddit = reddit
-		self.comments_replied_to = comments
-		self.submissions_replied_to = submissions
+		self.reddit = bot.reddit
+		self.comments_replied_to = bot.replied_to['comments']
+		self.submissions_replied_to = bot.replied_to['submissions']
 		
 		self.list = []
 		self.retired_list = []
@@ -412,8 +411,11 @@ class maintain_list_t:
 		else:
 			return None
 			
+	def is_active(self):
+		return len(self) > 0 and self.next_time() <= time.time()
+			
 	def process(self):
-		if not ( len(self) > 0 and self.next_time() <= time.time() ):
+		if not self.is_active():
 			return
 		
 		# pop the first entry

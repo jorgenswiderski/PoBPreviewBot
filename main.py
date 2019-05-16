@@ -9,6 +9,7 @@ import random
 import sys
 import logging
 import datetime
+import threading
 
 # 3rd Party
 import praw
@@ -23,312 +24,15 @@ import secret_config as sconfig
 import pastebin
 import util
 import status
+import exceptions
 from util import obj_type_str
 from comment_maintenance import maintain_list_t
 from reply_buffer import reply_handler_t
-from response import get_response
-from response import blacklist_pastebin
+from reddit_stream import stream_manager_t
 from logger import init_logging
-
-from pob_build import EligibilityException
-from comment_maintenance import PastebinLimitException
 
 # =============================================================================
 # START FUNCTION DEFINITION
-
-def bot_login():
-	logging.info("Logging in...")
-	
-	r = praw.Reddit(username = config.username,
-		password = sconfig.password,
-		client_id = sconfig.client_id,
-		client_secret = sconfig.client_secret,
-		user_agent = "linux:PoBPreviewBot:v1.0 (by /u/aggixx)")
-		
-	logging.info("Successfully logged in as {:s}.".format(config.username))
-		
-	return r
-			
-def parse_generic( reply_object, body, author = None ):
-	if not ( reply_object and ( isinstance( reply_object, praw.models.Comment ) or isinstance( reply_object, praw.models.Submission ) ) ):
-		raise ValueError("parse_generic passed invalid reply_object")
-	elif not ( body is not None and ( isinstance( body, str ) or isinstance( body, unicode ) ) ):
-		# dump xml for debugging later
-		exc = ValueError("parse_generic passed invalid body")
-		util.dump_debug_info(reply_object, exc=exc, extra_data={
-			'body_type': str(type(body)),
-			'body': body,
-		})
-		blacklist_pastebin(paste_key)
-		raise exc
-	
-	response = None
-	
-	try:
-		# get response text
-		response = get_response( r, reply_object, body, author = author )
-	except (EligibilityException, PastebinLimitException) as e:
-		print(str(e))
-		
-	if response is None:
-		return False
-		
-	logging.info("Found matching {:s} {:s}.".format(obj_type_str(reply_object), reply_object.id))
-	
-	# post reply
-	if config.username == "PoBPreviewBot" or "pathofexile" not in config.subreddits:
-		reply_queue.reply(reply_object, response)
-	else:
-		logging.debug("Reply body:\n" + response)
-		with open("saved_replies.txt", "a") as f:
-			f.write(response + "\n\n\n")
-			
-	return True
-		
-def track_comment(comment):
-	'''
-	if len(processed_comments_list) >= 250:
-		del processed_comments_dict[processed_comments_list[0]]
-		processed_comments_list.pop(0)
-	'''
-	
-	processed_comments_list.append(comment.id)
-	processed_comments_dict[comment.id] = True
-	global num_new_comments
-	num_new_comments += 1
-	
-def track_submission(submission):
-	'''
-	if len(processed_submissions_list) >= 250:
-		del processed_submissions_dict[processed_submissions_list[0]]
-		processed_submissions_list.pop(0)
-	'''
-	
-	processed_submissions_list.append(submission.id)
-	processed_submissions_dict[submission.id] = True
-	global num_new_submissions
-	num_new_submissions += 1
-
-def save_comment_count(subreddit):
-	if len(comment_flow_history[subreddit]) >= config.pull_count_tracking_window:
-		comment_flow_history[subreddit].pop(0)
-		
-	global num_new_comments
-	comment_flow_history[subreddit].append(num_new_comments)
-	num_new_comments = 0
-	logging.debug("Flow history for {}: {}".format(subreddit, comment_flow_history[subreddit]))
-
-def save_submission_count(subreddit):
-	if len(submission_flow_history[subreddit]) >= config.pull_count_tracking_window:
-		submission_flow_history[subreddit].pop(0)
-	
-	global num_new_submissions
-	submission_flow_history[subreddit].append(num_new_submissions)
-	num_new_submissions = 0
-	logging.debug(submission_flow_history[subreddit])
-	
-def get_num_entries_to_pull(history):
-	if len(history) == 0:
-		return config.min_pull_count
-		
-	return math.floor(min(max( max(history), config.min_pull_count ), config.max_pull_count))
-	
-def reply_to_summon(comment):
-	errs = []
-	parent = comment.parent()
-	
-	if parent.author == r.user.me():
-		return
-		
-	p_response = None
-	
-	try:
-		if isinstance(parent, praw.models.Comment):
-			p_response = get_response(r, parent, parent.body, ignore_blacklist = True)
-		else:
-			p_response = get_response(r, parent, util.get_submission_body( parent ), author = util.get_submission_author( parent ), ignore_blacklist = True)
-	except (EligibilityException, PastebinLimitException) as e:
-		errs.append("* {}".format(str(e)))
-	
-	response = None
-		
-	if p_response is not None and parent.id not in comments_replied_to and parent.id not in submissions_replied_to and not reply_queue.contains_id(parent.id):
-		if config.username == "PoBPreviewBot" or "pathofexile" not in config.subreddits:
-			reply_queue.reply(parent, p_response)
-		response = "Seems like I missed comment {}! I've replied to it now, sorry about that.".format(parent.id)
-	elif len(errs) > 0:
-		response = "The {} {} was not responded to for the following reason{}:\n\n{}".format(obj_type_str(parent), parent.id, "s" if len(errs) > 1 else "", "  \n".join(errs))
-	else:
-		response = config.BOT_INTRO
-	
-	if response is None:
-		return
-	
-	if config.username == "PoBPreviewBot" or "pathofexile" not in config.subreddits:
-		reply_queue.reply(comment, response, log = False)
-	
-@retry(retry_on_exception=util.is_praw_error,
-	   wait_exponential_multiplier=config.praw_error_wait_time,
-	   wait_func=util.praw_error_retry)
-def parse_comments(subreddit, since=None):
-	num = None
-
-	if since is None:
-		num = get_num_entries_to_pull(comment_flow_history[subreddit])
-	
-	while True:
-		if num is not None:
-			logging.debug("Pulling {:.0f} comments from /r/{:s}...".format(num, subreddit))
-		else:
-			logging.debug("Pulling comments from /r/{:s}...".format(subreddit))
-		
-		# Grab comments
-		comments = r.subreddit(subreddit).comments(limit=num)
-		since_reached = False
-		
-		for comment in comments:
-			if comment.id not in processed_comments_dict:
-				track_comment(comment)
-				
-				if comment.id not in comments_replied_to and not reply_queue.contains_id(comment.id):
-					if since is not None and comment.created_utc < since:
-						since_reached = True
-						break
-						
-					replied = parse_generic( comment, comment.body )
-					
-					if not replied and ( "u/" + config.username ).lower() in comment.body.lower():
-						reply_to_summon( comment )
-		
-		global num_new_comments
-		# If some comments were not new, then break
-		if num_new_comments < num:
-			break
-		# Else if we've gone all the way back to the requested timestamp, then break
-		elif since_reached:
-			break
-		# Otherwise double the requested amount of comments
-		else:
-			num *= 2
-			
-	global last_time_comments_parsed
-	last_time_comments_parsed[subreddit] = time.time()
-	
-	if since_reached:
-		# Reset the new comment count so it doesn't massively inflate our flow history
-		num_new_comments = 0
-	else:
-		save_comment_count(subreddit)
-
-@retry(retry_on_exception=util.is_praw_error,
-	   wait_exponential_multiplier=config.praw_error_wait_time,
-	   wait_func=util.praw_error_retry)
-def parse_submissions(subreddit, since=None):
-	num = None
-
-	if since is None:
-		num = get_num_entries_to_pull(submission_flow_history[subreddit])
-	
-	while True:
-		if num is not None:
-			logging.debug("Pulling {:.0f} submissions from /r/{:s}...".format(num, subreddit))
-		else:
-			logging.debug("Pulling submissions from /r/{:s}...".format(subreddit))
-		
-		# Grab submissions
-		submissions = r.subreddit(subreddit).new(limit=num)
-		since_reached = False
-		
-		for submission in submissions:
-			if submission.id not in processed_submissions_dict:
-				track_submission(submission)
-				
-				if submission.id not in submissions_replied_to and not reply_queue.contains_id(submission.id):
-					if since is not None and submission.created_utc < since:
-						since_reached = True
-						break
-					
-					parse_generic( submission, util.get_submission_body( submission ), author = util.get_submission_author( submission ) )
-		
-		global num_new_submissions
-		# If some submissions were not new, then break
-		if num_new_submissions < num:
-			break
-		# Else if we've gone all the way back to the requested timestamp, then break
-		elif since_reached:
-			break
-		# Otherwise double the requested amount of comments
-		else:
-			num *= 2
-			
-	global last_time_submissions_parsed
-	last_time_submissions_parsed[subreddit] = time.time()
-	
-	if since_reached:
-		# Reset the new submission count so it doesn't massively inflate our flow history
-		num_new_submissions = 0
-	else:
-		save_submission_count(subreddit)
-			
-def get_sleep_time():
-	next_update_time = 10000000000
-	
-	if len(maintain_list) > 0:
-		next_update_time = min(next_update_time, maintain_list.next_time())
-		 
-	for sub in config.subreddits:
-		next_update_time = min( next_update_time,
-		last_time_comments_parsed[sub] + config.comment_parse_interval,
-		last_time_submissions_parsed[sub] + config.submission_parse_interval )
-		 
-	if len(reply_queue) > 0:
-		next_update_time = min( next_update_time, reply_queue.throttled_until() )
-	
-	return next_update_time - time.time()
-	
-def process_comments():
-	t = time.time()
-	
-	for sub in config.subreddits:
-		if t - last_time_comments_parsed[sub] >= config.comment_parse_interval:
-			if last_time_comments_parsed[sub] == 0:
-				since = max(status.get_last_update(), time.time() - config.backlog_time_limit)
-				logging.info("Reading comments from /r/{} since [{}]".format(sub, str(datetime.datetime.fromtimestamp(since))))
-				parse_comments(sub, since=since)
-			else:
-				logging.debug("Reading comments from /r/{}".format(sub))
-				parse_comments(sub)
-				
-def process_submissions():
-	t = time.time()
-	
-	for sub in config.subreddits:
-		if t - last_time_submissions_parsed[sub] >= config.submission_parse_interval:
-			if last_time_submissions_parsed[sub] == 0:
-				since = max(status.get_last_update(), time.time() - config.backlog_time_limit)
-				logging.info("Reading submissions from /r/{} since [{}]".format(sub, str(datetime.datetime.fromtimestamp(since))))
-				parse_submissions(sub, since=since)
-			else:
-				logging.debug("Reading submissions from /r/{}".format(sub))
-				parse_submissions(sub)
-
-		
-def run_bot():
-	reply_queue.process()
-	
-	process_comments()
-	process_submissions()
-	
-	maintain_list.process()
-	
-	status.update()
-		
-	# calculate the next time we need to do something
-	st = get_sleep_time()
-	
-	if st > 0:
-		logging.debug("Sleeping for {:.2f}s...".format( st ))
-		time.sleep( st )
 			
 def get_saved_comments():
 	if not os.path.isfile("comments_replied_to.txt"):
@@ -353,56 +57,92 @@ def get_saved_submissions():
 		
 	return submissions_replied_to
 	
+class bot_t:
+	def __init__(self):
+		locale.setlocale(locale.LC_ALL, '')
+		file("bot.pid", 'w').write(str(os.getpid()))
+
+		init_logging()
+		status.init()
+			
+		self.login()
+		
+		self.replied_to = {
+			'comments': get_saved_comments(),
+			'submissions': get_saved_submissions(),
+		}
+		
+		logging.log(5, self.replied_to['comments'])
+		logging.log(5, self.replied_to['submissions'])
+		
+		self.maintain_list = maintain_list_t( self, "active_comments.txt" )
+			
+		if '-force' in sys.argv:
+			maintain_list.flag_for_edits(sys.argv)
+
+		self.reply_queue = reply_handler_t( self )
+		self.stream_manager = stream_manager_t( self )
+
+		logging.info("Scanning subreddits " + repr(config.subreddits) + "...")
+		
+		self.lock = threading.Lock()
+		self.condition = threading.Condition(self.lock)
+		
+	def login(self):
+		logging.info("Logging in...")
+		
+		r = praw.Reddit(username = config.username,
+			password = sconfig.password,
+			client_id = sconfig.client_id,
+			client_secret = sconfig.client_secret,
+			user_agent = "linux:PoBPreviewBot:v1.0 (by /u/aggixx)")
+			
+		logging.info("Successfully logged in as {:s}.".format(config.username))
+			
+		self.reddit = r
+		
+	def get_sleep_time(self):
+		next_update_time = 1e10
+		
+		if len(self.maintain_list) > 0:
+			next_update_time = min(next_update_time, self.maintain_list.next_time())
+			 
+		if len(self.reply_queue) > 0:
+			next_update_time = min( next_update_time, self.reply_queue.throttled_until() )
+		
+		return next_update_time - time.time()
+		
+	def run(self):
+		self.reply_queue.process()
+		
+		self.stream_manager.process()
+		
+		self.maintain_list.process()
+		
+		status.update()
+			
+		# calculate the next time we need to do something
+		st = self.get_sleep_time()
+		
+		if st > 0:
+			# Put the thread to sleep, timing out after st seconds or breaking
+			# out immediately if the stream manager notifies of a new entry
+			logging.debug("Main thread idling for {:.3f}s or until notified".format(st))
+			self.condition.acquire()
+			self.condition.wait(st)
+			self.condition.release()
+		
+		
+	
 # END FUNCTION DEFINITION
 # =============================================================================
 # START MAIN
 
-locale.setlocale(locale.LC_ALL, '')
-file("bot.pid", 'w').write(str(os.getpid()))
-
-init_logging()
-status.init()
-	
-last_time_comments_parsed = {}
-for sub in config.subreddits:
-	last_time_comments_parsed[sub] = 0
-	
-last_time_submissions_parsed = {}
-for sub in config.subreddits:
-	last_time_submissions_parsed[sub] = 0
-	
-	
-r = bot_login()
-comments_replied_to = get_saved_comments()
-logging.debug(comments_replied_to)
-submissions_replied_to = get_saved_submissions()
-logging.debug(submissions_replied_to)
-maintain_list = maintain_list_t( "active_comments.txt", r, comments_replied_to, submissions_replied_to )
-	
-if '-force' in sys.argv:
-	maintain_list.flag_for_edits(sys.argv)
-
-reply_queue = reply_handler_t( maintain_list )
-
-processed_comments_list = []
-processed_comments_dict = {}
-processed_submissions_list = []
-processed_submissions_dict = {}
-num_new_comments = 0
-num_new_submissions = 0
-
-comment_flow_history = {}
-submission_flow_history = {}
-
-for sub in config.subreddits:
-	comment_flow_history[sub] = []
-	submission_flow_history[sub] = []
-
-logging.info("Scanning subreddits " + repr(config.subreddits) + "...")
+bot = bot_t()
 
 try:
 	while True:
-		run_bot()
+		bot.run()
 # If ANY unhandled exception occurs, catch it, log it, THEN crash.
 except BaseException:
 	logging.exception("Fatal error occurred.")

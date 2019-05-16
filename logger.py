@@ -25,7 +25,12 @@ def create_console_handler():
 		datefmt='%Y/%m/%d %H:%M:%S'
 	))
 	h.setLevel(logging.INFO)
-	
+	'''
+	h.addFilter(ThirdPartyFilter([
+		'prawcore',
+		'urllib3.connectionpool'
+	]))
+	'''
 	logging.getLogger().addHandler(h)
 
 def create_log_handler():

@@ -6,6 +6,7 @@ import os
 import xml.etree.ElementTree as ET
 from datetime import datetime
 import logging
+import threading
 
 # 3rd Party
 import urllib2
@@ -20,7 +21,6 @@ from praw.exceptions import APIException
 
 # Self
 import config
-import official_forum
 import pastebin
 
 # =============================================================================
@@ -112,27 +112,6 @@ def praw_error_retry(attempt_number, ms_since_first_attempt):
 	   wait_func=praw_error_retry)
 def get_praw_comment_by_id(reddit, id):
 	return praw.models.Comment(reddit, id=id)
-	
-def get_submission_body( submission ):
-	if submission.selftext == '':
-		if official_forum.is_post( submission.url ):
-			body = official_forum.get_op_body( submission.url )
-			
-			if body:
-				return body
-		
-		return submission.url
-	else:
-		return submission.selftext 
-		
-def get_submission_author( submission ):
-	if submission.selftext == '' and official_forum.is_post( submission.url ):
-		author = official_forum.get_op_author( submission.url )
-		
-		if author:
-			return author
-	
-	return submission.author
 		
 def is_number(s):
     try:
@@ -229,4 +208,12 @@ def byteify(input):
     else:
         return input
 
+def get_num_waiters(condition):
+	if not isinstance(condition, threading._Condition):
+		raise ValueError()
+		
+	#logging.debug(repr(condition))
 
+	mo = re.search(", (\d+)\)>$", repr(condition))
+	
+	return int(mo.group(1))

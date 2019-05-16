@@ -1,5 +1,6 @@
 username = "aggixxTest"
-subreddits = ["test", "pobPreviewTest"]
+#subreddits = ["test", "pobPreviewTest"]
+subreddits = ["test", "pobPreviewTest", "funny"]
 
 submission_parse_interval = 30
 comment_parse_interval = 10
