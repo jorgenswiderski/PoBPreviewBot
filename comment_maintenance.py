@@ -295,7 +295,7 @@ class entry_t:
 				logging.debug("{} was last edited [{}] ago ([{}] before the edit window).".format(util.obj_type_str(parent), datetime.timedelta(seconds=time_since_edit), datetime.timedelta(seconds=seconds_before_cutoff)))
 			elif time.time() - parent.created_utc >= 400:
 				age = math.ceil(time.time() - parent.created_utc)
-				logging.debug("{} is more than 400s old [{}] and is not edited.".format(util.obj_type_str(parent), str(datetime.timedelta(seconds=age))))	
+				logging.debug("{} is more than 400s old [{}] and is not edited.".format(util.obj_type_str(parent), datetime.timedelta(seconds=age)))	
 				
 		return False
 		
@@ -362,7 +362,7 @@ class maintain_list_t:
 			else:
 				lower = middle
 				
-		logging.debug("Inserting {:s} into maintain list at idx={:.0f} to be refreshed at [{}].".format(entry.comment_id, upper, str(datetime.datetime.fromtimestamp(entry.time))))
+		logging.debug("Inserting {:s} into maintain list at idx={:.0f} to be refreshed at [{}].".format(entry.comment_id, upper, datetime.datetime.fromtimestamp(entry.time)))
 		'''
 		if lower >= 0:
 			logging.info(float(deletion_check_list[lower]['time']))

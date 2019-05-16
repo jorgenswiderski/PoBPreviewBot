@@ -4,6 +4,7 @@ import logging
 import os
 import time
 import datetime
+import math
 
 # 3rd Party
 import praw
@@ -30,7 +31,7 @@ class stream_thread_t(threading.Thread):
 		self.handler = getattr(manager.subreddit.stream, type)
 		self.processed = {}
 		
-		logging.debug("Created thread {} {}".format(self.manager.subreddit_str, self.type))
+		logging.debug("Created {} daemon thread.".format(self.type))
 				
 	def get_backlog_window(self):
 		return max(status.get_last_update(), time.time() - config.backlog_time_limit)
@@ -64,7 +65,10 @@ class stream_thread_t(threading.Thread):
 				
 	def do_backlog(self):
 		since = self.get_backlog_window()
-		logging.info("Pulling {} since [{}]...".format(self.type, str(datetime.datetime.fromtimestamp(since))))
+		logging.info("Pulling {} since [{}]...".format(
+			self.type,
+			datetime.datetime.fromtimestamp(math.floor(since))
+		))
 		
 		# Grab comments
 		backlogged = getattr(self.manager.subreddit, 'new' if self.type == 'submissions' else 'comments')
@@ -80,7 +84,7 @@ class stream_thread_t(threading.Thread):
 			self.check_and_queue(object)
 
 	def run(self):
-		logging.debug("Started thread {} {}".format(self.manager.subreddit_str, self.type))
+		logging.debug("Started {} daemon thread.".format(self.type))
 		
 		self.do_backlog()
 		
