@@ -83,9 +83,9 @@ class bot_t:
 
 		self.reply_queue = reply_handler_t( self )
 		self.stream_manager = stream_manager_t( self )
-
-		logging.info("Scanning subreddits " + repr(config.subreddits) + "...")
 		
+		# initialize threading lock, which will let us pause execution in this
+		# thread, and break it when our stream daemon threads find something
 		self.lock = threading.Lock()
 		self.condition = threading.Condition(self.lock)
 		
@@ -142,6 +142,8 @@ class bot_t:
 bot = bot_t()
 
 try:
+	logging.info("Scanning subreddits /r/" + repr(config.subreddits) + "...")
+	
 	while True:
 		bot.run()
 # If ANY unhandled exception occurs, catch it, log it, THEN crash.
