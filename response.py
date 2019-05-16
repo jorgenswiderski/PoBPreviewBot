@@ -75,7 +75,7 @@ def paste_key_is_blacklisted(paste_key):
 def get_response( reddit, reply_object, body, author = None, ignore_blacklist = False ):
 	if not (reply_object and ( isinstance( reply_object, praw.models.Comment ) or isinstance( reply_object, praw.models.Submission ) ) ):
 		raise Exception("get_response passed invalid reply_object")
-	elif not ( body and ( isinstance( body, str ) or isinstance( body, unicode ) ) ):
+	elif not ( body is not None and ( isinstance( body, str ) or isinstance( body, unicode ) ) ):
 		raise Exception("get_response passed invalid body")
 		
 	# If author isn't passed in as a parameter, then default to the author of the object we're replying to

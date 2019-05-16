@@ -363,7 +363,7 @@ class maintain_list_t:
 			else:
 				lower = middle
 				
-		logging.debug("Inserting {:s} ({:.0f}) maintain list at idx={:.0f}.".format(entry.comment_id, float(entry.time), upper))
+		logging.debug("Inserting {:s} into maintain list at idx={:.0f} to be refreshed at [{}].".format(entry.comment_id, upper, str(datetime.datetime.fromtimestamp(entry.time))))
 		'''
 		if lower >= 0:
 			logging.info(float(deletion_check_list[lower]['time']))

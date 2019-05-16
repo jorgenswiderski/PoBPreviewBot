@@ -8,6 +8,9 @@ min_pull_count = 5
 pull_count_tracking_window = 10
 max_pull_count = 200
 
+# Max amount of time to go back and look for comments/submissions when starting bot
+backlog_time_limit = 86400 * 3 # 3 days
+
 deletion_check_interval_rng = 0.01
 
 praw_error_wait_time = 5

@@ -8,6 +8,7 @@ import math
 import random
 import sys
 import logging
+import datetime
 
 # 3rd Party
 import praw
@@ -26,6 +27,7 @@ from util import obj_type_str
 from comment_maintenance import maintain_list_t
 from reply_buffer import reply_handler_t
 from response import get_response
+from response import blacklist_pastebin
 from logger import init_logging
 
 from pob_build import EligibilityException
@@ -50,12 +52,12 @@ def bot_login():
 def parse_generic( reply_object, body, author = None ):
 	if not ( reply_object and ( isinstance( reply_object, praw.models.Comment ) or isinstance( reply_object, praw.models.Submission ) ) ):
 		raise ValueError("parse_generic passed invalid reply_object")
-	elif not ( body and ( isinstance( body, str ) or isinstance( body, unicode ) ) ):
+	elif not ( body is not None and ( isinstance( body, str ) or isinstance( body, unicode ) ) ):
 		# dump xml for debugging later
 		exc = ValueError("parse_generic passed invalid body")
 		util.dump_debug_info(reply_object, exc=exc, extra_data={
-			'body_type': type(body),
-			'body': body
+			'body_type': str(type(body)),
+			'body': body,
 		})
 		blacklist_pastebin(paste_key)
 		raise exc
@@ -84,9 +86,11 @@ def parse_generic( reply_object, body, author = None ):
 	return True
 		
 def track_comment(comment):
+	'''
 	if len(processed_comments_list) >= 250:
 		del processed_comments_dict[processed_comments_list[0]]
-		processed_comments_list.pop(0) 
+		processed_comments_list.pop(0)
+	'''
 	
 	processed_comments_list.append(comment.id)
 	processed_comments_dict[comment.id] = True
@@ -94,9 +98,11 @@ def track_comment(comment):
 	num_new_comments += 1
 	
 def track_submission(submission):
+	'''
 	if len(processed_submissions_list) >= 250:
 		del processed_submissions_dict[processed_submissions_list[0]]
-		processed_submissions_list.pop(0) 
+		processed_submissions_list.pop(0)
+	'''
 	
 	processed_submissions_list.append(submission.id)
 	processed_submissions_dict[submission.id] = True
@@ -123,7 +129,7 @@ def save_submission_count(subreddit):
 	
 def get_num_entries_to_pull(history):
 	if len(history) == 0:
-		return config.initial_pull_count
+		return config.min_pull_count
 		
 	return math.floor(min(max( max(history), config.min_pull_count ), config.max_pull_count))
 	
@@ -164,65 +170,105 @@ def reply_to_summon(comment):
 @retry(retry_on_exception=util.is_praw_error,
 	   wait_exponential_multiplier=config.praw_error_wait_time,
 	   wait_func=util.praw_error_retry)
-def parse_comments(subreddit):
-	num = get_num_entries_to_pull(comment_flow_history[subreddit])
+def parse_comments(subreddit, since=None):
+	num = None
+
+	if since is None:
+		num = get_num_entries_to_pull(comment_flow_history[subreddit])
 	
 	while True:
-		logging.debug("Pulling {:.0f} comments from /r/{:s}...".format(num, subreddit))
+		if num is not None:
+			logging.debug("Pulling {:.0f} comments from /r/{:s}...".format(num, subreddit))
+		else:
+			logging.debug("Pulling comments from /r/{:s}...".format(subreddit))
 		
 		# Grab comments
 		comments = r.subreddit(subreddit).comments(limit=num)
+		since_reached = False
 		
 		for comment in comments:
 			if comment.id not in processed_comments_dict:
 				track_comment(comment)
+				
 				if comment.id not in comments_replied_to and not reply_queue.contains_id(comment.id):
+					if since is not None and comment.created_utc < since:
+						since_reached = True
+						break
+						
 					replied = parse_generic( comment, comment.body )
 					
 					if not replied and ( "u/" + config.username ).lower() in comment.body.lower():
 						reply_to_summon( comment )
-					
-		if num_new_comments < num or num >= config.max_pull_count:
+		
+		global num_new_comments
+		# If some comments were not new, then break
+		if num_new_comments < num:
 			break
-		elif len(comment_flow_history[subreddit]) > 0:
-			num *= 2
+		# Else if we've gone all the way back to the requested timestamp, then break
+		elif since_reached:
+			break
+		# Otherwise double the requested amount of comments
 		else:
-			break
+			num *= 2
 			
 	global last_time_comments_parsed
 	last_time_comments_parsed[subreddit] = time.time()
 	
-	save_comment_count(subreddit)
+	if since_reached:
+		# Reset the new comment count so it doesn't massively inflate our flow history
+		num_new_comments = 0
+	else:
+		save_comment_count(subreddit)
 
 @retry(retry_on_exception=util.is_praw_error,
 	   wait_exponential_multiplier=config.praw_error_wait_time,
 	   wait_func=util.praw_error_retry)
-def parse_submissions(subreddit):
-	num = get_num_entries_to_pull(submission_flow_history[subreddit])
+def parse_submissions(subreddit, since=None):
+	num = None
+
+	if since is None:
+		num = get_num_entries_to_pull(submission_flow_history[subreddit])
 	
 	while True:
-		logging.debug("Pulling {:.0f} submissions from /r/{:s}...".format(num, subreddit))
+		if num is not None:
+			logging.debug("Pulling {:.0f} submissions from /r/{:s}...".format(num, subreddit))
+		else:
+			logging.debug("Pulling submissions from /r/{:s}...".format(subreddit))
 		
 		# Grab submissions
 		submissions = r.subreddit(subreddit).new(limit=num)
+		since_reached = False
 		
 		for submission in submissions:
 			if submission.id not in processed_submissions_dict:
 				track_submission(submission)
+				
 				if submission.id not in submissions_replied_to and not reply_queue.contains_id(submission.id):
+					if since is not None and submission.created_utc < since:
+						since_reached = True
+						break
+					
 					parse_generic( submission, util.get_submission_body( submission ), author = util.get_submission_author( submission ) )
 		
-		if num_new_submissions < num or num >= config.max_pull_count:
+		global num_new_submissions
+		# If some submissions were not new, then break
+		if num_new_submissions < num:
 			break
-		elif len(submission_flow_history[subreddit]) > 0:
-			num *= 2
+		# Else if we've gone all the way back to the requested timestamp, then break
+		elif since_reached:
+			break
+		# Otherwise double the requested amount of comments
 		else:
-			break
+			num *= 2
 			
 	global last_time_submissions_parsed
 	last_time_submissions_parsed[subreddit] = time.time()
 	
-	save_submission_count(subreddit)
+	if since_reached:
+		# Reset the new submission count so it doesn't massively inflate our flow history
+		num_new_submissions = 0
+	else:
+		save_submission_count(subreddit)
 			
 def get_sleep_time():
 	next_update_time = 10000000000
@@ -239,21 +285,39 @@ def get_sleep_time():
 		next_update_time = min( next_update_time, reply_queue.throttled_until() )
 	
 	return next_update_time - time.time()
-		
-def run_bot():
-	reply_queue.process()
 	
+def process_comments():
 	t = time.time()
 	
 	for sub in config.subreddits:
 		if t - last_time_comments_parsed[sub] >= config.comment_parse_interval:
-			logging.debug("Reading comments from /r/{}".format(sub))
-			parse_comments(sub)
+			if last_time_comments_parsed[sub] == 0:
+				since = max(status.get_last_update(), time.time() - config.backlog_time_limit)
+				logging.info("Reading comments from /r/{} since [{}]".format(sub, str(datetime.datetime.fromtimestamp(since))))
+				parse_comments(sub, since=since)
+			else:
+				logging.debug("Reading comments from /r/{}".format(sub))
+				parse_comments(sub)
+				
+def process_submissions():
+	t = time.time()
 	
 	for sub in config.subreddits:
 		if t - last_time_submissions_parsed[sub] >= config.submission_parse_interval:
-			logging.debug("Reading submissions from /r/{}".format(sub))
-			parse_submissions(sub)
+			if last_time_submissions_parsed[sub] == 0:
+				since = max(status.get_last_update(), time.time() - config.backlog_time_limit)
+				logging.info("Reading submissions from /r/{} since [{}]".format(sub, str(datetime.datetime.fromtimestamp(since))))
+				parse_submissions(sub, since=since)
+			else:
+				logging.debug("Reading submissions from /r/{}".format(sub))
+				parse_submissions(sub)
+
+		
+def run_bot():
+	reply_queue.process()
+	
+	process_comments()
+	process_submissions()
 	
 	maintain_list.process()
 	
@@ -297,6 +361,7 @@ locale.setlocale(locale.LC_ALL, '')
 file("bot.pid", 'w').write(str(os.getpid()))
 
 init_logging()
+status.init()
 	
 last_time_comments_parsed = {}
 for sub in config.subreddits:
