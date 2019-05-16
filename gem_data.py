@@ -117,18 +117,6 @@ class support_gem_data_t(gem_data_t):
 		
 		# derived attributes
 		self.short_name = self.display_name.replace(" Support", "")
-
-# Used to convert json.loads() output's keys and values from unicode to strings
-def byteify(input):
-    if isinstance(input, dict):
-        return {byteify(key): byteify(value)
-                for key, value in input.iteritems()}
-    elif isinstance(input, list):
-        return [byteify(element) for element in input]
-    elif isinstance(input, unicode):
-        return input.encode('utf-8')
-    else:
-        return input
 		
 def load_gems_from_file(path):
 	if not os.path.isfile(path):
@@ -138,7 +126,7 @@ def load_gems_from_file(path):
 	raw_data = None
 	
 	with open(path, "r") as f:
-		raw_data = byteify(json.loads(f.read()))
+		raw_data = util.byteify(json.loads(f.read()))
 		
 	for id in raw_data:
 		data = raw_data[id]
