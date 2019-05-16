@@ -20,11 +20,10 @@ from praw.exceptions import APIException
 import util
 import config
 import official_forum
-from response import get_response
 from praw_wrapper import praw_object_wrapper_t
 
-from response import PastebinLimitException
-from pob_build import EligibilityException
+from _exceptions import PastebinLimitException
+from _exceptions import EligibilityException
 
 # =============================================================================
 
@@ -41,6 +40,7 @@ def write_replied_to_file(comments=False, submissions=False):
 class entry_t:
 	def __init__(self, list, comment_id, created, time=None, last_time=None):
 		self.list = list
+		self.bot = list.bot
 		self.comment_id = comment_id
 		self.comment = None
 		self.parent = None
@@ -73,7 +73,7 @@ class entry_t:
 	def get_comment(self):
 		if self.comment is None:
 			comment = util.get_praw_comment_by_id(self.list.reddit, self.comment_id)
-			self.comment = praw_object_wrapper_t(comment)
+			self.comment = praw_object_wrapper_t(self.bot, comment)
 		
 			# Fetch the comment now in a place where RequestExceptions can be handled properly.
 			if not self.comment._fetched:
@@ -87,7 +87,7 @@ class entry_t:
 	def get_parent(self):
 		if self.parent is None:
 			parent = self.get_comment().parent()
-			self.parent = praw_object_wrapper_t(parent)
+			self.parent = praw_object_wrapper_t(self.bot, parent)
 		
 			# Fetch the comment now in a place where RequestExceptions can be handled properly.
 			if not self.parent._fetched:
@@ -258,7 +258,7 @@ class entry_t:
 			new_comment_body = None
 			
 			try:
-				new_comment_body = get_response( parent )
+				new_comment_body = self.bot.get_response( parent )
 			except (EligibilityException, PastebinLimitException) as e:
 				print(e)
 			

@@ -20,12 +20,10 @@ from praw_wrapper import praw_object_wrapper_t
 from pob_build import build_t
 from util import obj_type_str
 
-from pob_build import EligibilityException
+from _exceptions import EligibilityException
+from _exceptions import PastebinLimitException
 
 # =============================================================================
-
-class PastebinLimitException(Exception):
-	pass
 		
 def get_blacklisted_pastebins():
 	pastebin_blacklist = {}
@@ -76,10 +74,8 @@ def paste_key_is_blacklisted(paste_key):
 	return paste_key in pastebin_blacklist
 
 def get_response( wrapped_object ):
-	'''
 	if not (wrapped_object is not None and isinstance( wrapped_object, praw_object_wrapper_t )):
-		raise Exception("get_response passed invalid wrapped_object")
-	'''
+		raise ValueError("get_response was passed an invalid wrapped_object: {}".type(wrapped_object))
 		
 	author = wrapped_object.get_author()
 	body = wrapped_object.get_body()

@@ -26,6 +26,7 @@ import util
 import status
 import exceptions
 import logger
+import response
 from util import obj_type_str
 from comment_maintenance import maintain_list_t
 from reply_buffer import reply_handler_t
@@ -132,7 +133,10 @@ class bot_t:
 			self.condition.acquire()
 			self.condition.wait(st)
 			self.condition.release()
-		
+			
+	@staticmethod	
+	def get_response( object ):
+		return response.get_response( object )
 		
 	
 # END FUNCTION DEFINITION

@@ -8,13 +8,13 @@ import praw
 import util
 import official_forum
 
-from response import get_response
-from response import PastebinLimitException
-from pob_build import EligibilityException
+from _exceptions import PastebinLimitException
+from _exceptions import EligibilityException
 
 class praw_object_wrapper_t():
-	def __init__(self, object):
+	def __init__(self, bot, object):
 		self.object = object
+		self.bot = bot
 		
 		# BE CAREFUL
 		# Any attributes defined in this object may override/obscure attr
@@ -28,7 +28,7 @@ class praw_object_wrapper_t():
 		
 	# Override praw parent() to return a wrapped object
 	def parent(self):
-		return praw_object_wrapper_t(self.object.parent())
+		return praw_object_wrapper_t(self.bot, self.object.parent())
 		
 	def is_comment(self):
 		return isinstance(self.object, praw.models.Comment)
@@ -85,7 +85,7 @@ class praw_object_wrapper_t():
 		
 		try:
 			# get response text
-			response = get_response( self )
+			response = self.bot.get_response( self )
 		except (EligibilityException, PastebinLimitException) as e:
 			print(str(e))
 			

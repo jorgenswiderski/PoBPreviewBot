@@ -48,7 +48,7 @@ class stream_thread_t(threading.Thread):
 		if object.id in self.manager.bot.replied_to[self.type]:
 			return
 		
-		wrapped = praw_object_wrapper_t(object)
+		wrapped = praw_object_wrapper_t(self.manager.bot, object)
 			
 		self.manager.list.append(wrapped)
 		logging.debug("Added {} to stream queue (len={}).".format(wrapped, len(self.manager.list)))

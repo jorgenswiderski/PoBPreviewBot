@@ -15,6 +15,10 @@ from name_overrides import skill_overrides
 from name_overrides import build_defining_uniques
 from gem_data import support_gems as support_gem_data
 
+from _exceptions import UnsupportedException
+from _exceptions import GemDataException
+from _exceptions import EligibilityException
+
 # =============================================================================
 
 ERR_CHECK_ACTIVE_SKILL = 'Please make sure the correct skill is selected in the left panel when you export!'
@@ -72,16 +76,6 @@ stats_to_parse = [
 		],
 	},
 ]
-	
-class EligibilityException(Exception):
-	pass
-	
-class UnsupportedException(EligibilityException):
-	pass
-	
-# Thrown when creating a support gem that does not have gem data in data/support_gems.tsv
-class GemDataException(Exception):
-	pass
 	
 class socket_group_t:
 	def __init__(self, skill_xml, build):
