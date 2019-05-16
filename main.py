@@ -25,6 +25,7 @@ import pastebin
 import util
 import status
 import exceptions
+import logger
 from util import obj_type_str
 from comment_maintenance import maintain_list_t
 from reply_buffer import reply_handler_t
@@ -72,8 +73,8 @@ class bot_t:
 			'submissions': get_saved_submissions(),
 		}
 		
-		logging.log(5, self.replied_to['comments'])
-		logging.log(5, self.replied_to['submissions'])
+		logging.log(logger.DEBUG_ALL, self.replied_to['comments'])
+		logging.log(logger.DEBUG_ALL, self.replied_to['submissions'])
 		
 		self.maintain_list = maintain_list_t( self, "active_comments.txt" )
 			
