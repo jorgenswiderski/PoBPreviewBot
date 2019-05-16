@@ -6,6 +6,8 @@ import sys
 # 3rd Party
 # Self
 
+DEBUG_ALL = 5
+
 class ThirdPartyFilter(logging.Filter):
 	def __init__(self, names):
 		logging.Filter.__init__(self)

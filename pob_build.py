@@ -9,14 +9,13 @@ import praw.models
 # Self
 import util
 import pastebin
+import logger
 import passive_skill_tree as passives
 from name_overrides import skill_overrides
 from name_overrides import build_defining_uniques
 from gem_data import support_gems as support_gem_data
 
 # =============================================================================
-
-DEBUG_ALL = 5
 
 ERR_CHECK_ACTIVE_SKILL = 'Please make sure the correct skill is selected in the left panel when you export!'
 
@@ -1037,19 +1036,19 @@ class build_t:
 		xml_input = self.xml_config.find("*[@name='{:s}']".format(name))
 		
 		if xml_input is None:
-			logging.log(DEBUG_ALL, "CONFIG {:s}: {:s}".format(name, None))
+			logging.log(logger.DEBUG_ALL, "CONFIG {:s}: {:s}".format(name, None))
 			return None
 			
 		if 'boolean' in xml_input.attrib:
-			logging.log(DEBUG_ALL, "CONFIG {:s}: {:s}".format(name, xml_input.attrib['boolean'].lower()))
+			logging.log(logger.DEBUG_ALL, "CONFIG {:s}: {:s}".format(name, xml_input.attrib['boolean'].lower()))
 			return xml_input.attrib['boolean'].lower()
 			
 		if 'number' in xml_input.attrib:
-			logging.log(DEBUG_ALL, "CONFIG {:s}: {:n}".format(name, float(xml_input.attrib['number'])))
+			logging.log(logger.DEBUG_ALL, "CONFIG {:s}: {:n}".format(name, float(xml_input.attrib['number'])))
 			return float(xml_input.attrib['number'])
 			
 		if 'string' in xml_input.attrib:
-			logging.log(DEBUG_ALL, "CONFIG {:s}: {:s}".format(name, xml_input.attrib['string'].lower()))
+			logging.log(logger.DEBUG_ALL, "CONFIG {:s}: {:s}".format(name, xml_input.attrib['string'].lower()))
 			return xml_input.attrib['string'].lower()
 			
 	def __get_config_array__(self):

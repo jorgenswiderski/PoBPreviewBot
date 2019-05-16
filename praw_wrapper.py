@@ -84,7 +84,7 @@ class praw_object_wrapper_t():
 		if response is None:
 			return False
 			
-		logging.info("Found matching {}.".format(str(self)))
+		logging.info("Found matching {}.".format(self))
 		
 		# post reply
 		if config.username == "PoBPreviewBot" or "pathofexile" not in config.subreddits:

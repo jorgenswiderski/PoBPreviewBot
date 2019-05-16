@@ -83,7 +83,7 @@ def get_response( wrapped_object ):
 	author = wrapped_object.get_author()
 	body = wrapped_object.get_body()
 	
-	logging.debug("Processing {}".format(str(wrapped_object)))
+	logging.debug("Processing {}".format(wrapped_object))
 
 	if "pastebin.com/" in body:
 		responses = []

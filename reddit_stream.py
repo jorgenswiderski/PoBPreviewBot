@@ -14,6 +14,7 @@ import util
 import official_forum
 import config
 import status
+import logger
 from praw_wrapper import praw_object_wrapper_t
 from response import blacklist_pastebin
 from response import get_response
@@ -37,7 +38,7 @@ class stream_thread_t(threading.Thread):
 		return max(status.get_last_update(), time.time() - config.backlog_time_limit)
 			
 	def check_and_queue(self, object):
-		#logging.debug("Found {}".format(str(object)))
+		logging.log(10, "Daemon thread found {}.".format(object))
 	
 		if object.id in self.processed:
 			return
@@ -50,7 +51,7 @@ class stream_thread_t(threading.Thread):
 		wrapped = praw_object_wrapper_t(object)
 			
 		self.manager.list.append(wrapped)
-		logging.debug("Added {} to stream queue (len={}).".format(str(wrapped), len(self.manager.list)))
+		logging.debug("Added {} to stream queue (len={}).".format(wrapped, len(self.manager.list)))
 		
 		try:
 			if util.get_num_waiters(self.manager.bot.condition) > 0:
@@ -127,7 +128,7 @@ class stream_manager_t:
 				continue
 				
 			if object.author == self.reddit.user.me():
-				logging.debug("{} author is self, ignoring".format(str(object)))
+				logging.debug("{} author is self, ignoring".format(object))
 				continue
 						
 			replied = object.parse_and_reply(self.reply_queue)
