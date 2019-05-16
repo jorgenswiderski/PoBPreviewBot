@@ -16,11 +16,19 @@ class praw_object_wrapper_t():
 	def __init__(self, object):
 		self.object = object
 		
+		# BE CAREFUL
+		# Any attributes defined in this object may override/obscure attr
+		# defined in the subobject
+		
 	def __str__(self):
 		return "{} {}".format("comment" if isinstance(self.object, praw.models.Comment) else "submission", self.object.id)
 		
 	def __getattr__(self, name):
 		return getattr(self.object, name)
+		
+	# Override praw parent() to return a wrapped object
+	def parent(self):
+		return praw_object_wrapper_t(self.object.parent())
 		
 	def is_comment(self):
 		return isinstance(self.object, praw.models.Comment)
@@ -66,7 +74,7 @@ class praw_object_wrapper_t():
 		if not ( body is not None and ( isinstance( body, str ) or isinstance( body, unicode ) ) ):
 			# dump xml for debugging later
 			exc = ValueError("parse_generic passed invalid body")
-			util.dump_debug_info(reply_object, exc=exc, extra_data={
+			util.dump_debug_info(self, exc=exc, extra_data={
 				'body_type': str(type(body)),
 				'body': body,
 			})
@@ -88,7 +96,7 @@ class praw_object_wrapper_t():
 		
 		# post reply
 		if config.username == "PoBPreviewBot" or "pathofexile" not in config.subreddits:
-			reply_queue.reply(reply_object, response)
+			reply_queue.reply(self, response)
 		else:
 			logging.debug("Reply body:\n" + response)
 			

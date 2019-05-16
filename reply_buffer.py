@@ -12,6 +12,7 @@ from praw.exceptions import APIException
 # Self
 import util
 from comment_maintenance import maintain_list_t
+from praw_wrapper import praw_object_wrapper_t
 
 # =============================================================================
 
@@ -25,17 +26,20 @@ class reply_handler_t:
 		self.queue = deque()
 		
 	def reply(self, object, message_body, log = True):
+		if not isinstance(object, praw_object_wrapper_t):
+			raise ValueError("reply was passed an invalid object: {}".format(type(object)))
+		
 		rep = reply_t( self, object, message_body, log )
 		
 		if self.throttled():
 			self.append( rep )
-			logging.info("Added response to {} to reply queue.".format(util.praw_obj_str(rep.object)))
+			logging.info("Added response to {} to reply queue.".format(rep.object))
 		else:
 			rep.attempt_post()
 			
 			if not rep.resolved:
 				self.append( rep )
-				logging.info("Reply failed. Added response to {} to reply queue.".format(util.praw_obj_str(rep.object)))
+				logging.info("Reply failed. Added response to {} to reply queue.".format(rep.object))
 				
 	def throttled(self):
 		return reply_handler_t._throttled_until > time.time()

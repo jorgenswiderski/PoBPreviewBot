@@ -13,11 +13,12 @@ import praw
 
 # Self
 import util
-from util import obj_type_str
 import pastebin
-from pob_build import build_t
 import config
 import comment_maintenance
+from praw_wrapper import praw_object_wrapper_t
+from pob_build import build_t
+from util import obj_type_str
 
 from pob_build import EligibilityException
 
@@ -109,13 +110,13 @@ def get_response( wrapped_object ):
 					continue
 				except urllib2.URLError as e:
 					logging.error("Failed to retrieve any data\nURL: {}\n{}".format(raw_url, str(e)))
-					util.dump_debug_info(reply_object, exc=e, paste_key=paste_key)
+					util.dump_debug_info(wrapped_object, exc=e, paste_key=paste_key)
 					continue
 				
 				if xml.tag == "PathOfBuilding":
 					if xml.find('Build').find('PlayerStat') is not None:
 						try:
-							build = build_t(xml, bin, author, reply_object)
+							build = build_t(xml, bin, author, wrapped_object)
 							response = build.get_response()
 						except EligibilityException:
 							blacklist_pastebin(paste_key)
@@ -125,12 +126,12 @@ def get_response( wrapped_object ):
 							logging.error(repr(e))
 							
 							# dump xml for debugging later
-							util.dump_debug_info(reply_object, exc=e, xml=xml)
+							util.dump_debug_info(wrapped_object, exc=e, xml=xml)
 							
 							blacklist_pastebin(paste_key)
 							continue
 						
-						#util.dump_debug_info(reply_object, xml=xml, dir="xml_dump")
+						#util.dump_debug_info(wrapped_object, xml=xml, dir="xml_dump")
 							
 						responses.append(response)
 						bins_responded_to[paste_key] = True
@@ -159,6 +160,9 @@ def get_response( wrapped_object ):
 			return comment_body
 			
 def reply_to_summon(bot, comment):
+	if not isinstance(comment, praw_object_wrapper_t):
+		raise ValueError("reply_to_summon was passed an invalid comment: {}".format(type(comment)))
+
 	errs = []
 	parent = comment.parent()
 	
@@ -168,7 +172,7 @@ def reply_to_summon(bot, comment):
 	p_response = None
 	
 	try:
-		if isinstance(parent, praw.models.Comment):
+		if parent.is_comment():
 			p_response = get_response( comment )
 	except (EligibilityException, PastebinLimitException) as e:
 		errs.append("* {}".format(str(e)))
