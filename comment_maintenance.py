@@ -86,8 +86,7 @@ class entry_t:
 		   wait_func=util.praw_error_retry)
 	def get_parent(self):
 		if self.parent is None:
-			parent = self.get_comment().parent()
-			self.parent = praw_object_wrapper_t(self.bot, parent)
+			self.parent = self.get_comment().parent()
 		
 			# Fetch the comment now in a place where RequestExceptions can be handled properly.
 			if not self.parent._fetched:
