@@ -29,34 +29,6 @@ from _exceptions import EligibilityException
 
 not_author_blacklist = {};
 
-def write_replied_to_file(bot, comments=False, submissions=False):
-	if comments:
-		with open("comments_replied_to.txt", "w") as f:
-			f.write( "\n".join( comments ) + "\n" )
-			
-	if submissions:
-		with open("submissions_replied_to.txt", "w") as f:
-			f.write( "\n".join( submissions ) + "\n" )
-			
-	data = {}
-		
-	for comment in bot.replied_to['comments']:
-		data[comment] = {
-			'id': comment,
-			'type': 'comments',
-		}
-		
-	for sub in bot.replied_to['submissions']:
-		data[sub] = {
-			'id': sub,
-			'type': 'submissions',
-		}
-
-	with open('save/replied_to.json', 'w') as f:
-		json.dump(data, f)
-	
-	logging.debug("Replied to saved to file.")
-
 class entry_t:
 	def __init__(self, list, comment_id, created, time=None, last_time=None):
 		self.list = list
@@ -283,17 +255,11 @@ class entry_t:
 			
 			if new_comment_body is None:
 				comment.delete()
-				
-				if parent.is_comment():
-					if parent.id in self.list.comments_replied_to:
-						self.list.comments_replied_to.remove(parent.id)
-						write_replied_to_file(self.bot, comments=self.list.comments_replied_to)
-				else:
-					if parent.id in self.list.submissions_replied_to:
-						self.list.submissions_replied_to.remove(parent.id)
-						write_replied_to_file(self.bot, submissions=self.list.submissions_replied_to)
-					
 				logging.info("Parent {:s} no longer links to any builds, deleted response comment {:s}.".format(parent.id, self.comment_id))
+				
+				if self.list.replied_to.contains(parent.id):
+					self.list.replied_to.remove(parent.id)
+					
 				return True
 			elif new_comment_body != comment.body:
 				try:
@@ -323,8 +289,7 @@ class maintain_list_t:
 		self.bot = bot
 		self.file_path = file_path
 		self.reddit = bot.reddit
-		self.comments_replied_to = bot.replied_to['comments']
-		self.submissions_replied_to = bot.replied_to['submissions']
+		self.replied_to = bot.replied_to
 		
 		self.list = []
 		self.retired_list = []

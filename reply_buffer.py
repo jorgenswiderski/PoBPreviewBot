@@ -23,6 +23,7 @@ class reply_handler_t:
 	def __init__(self, bot):
 		self.bot = bot
 		self.maintain_list = bot.maintain_list
+		self.replied_to = bot.replied_to
 		self.queue_dict = {}
 		self.queue = deque()
 		
@@ -97,35 +98,7 @@ class reply_t:
 			
 			logging.info("Replied to {} with {}.".format(util.praw_obj_str(self.object), util.praw_obj_str(comment)))
 	
-			if isinstance(self.object, praw.models.Comment):
-				self.handler.maintain_list.comments_replied_to.append(self.object.id)
-			else:
-				self.handler.maintain_list.submissions_replied_to.append(self.object.id)
-
-			with open("{:s}s_replied_to.txt".format(util.obj_type_str(self.object)), "a") as f:
-				f.write(self.object.id + "\n")
-			
-			
-			data = {}
-				
-			for com in self.handler.bot.replied_to['comments']:
-				data[com] = {
-					'id': com,
-					'type': 'comments',
-				}
-				
-			for sub in self.handler.bot.replied_to['submissions']:
-				data[sub] = {
-					'id': sub,
-					'type': 'submissions',
-				}
-			
-			with open('save/replied_to.json', 'w') as f:
-				json.dump(data, f)
-			
-			
-			
-			logging.debug("Replied to saved to file.")
+			self.handler.replied_to.add(self.object)
 			
 			if self.req_maintenance:
 				self.handler.maintain_list.add( comment )

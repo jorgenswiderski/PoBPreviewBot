@@ -25,6 +25,7 @@ import status
 import exceptions
 import logger
 import response
+import replied_to
 from util import obj_type_str
 from comment_maintenance import maintain_list_t
 from reply_buffer import reply_handler_t
@@ -33,29 +34,6 @@ from logger import init_logging
 
 # =============================================================================
 # START FUNCTION DEFINITION
-			
-def get_saved_comments():
-	if not os.path.isfile("comments_replied_to.txt"):
-		comments_replied_to = []
-	else:
-		with open("comments_replied_to.txt", "r") as f:
-			comments_replied_to = f.read()
-			comments_replied_to = comments_replied_to.split("\n")
-			comments_replied_to = filter(None, comments_replied_to)
-		
-	return comments_replied_to
-			
-			
-def get_saved_submissions():
-	if not os.path.isfile("submissions_replied_to.txt"):
-		submissions_replied_to = []
-	else:
-		with open("submissions_replied_to.txt", "r") as f:
-			submissions_replied_to = f.read()
-			submissions_replied_to = submissions_replied_to.split("\n")
-			submissions_replied_to = filter(None, submissions_replied_to)
-		
-	return submissions_replied_to
 	
 class bot_t:
 	def __init__(self):
@@ -67,13 +45,9 @@ class bot_t:
 			
 		self.login()
 		
-		self.replied_to = {
-			'comments': get_saved_comments(),
-			'submissions': get_saved_submissions(),
-		}
+		self.replied_to = replied_to.replied_t("save/replied_to.json")
 		
-		logging.log(logger.DEBUG_ALL, self.replied_to['comments'])
-		logging.log(logger.DEBUG_ALL, self.replied_to['submissions'])
+		logging.log(logger.DEBUG_ALL, self.replied_to.dict)
 		
 		self.maintain_list = maintain_list_t( self, "active_comments.txt" )
 			

@@ -45,7 +45,7 @@ class stream_thread_t(threading.Thread):
 		
 		self.processed[object.id] = True
 			
-		if object.id in self.manager.bot.replied_to[self.type]:
+		if self.manager.bot.replied_to.contains(object):
 			return
 		
 		wrapped = praw_object_wrapper_t(self.manager.bot, object)
