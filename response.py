@@ -14,7 +14,7 @@ import praw
 # Self
 import util
 import pastebin
-import config
+from config import config_helper as config
 import comment_maintenance
 from praw_wrapper import praw_object_wrapper_t
 from pob_build import build_t

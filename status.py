@@ -2,9 +2,10 @@
 import json
 import time
 import os
+import logging
+import datetime
 
 # Self
-import logging
 import util
 
 file = 'status.json'
@@ -15,6 +16,8 @@ def update():
 
 	with open(file, 'w') as f:
 		json.dump(status, f)
+		
+	logging.debug("lastUpdate set to {}".format(datetime.datetime.fromtimestamp(status['lastUpdate'])))
 		
 def get_last_update():
 	try:

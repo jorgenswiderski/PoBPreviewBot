@@ -18,7 +18,7 @@ from praw.exceptions import APIException
 
 # Self
 import util
-import config
+from config import config_helper as config
 import official_forum
 from praw_wrapper import praw_object_wrapper_t
 
@@ -29,13 +29,33 @@ from _exceptions import EligibilityException
 
 not_author_blacklist = {};
 
-def write_replied_to_file(comments=False, submissions=False):
+def write_replied_to_file(bot, comments=False, submissions=False):
 	if comments:
 		with open("comments_replied_to.txt", "w") as f:
 			f.write( "\n".join( comments ) + "\n" )
+			
 	if submissions:
 		with open("submissions_replied_to.txt", "w") as f:
 			f.write( "\n".join( submissions ) + "\n" )
+			
+	data = {}
+		
+	for comment in bot.replied_to['comments']:
+		data[comment] = {
+			'id': comment,
+			'type': 'comments',
+		}
+		
+	for sub in bot.replied_to['submissions']:
+		data[sub] = {
+			'id': sub,
+			'type': 'submissions',
+		}
+
+	with open('save/replied_to.json', 'w') as f:
+		json.dump(data, f)
+	
+	logging.info("Replied to saved to file.")
 
 class entry_t:
 	def __init__(self, list, comment_id, created, time=None, last_time=None):
@@ -267,11 +287,11 @@ class entry_t:
 				if parent.is_comment():
 					if parent.id in self.list.comments_replied_to:
 						self.list.comments_replied_to.remove(parent.id)
-						write_replied_to_file(comments=self.list.comments_replied_to)
+						write_replied_to_file(self.bot, comments=self.list.comments_replied_to)
 				else:
 					if parent.id in self.list.submissions_replied_to:
 						self.list.submissions_replied_to.remove(parent.id)
-						write_replied_to_file(submissions=self.list.submissions_replied_to)
+						write_replied_to_file(self.bot, submissions=self.list.submissions_replied_to)
 					
 				logging.info("Parent {:s} no longer links to any builds, deleted response comment {:s}.".format(parent.id, self.comment_id))
 				return True

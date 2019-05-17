@@ -3,6 +3,7 @@ from collections import deque
 import time
 import math
 import logging
+import json
 
 # 3rd Party
 import praw
@@ -103,6 +104,28 @@ class reply_t:
 
 			with open("{:s}s_replied_to.txt".format(util.obj_type_str(self.object)), "a") as f:
 				f.write(self.object.id + "\n")
+			
+			
+			data = {}
+				
+			for com in self.handler.bot.replied_to['comments']:
+				data[com] = {
+					'id': com,
+					'type': 'comments',
+				}
+				
+			for sub in self.handler.bot.replied_to['submissions']:
+				data[sub] = {
+					'id': sub,
+					'type': 'submissions',
+				}
+			
+			with open('save/replied_to.json', 'w') as f:
+				json.dump(data, f)
+			
+			
+			
+			logging.info("Replied to saved to file.")
 			
 			if self.req_maintenance:
 				self.handler.maintain_list.add( comment )

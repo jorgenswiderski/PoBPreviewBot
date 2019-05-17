@@ -7,7 +7,7 @@ import praw
 # Self
 import util
 import official_forum
-import config
+from config import config_helper as config
 
 from _exceptions import PastebinLimitException
 from _exceptions import EligibilityException

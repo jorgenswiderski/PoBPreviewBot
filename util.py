@@ -20,7 +20,7 @@ from prawcore.exceptions import Forbidden
 from praw.exceptions import APIException
 
 # Self
-import config
+from config import config_helper as config
 import pastebin
 
 # =============================================================================

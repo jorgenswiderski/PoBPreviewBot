@@ -12,7 +12,7 @@ import praw
 # Self
 import util
 import official_forum
-import config
+from config import config_helper as config
 import status
 import logger
 from praw_wrapper import praw_object_wrapper_t

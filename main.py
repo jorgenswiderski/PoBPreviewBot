@@ -17,10 +17,8 @@ import defusedxml.ElementTree as ET
 from retrying import retry
 
 # Self
-import live_config as config
-import live_secret_config as sconfig
-#import config
-#import secret_config as sconfig
+from config import config_helper as config
+config.set_mode('debug') # must set before importing other modules
 import pastebin
 import util
 import status
@@ -80,7 +78,7 @@ class bot_t:
 		self.maintain_list = maintain_list_t( self, "active_comments.txt" )
 			
 		if '-force' in sys.argv:
-			maintain_list.flag_for_edits(sys.argv)
+			self.maintain_list.flag_for_edits(sys.argv)
 
 		self.reply_queue = reply_handler_t( self )
 		self.stream_manager = stream_manager_t( self )
@@ -94,9 +92,9 @@ class bot_t:
 		logging.info("Logging in...")
 		
 		r = praw.Reddit(username = config.username,
-			password = sconfig.password,
-			client_id = sconfig.client_id,
-			client_secret = sconfig.client_secret,
+			password = config.password,
+			client_id = config.client_id,
+			client_secret = config.client_secret,
 			user_agent = "linux:PoBPreviewBot:v1.0 (by /u/aggixx)")
 			
 		logging.info("Successfully logged in as {:s}.".format(config.username))
@@ -120,6 +118,11 @@ class bot_t:
 		self.stream_manager.process()
 		
 		self.maintain_list.process()
+		
+		# If comments are in queue, then don't update status or sleep, just
+		# return out so we can process them immediately
+		if len(self.stream_manager) > 0:
+			return
 		
 		status.update()
 			
