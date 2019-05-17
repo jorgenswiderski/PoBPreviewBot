@@ -184,7 +184,6 @@ def parse_comments(subreddit, since=None):
 		
 		# Grab comments
 		comments = r.subreddit(subreddit).comments(limit=num)
-		since_reached = False
 		
 		for comment in comments:
 			if comment.id not in processed_comments_dict:
@@ -192,7 +191,6 @@ def parse_comments(subreddit, since=None):
 				
 				if comment.id not in comments_replied_to and not reply_queue.contains_id(comment.id):
 					if since is not None and comment.created_utc < since:
-						since_reached = True
 						break
 						
 					replied = parse_generic( comment, comment.body )
@@ -204,17 +202,21 @@ def parse_comments(subreddit, since=None):
 		# If some comments were not new, then break
 		if num_new_comments < num:
 			break
-		# Else if we've gone all the way back to the requested timestamp, then break
-		elif since_reached:
-			break
 		# Otherwise double the requested amount of comments
-		else:
+		elif num is not None:
 			num *= 2
+		# Else we must be in 'since' mode, so if we're here that means we've
+		# gone all the way back to the requested timestamp and can break
+		elif since is not None:
+			break
+		else:
+			# If num and since are both defined then something is fucked up
+			raise RuntimeError("parse_comments reached invalid state")
 			
 	global last_time_comments_parsed
 	last_time_comments_parsed[subreddit] = time.time()
 	
-	if since_reached:
+	if since is not None:
 		# Reset the new comment count so it doesn't massively inflate our flow history
 		num_new_comments = 0
 	else:
@@ -237,7 +239,6 @@ def parse_submissions(subreddit, since=None):
 		
 		# Grab submissions
 		submissions = r.subreddit(subreddit).new(limit=num)
-		since_reached = False
 		
 		for submission in submissions:
 			if submission.id not in processed_submissions_dict:
@@ -245,7 +246,6 @@ def parse_submissions(subreddit, since=None):
 				
 				if submission.id not in submissions_replied_to and not reply_queue.contains_id(submission.id):
 					if since is not None and submission.created_utc < since:
-						since_reached = True
 						break
 					
 					parse_generic( submission, util.get_submission_body( submission ), author = util.get_submission_author( submission ) )
@@ -254,17 +254,21 @@ def parse_submissions(subreddit, since=None):
 		# If some submissions were not new, then break
 		if num_new_submissions < num:
 			break
-		# Else if we've gone all the way back to the requested timestamp, then break
-		elif since_reached:
-			break
 		# Otherwise double the requested amount of comments
-		else:
+		elif num is not None:
 			num *= 2
+		# Else we must be in 'since' mode, so if we're here that means we've
+		# gone all the way back to the requested timestamp and can break
+		elif since is not None:
+			break
+		else:
+			# If num and since are both defined then something is fucked up
+			raise RuntimeError("parse_submissions reached invalid state")
 			
 	global last_time_submissions_parsed
 	last_time_submissions_parsed[subreddit] = time.time()
 	
-	if since_reached:
+	if since is not None:
 		# Reset the new submission count so it doesn't massively inflate our flow history
 		num_new_submissions = 0
 	else:
