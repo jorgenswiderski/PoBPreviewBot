@@ -175,7 +175,7 @@ def reply_to_summon(bot, comment):
 	
 	response = None
 		
-	if p_response is not None and parent.id not in bot.replied_to['comments'] and parent.id not in bot.replied_to['submissions'] and not bot.reply_queue.contains_id(parent.id):
+	if p_response is not None and not bot.replied_to.contains(parent) and not bot.reply_queue.contains_id(parent.id):
 		if config.username == "PoBPreviewBot" or "pathofexile" not in config.subreddits:
 			bot.reply_queue.reply(parent, p_response)
 		response = "Seems like I missed comment {}! I've replied to it now, sorry about that.".format(parent.id)

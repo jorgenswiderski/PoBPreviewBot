@@ -17,7 +17,7 @@ def update():
 	with open(file, 'w') as f:
 		json.dump(status, f)
 		
-	logging.debug("lastUpdate set to {}".format(datetime.datetime.fromtimestamp(status['lastUpdate'])))
+	logging.debug("lastUpdate set to [{}].".format(datetime.datetime.fromtimestamp(status['lastUpdate'])))
 		
 def get_last_update():
 	try:
