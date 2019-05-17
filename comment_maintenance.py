@@ -55,7 +55,7 @@ def write_replied_to_file(bot, comments=False, submissions=False):
 	with open('save/replied_to.json', 'w') as f:
 		json.dump(data, f)
 	
-	logging.info("Replied to saved to file.")
+	logging.debug("Replied to saved to file.")
 
 class entry_t:
 	def __init__(self, list, comment_id, created, time=None, last_time=None):

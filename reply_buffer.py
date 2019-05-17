@@ -125,7 +125,7 @@ class reply_t:
 			
 			
 			
-			logging.info("Replied to saved to file.")
+			logging.debug("Replied to saved to file.")
 			
 			if self.req_maintenance:
 				self.handler.maintain_list.add( comment )
