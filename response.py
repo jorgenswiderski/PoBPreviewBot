@@ -73,7 +73,7 @@ def blacklist_pastebin(paste_key):
 def paste_key_is_blacklisted(paste_key):
 	return paste_key in pastebin_blacklist
 
-def get_response( wrapped_object ):
+def get_response( wrapped_object, ignore_blacklist=False ):
 	if not (wrapped_object is not None and isinstance( wrapped_object, praw_object_wrapper_t )):
 		raise ValueError("get_response was passed an invalid wrapped_object: {}".type(wrapped_object))
 		
@@ -155,7 +155,7 @@ def get_response( wrapped_object ):
 			
 			return comment_body
 			
-def reply_to_summon(bot, comment):
+def reply_to_summon(bot, comment, ignore_blacklist=False):
 	if not isinstance(comment, praw_object_wrapper_t):
 		raise ValueError("reply_to_summon was passed an invalid comment: {}".format(type(comment)))
 
