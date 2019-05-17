@@ -17,10 +17,10 @@ import defusedxml.ElementTree as ET
 from retrying import retry
 
 # Self
-#import live_config as config
-#import live_secret_config as sconfig
-import config
-import secret_config as sconfig
+import live_config as config
+import live_secret_config as sconfig
+#import config
+#import secret_config as sconfig
 import pastebin
 import util
 import status
@@ -146,7 +146,7 @@ class bot_t:
 bot = bot_t()
 
 try:
-	logging.info("Scanning subreddits /r/" + repr(config.subreddits) + "...")
+	logging.info("Scanning subreddits {}...".format(config.subreddits))
 	
 	while True:
 		bot.run()
