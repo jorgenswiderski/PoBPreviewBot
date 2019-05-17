@@ -16,6 +16,9 @@ class praw_object_wrapper_t():
 		self.object = object
 		self.bot = bot
 		
+		if not (self.is_comment() or self.is_submission()):
+			raise ValueError("praw_object_wrapper_t was passed invalid object: {}".format(type(object)))
+		
 		# BE CAREFUL
 		# Any attributes defined in this object may override/obscure attr
 		# defined in the subobject
