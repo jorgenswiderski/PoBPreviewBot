@@ -541,7 +541,7 @@ class build_t:
 	def __parse_author__(self, author):
 		if isinstance(author, praw.models.reddit.redditor.Redditor):
 			self.author = "/u/{:s}".format(author.name)
-		elif isinstance(author, str) or isinstance(author, unicode):
+		elif isinstance(author, (str, unicode)):
 			self.author = author
 		else:
 			# FIXME: This exception should NOT cause the pastbin to be blacklisted.

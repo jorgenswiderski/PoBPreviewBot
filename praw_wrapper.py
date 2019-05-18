@@ -75,7 +75,7 @@ class praw_object_wrapper_t():
 		body = self.get_body()
 		author = self.get_author()
 	
-		if not ( body is not None and ( isinstance( body, str ) or isinstance( body, unicode ) ) ):
+		if not ( body is not None and isinstance( body, (str, unicode) ) ):
 			# dump xml for debugging later
 			exc = ValueError("parse_generic passed invalid body")
 			util.dump_debug_info(self, exc=exc, extra_data={
