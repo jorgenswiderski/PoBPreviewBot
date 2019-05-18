@@ -77,7 +77,9 @@ class stream_thread_t(threading.Thread):
 		backlogged = getattr(self.manager.subreddit, 'new' if self.type == 'submissions' else 'comments')
 		count = 0
 		
-		for object in backlogged():
+		# Docs say that no limit may be limited to 1000 objects anyway.
+		# https://praw.readthedocs.io/en/latest/code_overview/other/listinggenerator.html#praw.models.ListingGenerator
+		for object in backlogged(limit=None):
 			if object.created_utc < since:
 				logging.info("Completed pulling {} backlog, checked {} {}.".format(self.type, count, self.type))
 				return
