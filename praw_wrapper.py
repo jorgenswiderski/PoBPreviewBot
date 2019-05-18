@@ -91,7 +91,7 @@ class praw_object_wrapper_t():
 			# get response text
 			response = self.bot.get_response( self )
 		except (EligibilityException, PastebinLimitException) as e:
-			print(str(e))
+			logging.info(str(e))
 			
 		if response is None:
 			return False
