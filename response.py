@@ -90,56 +90,61 @@ def get_response( wrapped_object, ignore_blacklist=False ):
 			bin = "https://" + match.group(0)
 			paste_key = pastebin.strip_url_to_key(bin)
 			
-			if (not paste_key_is_blacklisted(paste_key) or ignore_blacklist) and paste_key not in bins_responded_to:
-				try:
-					xml = pastebin.get_as_xml(paste_key)
-				except (zlib.error, TypeError, etree.ElementTree.ParseError):
-					logging.info("Pastebin does not decode to XML data.")
-					blacklist_pastebin(paste_key)
-					continue
-				except urllib2.HTTPError as e:
-					logging.error("urllib2 {:s}".format(repr(e)))
-					
-					if "Service Temporarily Unavailable" not in repr(e):
+			if (not paste_key_is_blacklisted(paste_key) or ignore_blacklist):
+				if paste_key not in bins_responded_to:
+					try:
+						xml = pastebin.get_as_xml(paste_key)
+					except (zlib.error, TypeError, etree.ElementTree.ParseError):
+						logging.info("Pastebin does not decode to XML data.")
 						blacklist_pastebin(paste_key)
+						continue
+					except urllib2.HTTPError as e:
+						logging.error("urllib2 {:s}".format(repr(e)))
 						
-					continue
-				except urllib2.URLError as e:
-					logging.error("Failed to retrieve any data\nURL: {}\n{}".format(raw_url, str(e)))
-					util.dump_debug_info(wrapped_object, exc=e, paste_key=paste_key)
-					continue
-				
-				if xml.tag == "PathOfBuilding":
-					if xml.find('Build').find('PlayerStat') is not None:
-						try:
-							build = build_t(xml, bin, author, wrapped_object)
-							response = build.get_response()
-						except EligibilityException:
+						if "Service Temporarily Unavailable" not in repr(e):
 							blacklist_pastebin(paste_key)
-							raise
-							continue
-						except Exception as e:
-							logging.error(repr(e))
 							
-							# dump xml for debugging later
-							util.dump_debug_info(wrapped_object, exc=e, xml=xml)
+						continue
+					except urllib2.URLError as e:
+						logging.error("Failed to retrieve any data\nURL: {}\n{}".format(raw_url, str(e)))
+						util.dump_debug_info(wrapped_object, exc=e, paste_key=paste_key)
+						continue
+					
+					if xml.tag == "PathOfBuilding":
+						if xml.find('Build').find('PlayerStat') is not None:
+							try:
+								build = build_t(xml, bin, author, wrapped_object)
+								response = build.get_response()
+							except EligibilityException:
+								blacklist_pastebin(paste_key)
+								raise
+								continue
+							except Exception as e:
+								logging.error(repr(e))
+								
+								# dump xml for debugging later
+								util.dump_debug_info(wrapped_object, exc=e, xml=xml)
+								
+								blacklist_pastebin(paste_key)
+								continue
 							
+							#util.dump_debug_info(wrapped_object, xml=xml, dir="xml_dump")
+								
+							responses.append(response)
+							bins_responded_to[paste_key] = True
+						else:
+							logging.error("XML does not contain player stats.")
 							blacklist_pastebin(paste_key)
-							continue
-						
-						#util.dump_debug_info(wrapped_object, xml=xml, dir="xml_dump")
-							
-						responses.append(response)
-						bins_responded_to[paste_key] = True
 					else:
-						logging.error("XML does not contain player stats.")
+						logging.info("Pastebin does not contain Path of Building XML.")
 						blacklist_pastebin(paste_key)
 				else:
-					logging.info("Pastebin does not contain Path of Building XML.")
-					blacklist_pastebin(paste_key)
+					logging.debug("Skipped pastebin {} as it is already included in this response.".format(paste_key))
+			else:
+				logging.debug("Skipped pastebin {} as it is blacklisted.".format(paste_key))
 		
 		if len(responses) > 5:
-			raise PastebinLimitException("Ignoring {} {} because it has greater than 5 valid pastebins. ({})".format(obj_type_str(reply_object), reply_object.id, len(responses)))
+			raise PastebinLimitException("Ignoring {} because it has greater than 5 valid pastebins. ({})".format(wrapped_object, len(responses)))
 		elif len(responses) > 0:
 			comment_body = ""
 			if len(responses) > 1:
@@ -154,6 +159,8 @@ def get_response( wrapped_object, ignore_blacklist=False ):
 			comment_body += '\n\n' + config.BOT_FOOTER
 			
 			return comment_body
+	else:
+		logging.debug("{} includes no pastebins.".format(wrapped_object))
 			
 def reply_to_summon(bot, comment, ignore_blacklist=False):
 	if not isinstance(comment, praw_object_wrapper_t):
