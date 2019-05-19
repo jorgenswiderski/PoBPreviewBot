@@ -156,6 +156,9 @@ class entry_t:
 			
 		return True
 	
+	@retry(retry_on_exception=util.is_praw_error,
+		   wait_exponential_multiplier=config.praw_error_wait_time,
+		   wait_func=util.praw_error_retry)	
 	def maintain(self):
 		# Whether the comment has been deleted, and therefore doesn't need to
 		# be maintained anymore.
