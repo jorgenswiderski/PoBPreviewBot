@@ -81,6 +81,8 @@ class stream_thread_t(threading.Thread):
 		# https://praw.readthedocs.io/en/latest/code_overview/other/listinggenerator.html#praw.models.ListingGenerator
 		for object in backlogged(limit=None):
 			if object.created_utc < since:
+				# flag backlog as resolved in bot state
+				self.manager.bot.backlog[self.type] = False
 				logging.info("Completed pulling {} backlog, checked {} {}.".format(self.type, count, self.type))
 				return
 				

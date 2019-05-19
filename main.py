@@ -53,6 +53,14 @@ class bot_t:
 			
 		if '-force' in sys.argv:
 			self.maintain_list.flag_for_edits(sys.argv)
+		
+		# Init backlog state. Stream threads will toggle these bools when they
+		# have finished resolving their backlogging, allowing this main thread
+		# to know when its ok to status update.
+		self.backlog = {
+			'comments': True,
+			'submissions': True,
+		}
 
 		self.reply_queue = reply_handler_t( self )
 		self.stream_manager = stream_manager_t( self )
@@ -61,6 +69,9 @@ class bot_t:
 		# thread, and break it when our stream daemon threads find something
 		self.lock = threading.Lock()
 		self.condition = threading.Condition(self.lock)
+		
+	def is_backlogged(self):
+		return self.backlog['comments'] or self.backlog['submissions']
 		
 	def login(self):
 		logging.info("Logging in...")
@@ -98,7 +109,9 @@ class bot_t:
 		if len(self.stream_manager) > 0:
 			return
 		
-		status.update()
+		# Do a status update, but only if the backlog is totally resolved.
+		if not self.is_backlogged():
+			status.update()
 			
 		# calculate the next time we need to do something
 		st = self.get_sleep_time()
