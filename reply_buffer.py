@@ -3,6 +3,7 @@ from collections import deque
 import time
 import math
 import logging
+import json
 
 # 3rd Party
 import praw
@@ -12,29 +13,35 @@ from praw.exceptions import APIException
 # Self
 import util
 from comment_maintenance import maintain_list_t
+from praw_wrapper import praw_object_wrapper_t
 
 # =============================================================================
 
 class reply_handler_t:
 	_throttled_until = 0
 
-	def __init__(self, maintain_list):
-		self.maintain_list = maintain_list
+	def __init__(self, bot):
+		self.bot = bot
+		self.maintain_list = bot.maintain_list
+		self.replied_to = bot.replied_to
 		self.queue_dict = {}
 		self.queue = deque()
 		
 	def reply(self, object, message_body, log = True):
+		if not isinstance(object, praw_object_wrapper_t):
+			raise ValueError("reply was passed an invalid object: {}".format(type(object)))
+		
 		rep = reply_t( self, object, message_body, log )
 		
 		if self.throttled():
 			self.append( rep )
-			logging.info("Added response to {} to reply queue.".format(util.praw_obj_str(rep.object)))
+			logging.info("Added response to {} to reply queue.".format(rep.object))
 		else:
 			rep.attempt_post()
 			
 			if not rep.resolved:
 				self.append( rep )
-				logging.info("Reply failed. Added response to {} to reply queue.".format(util.praw_obj_str(rep.object)))
+				logging.info("Reply failed. Added response to {} to reply queue.".format(rep.object))
 				
 	def throttled(self):
 		return reply_handler_t._throttled_until > time.time()
@@ -58,9 +65,12 @@ class reply_handler_t:
 		
 	def __len__(self):
 		return len(self.queue)
+		
+	def is_active(self):
+		return len(self.queue) > 0 and not self.throttled()
 				
 	def process(self):
-		while len(self.queue) > 0 and not self.throttled():
+		while self.is_active():
 			logging.debug("Processing reply queue entry (of {})".format( len(self) ))
 			self.queue[0].attempt_post()
 			
@@ -88,13 +98,7 @@ class reply_t:
 			
 			logging.info("Replied to {} with {}.".format(util.praw_obj_str(self.object), util.praw_obj_str(comment)))
 	
-			if isinstance(self.object, praw.models.Comment):
-				self.handler.maintain_list.comments_replied_to.append(self.object.id)
-			else:
-				self.handler.maintain_list.submissions_replied_to.append(self.object.id)
-
-			with open("{:s}s_replied_to.txt".format(util.obj_type_str(self.object)), "a") as f:
-				f.write(self.object.id + "\n")
+			self.handler.replied_to.add(self.object)
 			
 			if self.req_maintenance:
 				self.handler.maintain_list.add( comment )

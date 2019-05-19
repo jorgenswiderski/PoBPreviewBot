@@ -3,7 +3,7 @@ import time
 import os
 import random
 import math
-
+import threading
 import datetime
 import json
 import logging
@@ -18,30 +18,21 @@ from praw.exceptions import APIException
 
 # Self
 import util
-import config
-from response import get_response
+from config import config_helper as config
 import official_forum
+from praw_wrapper import praw_object_wrapper_t
 
-from pob_build import EligibilityException
+from _exceptions import PastebinLimitException
+from _exceptions import EligibilityException
 
 # =============================================================================
 
 not_author_blacklist = {};
-	
-class PastebinLimitException(Exception):
-	pass
-
-def write_replied_to_file(comments=False, submissions=False):
-	if comments:
-		with open("comments_replied_to.txt", "w") as f:
-			f.write( "\n".join( comments ) + "\n" )
-	if submissions:
-		with open("submissions_replied_to.txt", "w") as f:
-			f.write( "\n".join( submissions ) + "\n" )
 
 class entry_t:
 	def __init__(self, list, comment_id, created, time=None, last_time=None):
 		self.list = list
+		self.bot = list.bot
 		self.comment_id = comment_id
 		self.comment = None
 		self.parent = None
@@ -73,7 +64,8 @@ class entry_t:
 		   wait_func=util.praw_error_retry)
 	def get_comment(self):
 		if self.comment is None:
-			self.comment = util.get_praw_comment_by_id(self.list.reddit, self.comment_id)
+			comment = util.get_praw_comment_by_id(self.list.reddit, self.comment_id)
+			self.comment = praw_object_wrapper_t(self.bot, comment)
 		
 			# Fetch the comment now in a place where RequestExceptions can be handled properly.
 			if not self.comment._fetched:
@@ -164,6 +156,9 @@ class entry_t:
 			
 		return True
 	
+	@retry(retry_on_exception=util.is_praw_error,
+		   wait_exponential_multiplier=config.praw_error_wait_time,
+		   wait_func=util.praw_error_retry)	
 	def maintain(self):
 		# Whether the comment has been deleted, and therefore doesn't need to
 		# be maintained anymore.
@@ -257,26 +252,17 @@ class entry_t:
 			new_comment_body = None
 			
 			try:
-				if isinstance(parent, praw.models.Comment):
-					new_comment_body = get_response(self.list.reddit, parent, parent.body)
-				else:
-					new_comment_body = get_response(self.list.reddit, parent, util.get_submission_body( parent ), author = util.get_submission_author( parent ) )
+				new_comment_body = self.bot.get_response( parent )
 			except (EligibilityException, PastebinLimitException) as e:
 				print(e)
 			
 			if new_comment_body is None:
 				comment.delete()
-				
-				if isinstance(parent, praw.models.Comment):
-					if parent.id in self.list.comments_replied_to:
-						self.list.comments_replied_to.remove(parent.id)
-						write_replied_to_file(comments=self.list.comments_replied_to)
-				else:
-					if parent.id in self.list.submissions_replied_to:
-						self.list.submissions_replied_to.remove(parent.id)
-						write_replied_to_file(submissions=self.list.submissions_replied_to)
-					
 				logging.info("Parent {:s} no longer links to any builds, deleted response comment {:s}.".format(parent.id, self.comment_id))
+				
+				if self.list.replied_to.contains(parent.id):
+					self.list.replied_to.remove(parent.id)
+					
 				return True
 			elif new_comment_body != comment.body:
 				try:
@@ -297,16 +283,16 @@ class entry_t:
 				logging.debug("{} was last edited [{}] ago ([{}] before the edit window).".format(util.obj_type_str(parent), datetime.timedelta(seconds=time_since_edit), datetime.timedelta(seconds=seconds_before_cutoff)))
 			elif time.time() - parent.created_utc >= 400:
 				age = math.ceil(time.time() - parent.created_utc)
-				logging.debug("{} is more than 400s old [{}] and is not edited.".format(util.obj_type_str(parent), str(datetime.timedelta(seconds=age))))	
+				logging.debug("{} is more than 400s old [{}] and is not edited.".format(util.obj_type_str(parent), datetime.timedelta(seconds=age)))	
 				
 		return False
 		
 class maintain_list_t:
-	def __init__(self, file_path, reddit, comments, submissions):
+	def __init__(self, bot, file_path):
+		self.bot = bot
 		self.file_path = file_path
-		self.reddit = reddit
-		self.comments_replied_to = comments
-		self.submissions_replied_to = submissions
+		self.reddit = bot.reddit
+		self.replied_to = bot.replied_to
 		
 		self.list = []
 		self.retired_list = []
@@ -363,7 +349,7 @@ class maintain_list_t:
 			else:
 				lower = middle
 				
-		logging.debug("Inserting {:s} into maintain list at idx={:.0f} to be refreshed at [{}].".format(entry.comment_id, upper, str(datetime.datetime.fromtimestamp(entry.time))))
+		logging.debug("Inserting {:s} into maintain list at idx={:.0f} to be refreshed at [{}].".format(entry.comment_id, upper, datetime.datetime.fromtimestamp(entry.time)))
 		'''
 		if lower >= 0:
 			logging.info(float(deletion_check_list[lower]['time']))
@@ -412,8 +398,11 @@ class maintain_list_t:
 		else:
 			return None
 			
+	def is_active(self):
+		return len(self) > 0 and self.next_time() <= time.time()
+			
 	def process(self):
-		if not ( len(self) > 0 and self.next_time() <= time.time() ):
+		if not self.is_active():
 			return
 		
 		# pop the first entry

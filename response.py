@@ -13,16 +13,17 @@ import praw
 
 # Self
 import util
-from util import obj_type_str
 import pastebin
-from pob_build import build_t
-import config
+from config import config_helper as config
 import comment_maintenance
+from praw_wrapper import praw_object_wrapper_t
+from pob_build import build_t
+from util import obj_type_str
 
-from pob_build import EligibilityException
+from _exceptions import EligibilityException
+from _exceptions import PastebinLimitException
 
 # =============================================================================
-
 		
 def get_blacklisted_pastebins():
 	pastebin_blacklist = {}
@@ -72,21 +73,14 @@ def blacklist_pastebin(paste_key):
 def paste_key_is_blacklisted(paste_key):
 	return paste_key in pastebin_blacklist
 
-def get_response( reddit, reply_object, body, author = None, ignore_blacklist = False ):
-	if not (reply_object and ( isinstance( reply_object, praw.models.Comment ) or isinstance( reply_object, praw.models.Submission ) ) ):
-		raise Exception("get_response passed invalid reply_object")
-	elif not ( body is not None and ( isinstance( body, str ) or isinstance( body, unicode ) ) ):
-		raise Exception("get_response passed invalid body")
+def get_response( wrapped_object, ignore_blacklist=False ):
+	if not (wrapped_object is not None and isinstance( wrapped_object, praw_object_wrapper_t )):
+		raise ValueError("get_response was passed an invalid wrapped_object: {}".type(wrapped_object))
 		
-	# If author isn't passed in as a parameter, then default to the author of the object we're replying to
-	if not author:
-		author = reply_object.author
+	author = wrapped_object.get_author()
+	body = wrapped_object.get_body()
 	
-	logging.debug("Processing " + reply_object.id)
-		
-	if reply_object.author == reddit.user.me():
-		logging.debug("Author is self, ignoring")
-		return
+	logging.debug("Processing {}".format(wrapped_object))
 
 	if "pastebin.com/" in body:
 		responses = []
@@ -96,56 +90,61 @@ def get_response( reddit, reply_object, body, author = None, ignore_blacklist = 
 			bin = "https://" + match.group(0)
 			paste_key = pastebin.strip_url_to_key(bin)
 			
-			if (not paste_key_is_blacklisted(paste_key) or ignore_blacklist) and paste_key not in bins_responded_to:
-				try:
-					xml = pastebin.get_as_xml(paste_key)
-				except (zlib.error, TypeError, etree.ElementTree.ParseError):
-					logging.info("Pastebin does not decode to XML data.")
-					blacklist_pastebin(paste_key)
-					continue
-				except urllib2.HTTPError as e:
-					logging.error("urllib2 {:s}".format(repr(e)))
-					
-					if "Service Temporarily Unavailable" not in repr(e):
+			if (not paste_key_is_blacklisted(paste_key) or ignore_blacklist):
+				if paste_key not in bins_responded_to:
+					try:
+						xml = pastebin.get_as_xml(paste_key)
+					except (zlib.error, TypeError, etree.ElementTree.ParseError):
+						logging.info("Pastebin does not decode to XML data.")
 						blacklist_pastebin(paste_key)
+						continue
+					except urllib2.HTTPError as e:
+						logging.error("urllib2 {:s}".format(repr(e)))
 						
-					continue
-				except urllib2.URLError as e:
-					logging.error("Failed to retrieve any data\nURL: {}\n{}".format(raw_url, str(e)))
-					util.dump_debug_info(reply_object, exc=e, paste_key=paste_key)
-					continue
-				
-				if xml.tag == "PathOfBuilding":
-					if xml.find('Build').find('PlayerStat') is not None:
-						try:
-							build = build_t(xml, bin, author, reply_object)
-							response = build.get_response()
-						except EligibilityException:
+						if "Service Temporarily Unavailable" not in repr(e):
 							blacklist_pastebin(paste_key)
-							raise
-							continue
-						except Exception as e:
-							logging.error(repr(e))
 							
-							# dump xml for debugging later
-							util.dump_debug_info(reply_object, exc=e, xml=xml)
+						continue
+					except urllib2.URLError as e:
+						logging.error("Failed to retrieve any data\nURL: {}\n{}".format(raw_url, str(e)))
+						util.dump_debug_info(wrapped_object, exc=e, paste_key=paste_key)
+						continue
+					
+					if xml.tag == "PathOfBuilding":
+						if xml.find('Build').find('PlayerStat') is not None:
+							try:
+								build = build_t(xml, bin, author, wrapped_object)
+								response = build.get_response()
+							except EligibilityException:
+								blacklist_pastebin(paste_key)
+								raise
+								continue
+							except Exception as e:
+								logging.error(repr(e))
+								
+								# dump xml for debugging later
+								util.dump_debug_info(wrapped_object, exc=e, xml=xml)
+								
+								blacklist_pastebin(paste_key)
+								continue
 							
+							#util.dump_debug_info(wrapped_object, xml=xml, dir="xml_dump")
+								
+							responses.append(response)
+							bins_responded_to[paste_key] = True
+						else:
+							logging.error("XML does not contain player stats.")
 							blacklist_pastebin(paste_key)
-							continue
-						
-						#util.dump_debug_info(reply_object, xml=xml, dir="xml_dump")
-							
-						responses.append(response)
-						bins_responded_to[paste_key] = True
 					else:
-						logging.error("XML does not contain player stats.")
+						logging.info("Pastebin does not contain Path of Building XML.")
 						blacklist_pastebin(paste_key)
 				else:
-					logging.info("Pastebin does not contain Path of Building XML.")
-					blacklist_pastebin(paste_key)
+					logging.debug("Skipped pastebin {} as it is already included in this response.".format(paste_key))
+			else:
+				logging.debug("Skipped pastebin {} as it is blacklisted.".format(paste_key))
 		
 		if len(responses) > 5:
-			raise comment_maintenance.PastebinLimitException("Ignoring {} {} because it has greater than 5 valid pastebins. ({})".format(obj_type_str(reply_object), reply_object.id, len(responses)))
+			raise PastebinLimitException("Ignoring {} because it has greater than 5 valid pastebins. ({})".format(wrapped_object, len(responses)))
 		elif len(responses) > 0:
 			comment_body = ""
 			if len(responses) > 1:
@@ -160,6 +159,43 @@ def get_response( reddit, reply_object, body, author = None, ignore_blacklist = 
 			comment_body += '\n\n' + config.BOT_FOOTER
 			
 			return comment_body
+	else:
+		logging.debug("{} includes no pastebins.".format(wrapped_object))
+			
+def reply_to_summon(bot, comment, ignore_blacklist=False):
+	if not isinstance(comment, praw_object_wrapper_t):
+		raise ValueError("reply_to_summon was passed an invalid comment: {}".format(type(comment)))
+
+	errs = []
+	parent = comment.parent()
+	
+	if parent.author == bot.reddit.user.me():
+		return
+		
+	p_response = None
+	
+	try:
+		if parent.is_comment():
+			p_response = get_response( comment )
+	except (EligibilityException, PastebinLimitException) as e:
+		errs.append("* {}".format(str(e)))
+	
+	response = None
+		
+	if p_response is not None and not bot.replied_to.contains(parent) and not bot.reply_queue.contains_id(parent.id):
+		if config.username == "PoBPreviewBot" or "pathofexile" not in config.subreddits:
+			bot.reply_queue.reply(parent, p_response)
+		response = "Seems like I missed comment {}! I've replied to it now, sorry about that.".format(parent.id)
+	elif len(errs) > 0:
+		response = "The {} {} was not responded to for the following reason{}:\n\n{}".format(obj_type_str(parent), parent.id, "s" if len(errs) > 1 else "", "  \n".join(errs))
+	else:
+		response = config.BOT_INTRO
+	
+	if response is None:
+		return
+	
+	if config.username == "PoBPreviewBot" or "pathofexile" not in config.subreddits:
+		bot.reply_queue.reply(comment, response, log = False)
 			
 pastebin_blacklist = get_blacklisted_pastebins()
 logging.debug("Pastebin blacklist loaded with {} entries.".format(len(pastebin_blacklist)))

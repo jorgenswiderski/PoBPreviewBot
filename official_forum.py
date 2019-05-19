@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 
 # Self
 import util
-import config
+from config import config_helper as config
 
 # =============================================================================
 
