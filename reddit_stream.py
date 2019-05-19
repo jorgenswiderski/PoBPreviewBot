@@ -38,7 +38,7 @@ class stream_thread_t(threading.Thread):
 		return max(status.get_last_update(), time.time() - config.backlog_time_limit)
 			
 	def check_and_queue(self, object):
-		logging.debug("{} daemon thread found {}.".format(self.type, object))
+		logging.log(logger.DEBUG_ALL, "{} daemon thread found {}.".format(self.type, object))
 		
 		if object.id in self.processed:
 			logging.debug("{} has already been processed.".format(object))
