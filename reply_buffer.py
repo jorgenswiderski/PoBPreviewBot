@@ -83,6 +83,9 @@ class reply_handler_t:
 		
 class reply_t:
 	def __init__(self, handler, object, message_body, log):
+		if not isinstance(object, praw_object_wrapper_t):
+			raise ValueError("init was passed an invalid object: {}".format(type(object)))
+			
 		self.handler = handler
 		self.object = object
 		self.message_body = message_body
@@ -96,7 +99,7 @@ class reply_t:
 		try:
 			comment = self.object.reply( self.message_body )
 			
-			logging.info("Replied to {} with {}.".format(util.praw_obj_str(self.object), util.praw_obj_str(comment)))
+			logging.info("Replied to {} with {}.".format(self.object, comment))
 	
 			self.handler.replied_to.add(self.object)
 			
