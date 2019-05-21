@@ -81,17 +81,6 @@ def parse_time_str(str):
 	else:
 		raise Exception("time_str did not follow XdXhXm format.")
 	
-def obj_type_str(obj):
-	if isinstance(obj, praw.models.Comment):
-		return "comment"
-	elif isinstance(obj, praw.models.Submission):
-		return "submission"
-	else:
-		raise ValueError('obj is not a comment or submission: {}'.format(type(obj)))
-		
-def praw_obj_str(obj):
-	return "{} {}".format(obj_type_str(obj), obj.id)
-	
 praw_errors = (RequestException, ServerError, APIException, ResponseException)
 	
 def is_praw_error(e):

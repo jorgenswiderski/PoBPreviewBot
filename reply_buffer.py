@@ -110,10 +110,10 @@ class reply_t:
 		except APIException as e:
 			if "DELETED_COMMENT" in str(e):
 				self.resolved = True
-				logging.warning("Parent {} has been deleted before it could be responded to. Removing response from reply queue.".format(util.praw_obj_str(self.object)))
+				logging.warning("Parent {} has been deleted before it could be responded to. Removing response from reply queue.".format(self.object))
 			elif "TOO_OLD" in str(e):
 				self.resolved = True
-				logging.warning("Ignoring {} as it is too old to be responded to.".format(util.praw_obj_str(self.object)))
+				logging.warning("Ignoring {} as it is too old to be responded to.".format(self.object))
 			else:
 				logging.warning("Failed to reply {}, buffering reply for later.".format(repr(e)))
 				reply_handler_t._throttled_until = time.time() + 60

@@ -1,4 +1,5 @@
 # Python
+import thread
 import threading
 import logging
 import os
@@ -96,7 +97,7 @@ class stream_thread_t(threading.Thread):
 		   wait_exponential_multiplier=config.praw_error_wait_time,
 		   wait_func=util.praw_error_retry)	
 	def do_stream(self):
-		for object in self.handler('''skip_existing=True'''):
+		for object in self.handler():
 			self.check_and_queue(object)
 
 	def run(self):

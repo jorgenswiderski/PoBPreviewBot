@@ -26,7 +26,6 @@ import exceptions
 import logger
 import response
 import replied_to
-from util import obj_type_str
 from comment_maintenance import maintain_list_t
 from reply_buffer import reply_handler_t
 from reddit_stream import stream_manager_t

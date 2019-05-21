@@ -18,7 +18,6 @@ from config import config_helper as config
 import comment_maintenance
 from praw_wrapper import praw_object_wrapper_t
 from pob_build import build_t
-from util import obj_type_str
 
 from _exceptions import EligibilityException
 from _exceptions import PastebinLimitException
@@ -187,7 +186,7 @@ def reply_to_summon(bot, comment, ignore_blacklist=False):
 			bot.reply_queue.reply(parent, p_response)
 		response = "Seems like I missed comment {}! I've replied to it now, sorry about that.".format(parent.id)
 	elif len(errs) > 0:
-		response = "The {} {} was not responded to for the following reason{}:\n\n{}".format(obj_type_str(parent), parent.id, "s" if len(errs) > 1 else "", "  \n".join(errs))
+		response = "The {} {} was not responded to for the following reason{}:\n\n{}".format(parent, parent.id, "s" if len(errs) > 1 else "", "  \n".join(errs))
 	else:
 		response = config.BOT_INTRO
 	

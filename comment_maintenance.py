@@ -280,10 +280,10 @@ class entry_t:
 			if isinstance(parent.edited, float):
 				time_since_edit = math.ceil(time.time() - parent.edited)
 				seconds_before_cutoff = math.ceil(self.time - 60 - parent.edited)
-				logging.debug("{} was last edited [{}] ago ([{}] before the edit window).".format(util.obj_type_str(parent), datetime.timedelta(seconds=time_since_edit), datetime.timedelta(seconds=seconds_before_cutoff)))
+				logging.debug("{} was last edited [{}] ago ([{}] before the edit window).".format(parent, datetime.timedelta(seconds=time_since_edit), datetime.timedelta(seconds=seconds_before_cutoff)))
 			elif time.time() - parent.created_utc >= 400:
 				age = math.ceil(time.time() - parent.created_utc)
-				logging.debug("{} is more than 400s old [{}] and is not edited.".format(util.obj_type_str(parent), datetime.timedelta(seconds=age)))	
+				logging.debug("{} is more than 400s old [{}] and is not edited.".format(parent, datetime.timedelta(seconds=age)))	
 				
 		return False
 		
