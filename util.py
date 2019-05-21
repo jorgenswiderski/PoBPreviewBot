@@ -106,7 +106,7 @@ def is_praw_error(e):
 	
 def praw_error_retry(attempt_number, ms_since_first_attempt):
 	delay = config.praw_error_wait_time * ( 2 ** ( attempt_number - 1 ) )
-	logging.info("Sleeping for {:.0f}s...".format(delay))
+	logging.info("{} is sleeping for {:.0f}s...".format(threading.current_thread().name, delay))
 	return delay * 1000
 	
 @retry(retry_on_exception=is_praw_error,
