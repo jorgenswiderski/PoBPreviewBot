@@ -76,6 +76,9 @@ class bot_t:
 	def login(self):
 		logging.info("Logging in...")
 		
+		if config.username == '[redacted]':
+			raise ValueError("settings_secret.json is not valid.")
+		
 		r = praw.Reddit(username = config.username,
 			password = config.password,
 			client_id = config.client_id,
@@ -133,9 +136,8 @@ class bot_t:
 # =============================================================================
 # START MAIN
 
-bot = bot_t()
-
 try:
+	bot = bot_t()
 	logging.info("Scanning subreddits {}...".format(config.subreddits))
 	
 	while True:
