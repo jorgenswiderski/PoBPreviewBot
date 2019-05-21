@@ -31,8 +31,12 @@ class praw_object_wrapper_t():
 		return getattr(self.object, name)
 		
 	# Override praw parent() to return a wrapped object
-	def parent(self):
-		return praw_object_wrapper_t(self.bot, self.object.parent())
+	def parent(self, *args, *kwargs):
+		return praw_object_wrapper_t(self.bot, self.object.parent(*args, *kwargs))
+		
+	# Override praw reply() to return a wrapped object
+	def reply(self, *args, *kwargs):
+		return praw_object_wrapper_t(self.bot, self.object.reply(*args, *kwargs))
 		
 	def is_comment(self):
 		return isinstance(self.object, praw.models.Comment)
