@@ -84,8 +84,10 @@ def parse_time_str(str):
 def obj_type_str(obj):
 	if isinstance(obj, praw.models.Comment):
 		return "comment"
+	elif isinstance(obj, praw.models.Submission):
+		return "submission"
 	else:
-		return "submission"	
+		raise ValueError('obj is not a comment or submission: {}'.format(type(obj)))
 		
 def praw_obj_str(obj):
 	return "{} {}".format(obj_type_str(obj), obj.id)
