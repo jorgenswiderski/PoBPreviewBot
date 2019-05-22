@@ -66,6 +66,7 @@ class bot_t:
 		# whenever it finishes.
 		self.acm_lock = thread.allocate_lock()
 		self.acm_lock.acquire()
+		logging.debug("MainThread acquired acm_lock.")
 		
 		self.maintain_list = maintain_list_t( self, "active_comments.txt" )
 			
@@ -171,11 +172,17 @@ class bot_t:
 			self.stream_event.clear()
 			# release the aggressive comment maintenance lock, which will allow the ACM thread to start
 			self.acm_lock.release()
+			logging.debug("MainThread released acm_lock.")
 			# make this thread wait until a stream subthread signals this
 			# thread to go, or until sleep time has elapsed
 			self.stream_event.wait(st)
+			
 			# operation has continued, so time to reclaim the ACM lock
+			if self.acm_lock.locked():
+				logging.debug("MainThread waiting to acquire acm_lock.")
+			
 			self.acm_lock.acquire()
+			logging.debug("MainThread acquired acm_lock.")
 			
 	@staticmethod	
 	def get_response( object ):

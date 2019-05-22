@@ -3,6 +3,7 @@ import time
 import os
 import random
 import math
+import thread
 import threading
 import datetime
 import json
@@ -18,6 +19,7 @@ from praw.exceptions import APIException
 
 # Self
 import util
+import logger
 from config import config_helper as config
 import official_forum
 from praw_wrapper import praw_object_wrapper_t
@@ -287,6 +289,130 @@ class entry_t:
 				
 		return False
 		
+	# Returns a float that represents the percentage of time that has elapsed
+	# towards the next maintainance
+	def get_progress(self):
+		return 1
+		
+class aggressive_maintainer_t(threading.Thread):
+	rate_limit_window = 600
+	queries_per_maintain = 2
+	
+	def __init__(self, list):
+		threading.Thread.__init__(self, name='ACMThread')
+		
+		self.list = list
+		self.bot = list.bot
+		# the max amount of the rate limit to utilize.
+		# ie: 0.80 means we stop maintaining more comments once we reach 80%
+		# utilized of the max query amount
+		self.amu = config.aggressive_maintenance_utilization
+		
+		logging.debug("Created ACM daemon thread.")
+	
+	# Get Rate Limit utilization
+	# Returns a percent (float) that represents the projected number of queries
+	# relative to the maximum number of queries for the current rate limit
+	# period. For example:
+	# 0.50 would mean that its projected that only half the max queries will be used
+	# 1.50 would mean that its projected that we will exceed the max queries and get throttled
+	def get_rl_utilization(self):
+		rl = self.bot.reddit._core._rate_limiter
+		
+		# rate limit window end timestamp
+		end = rl.reset_timestamp
+		# rate limit window start timestamp (assumed)
+		start = end - self.rate_limit_window
+		# elapsed time
+		elapsed = time.time() - start
+		elapsed_pct = elapsed / self.rate_limit_window
+		
+		if elapsed_pct == 0:
+			return 1.0
+		
+		queries_total = rl.used + rl.remaining
+		
+		if queries_total == 0:
+			return 1.0
+		
+		used_pct = rl.used / queries_total
+		
+		logging.log(logger.DEBUG_ALL, "used={:.0f} rem={:.0f} total={:.0f} start={:.3f} end={:.3f} elapsed={:.3f} el_pct={:.2f}% used_pct={:.2f}% util={:.2f}%".format(
+			rl.used, rl.remaining, queries_total,
+			start, end, elapsed,
+			elapsed_pct*100, used_pct*100, used_pct / elapsed_pct * 100 ) )
+		
+		return used_pct / elapsed_pct
+		
+	def sleep(self):
+		rl = self.bot.reddit._core._rate_limiter
+		
+		# rate limit window end timestamp
+		end = rl.reset_timestamp
+		# rate limit window start timestamp (assumed)
+		start = end - self.rate_limit_window
+		
+		queries_total = rl.used + rl.remaining
+		used_pct = rl.used / queries_total
+		
+		ready_time = start + self.rate_limit_window * min( 1.0, used_pct / self.amu )
+		
+		# add 10ms to avoid rounding issues causing excessive cycles
+		dur = ready_time - time.time() + 0.01
+		
+		if dur >= 0:
+			logging.debug("ACMThread idling for {:.3f}s.".format(dur))
+			time.sleep(dur)
+			
+	def wait_for_init(self):
+		rl = self.bot.reddit._core._rate_limiter
+		
+		while rl.remaining is None or rl.used is None or rl.reset_timestamp is None:
+			time.sleep(1)
+			
+	def choose(self):
+		# placeholder for smarter logic
+		return self.list.list.pop(0)
+		
+	def main(self):
+		# Wait for the rate limiter to initialize
+		self.wait_for_init()
+		
+		logging.debug("ACM has initialized.")
+	
+		while True:
+			while self.get_rl_utilization() < self.amu:
+				# Obtain the ACM lock. This prevents the main thread from continuing
+				# while we are processing this entry
+				self.bot.acm_lock.acquire()
+				logging.debug("ACMThread acquired acm_lock.")
+				
+				# choose the entry we will maintain
+				entry = self.choose()
+				
+				entry.maintain()
+				
+				# write the updated maintenance list to file
+				self.list.save_to_file()
+				
+				# Release the lock, allowing the main thread to reclaim control if it is currently waiting.
+				self.bot.acm_lock.release()
+				logging.debug("ACMThread released acm_lock.")
+				
+			self.sleep()
+			
+	def run(self):
+		logging.debug("Started ACM daemon thread.")
+		
+		# Exception handler shell
+		try:
+			self.main()
+		# If ANY unhandled exception occurs, catch it, log it, THEN crash.
+		except BaseException:
+			logging.exception("Fatal error occurred in ACMThread.")
+			thread.interrupt_main()
+			raise
+		
 class maintain_list_t:
 	def __init__(self, bot, file_path):
 		self.bot = bot
@@ -302,6 +428,13 @@ class maintain_list_t:
 		else:
 			self.__init_from_file__()
 			self.sort()
+		
+		if config.aggressive_maintenance_utilization > 0:
+			self.thread = aggressive_maintainer_t(self)
+			self.thread.daemon = True
+			self.thread.start()
+		else:
+			logging.debug("ACM is disabled.")
 			
 	def __init_from_file__(self):
 		with open(self.file_path, 'r') as f:

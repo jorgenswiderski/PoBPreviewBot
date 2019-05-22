@@ -115,8 +115,6 @@ class stream_thread_t(threading.Thread):
 		self.do_backlog(since)
 		
 		self.do_stream()
-			
-	
 
 class stream_manager_t:
 	def __init__(self, bot):
