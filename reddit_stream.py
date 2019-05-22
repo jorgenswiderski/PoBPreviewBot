@@ -60,16 +60,10 @@ class stream_thread_t(threading.Thread):
 		self.processed[object.id] = True
 		logging.debug("Added {} to stream queue (len={}).".format(wrapped, len(self.manager.list)))
 		
-		try:
-			if util.get_num_waiters(self.manager.bot.condition) > 0:
-				# Notify the main thread to wake up so it can process the new entry
-				self.manager.bot.condition.acquire()
-				self.manager.bot.condition.notify()
-				self.manager.bot.condition.release()
-				logging.debug("{} thread notified main thread".format(self.type))
-		except RuntimeError:
-			logging.warn("{} thread failed to notify main thread".format(self.type))
-			pass
+		if not self.manager.bot.stream_event.is_set():
+			# Notify the main thread to wake up so it can process the new entry
+			self.manager.bot.stream_event.set()
+			logging.debug("{} thread notified main thread".format(self.type))
 				
 	@retry(retry_on_exception=util.is_praw_error,
 		   wait_exponential_multiplier=config.praw_error_wait_time,

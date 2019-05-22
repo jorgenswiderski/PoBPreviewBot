@@ -9,6 +9,7 @@ import random
 import sys
 import logging
 import datetime
+import thread
 import threading
 
 # 3rd Party
@@ -33,6 +34,16 @@ from logger import init_logging
 
 # =============================================================================
 # START FUNCTION DEFINITION
+
+'''
+def dthread(bot):
+	while True:
+		rl = bot.reddit._core._rate_limiter
+		
+		logging.info(rl.__dict__)
+		
+		time.sleep(1)
+'''
 	
 class bot_t:
 	def __init__(self):
@@ -47,6 +58,14 @@ class bot_t:
 		self.replied_to = replied_to.replied_t("save/replied_to.json")
 		
 		logging.log(logger.DEBUG_ALL, self.replied_to.dict)
+		
+		# make a primitive lock for aggressive comment maintenance. the main
+		# thread will acquire the lock whenever it is doing anything, then
+		# release it whenever it idles. the aggressive maintenance thread will
+		# acquire whenever it starts maintaining an entry, then release it
+		# whenever it finishes.
+		self.acm_lock = thread.allocate_lock()
+		self.acm_lock.acquire()
 		
 		self.maintain_list = maintain_list_t( self, "active_comments.txt" )
 			
@@ -64,13 +83,36 @@ class bot_t:
 		self.reply_queue = reply_handler_t( self )
 		self.stream_manager = stream_manager_t( self )
 		
-		# initialize threading lock, which will let us pause execution in this
-		# thread, and break it when our stream daemon threads find something
-		self.lock = threading.Lock()
-		self.condition = threading.Condition(self.lock)
+		# initialize threading event, which will let us pause execution in this
+		# thread whenever we want, and allow a stream subthread to signal to
+		# resume execution
+		self.stream_event = threading.Event()
+		
+		'''
+		dt = threading.Thread(target=dthread, name='DebugThread', args=(self,))
+		dt.daemon = True
+		dt.start()
+		'''
 		
 	def is_backlogged(self):
 		return self.backlog['comments'] or self.backlog['submissions']
+			
+	'''
+	def is_rate_limited(self):
+		# prawcore.sessions.Session object
+		# see: prawcore/sessions.py
+		session = self.reddit._core
+		
+		# prawcore.rate_limit.RateLimiter object
+		# see: prawcore/rate_limit.py
+		rl = session._rate_limiter
+		
+		# stores the time at which the next request can be performed. if the
+		# session is not throttled, this value will be None.
+		nrt = rl.next_request_timestamp
+		
+		return nrt is not None
+	'''
 		
 	def login(self):
 		logging.info("Logging in...")
@@ -112,6 +154,8 @@ class bot_t:
 			return
 		
 		# Do a status update, but only if the backlog is totally resolved.
+		# Often, the stream queue will be empty but the backlog hasn't really
+		# finished being processed so we aren't actually done updating.
 		if not self.is_backlogged():
 			status.update()
 			
@@ -122,9 +166,16 @@ class bot_t:
 			# Put the thread to sleep, timing out after st seconds or breaking
 			# out immediately if the stream manager notifies of a new entry
 			logging.debug("Main thread idling for {:.3f}s or until notified".format(st))
-			self.condition.acquire()
-			self.condition.wait(st)
-			self.condition.release()
+			
+			# reset the event's status
+			self.stream_event.clear()
+			# release the aggressive comment maintenance lock, which will allow the ACM thread to start
+			self.acm_lock.release()
+			# make this thread wait until a stream subthread signals this
+			# thread to go, or until sleep time has elapsed
+			self.stream_event.wait(st)
+			# operation has continued, so time to reclaim the ACM lock
+			self.acm_lock.acquire()
 			
 	@staticmethod	
 	def get_response( object ):
