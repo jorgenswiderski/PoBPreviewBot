@@ -8,6 +8,7 @@ import threading
 import datetime
 import json
 import logging
+import copy
 
 # 3rd Party
 import praw
@@ -31,26 +32,39 @@ from _exceptions import EligibilityException
 
 not_author_blacklist = {};
 
+class entry_encoder_t(json.JSONEncoder):
+	def default(self, obj):
+		if isinstance(obj, entry_t):
+			return {
+				'comment_id': obj.comment_id,
+				'time': obj.time,
+				'created_utc': obj.created_utc,
+				'last_time': obj.last_time,
+				'retired': obj.retired,
+			}
+		return json.JSONEncoder.default(self, obj)
+		
 class entry_t:
-	def __init__(self, list, comment_id, created, time=None, last_time=None):
+	def __init__(self, list, jdict):
 		self.list = list
 		self.bot = list.bot
-		self.comment_id = comment_id
+		
+		self.__dict__.update(jdict)
+		
 		self.comment = None
 		self.parent = None
-		self.created_utc = int(created)
 		
-		if time is None:
+		if not hasattr(self, 'time'):
+			logging.warning("Entry {} initialized without 'time' attribute!".format(self.comment_id))
 			self.update_check_time()
-		else:
-			self.time = int(time)
 			
-		if last_time is None:
+		if not hasattr(self, 'last_time'):
+			logging.warning("Entry {} initialized without 'last_time' attribute!".format(self.comment_id))
 			self.last_time = 0
-		else:
-			self.last_time = int(last_time)
 		
-		self.retired = self.get_age() >= config.preserve_comments_after
+		if not hasattr(self, 'retired'):
+			logging.warning("Entry {} initialized without 'retired' attribute!".format(self.comment_id))
+			self.retired = self.get_age() >= config.preserve_comments_after
 		
 	@classmethod
 	def from_str(cls, list, str):
@@ -393,7 +407,7 @@ class aggressive_maintainer_t(threading.Thread):
 				entry.maintain()
 				
 				# write the updated maintenance list to file
-				self.list.save_to_file()
+				self.list.flush()
 				
 				# Release the lock, allowing the main thread to reclaim control if it is currently waiting.
 				self.bot.acm_lock.release()
@@ -426,7 +440,8 @@ class maintain_list_t:
 		if not os.path.isfile(file_path):
 			self.list = []
 		else:
-			self.__init_from_file__()
+			#self.__init_from_file__()
+			self.__init_from_json__()
 			self.sort()
 		
 		if config.aggressive_maintenance_utilization > 0:
@@ -436,14 +451,12 @@ class maintain_list_t:
 		else:
 			logging.debug("ACM is disabled.")
 			
-	def __init_from_file__(self):
+	def __init_from_json__(self):
 		with open(self.file_path, 'r') as f:
-			buf = f.read()
-			buf = buf.split('\n')
-			buf = filter(None, buf)
+			list = json.load(f)
 			
-			for line in buf:
-				entry = entry_t.from_str( self, line )
+			for jdict in list:
+				entry = entry_t(self, jdict)
 				
 				# Only append to list if the comment is young enough
 				if entry.retired:
@@ -452,7 +465,7 @@ class maintain_list_t:
 				else:
 					self.list.append( entry )
 			
-			logging.debug("Populated maintain_list_t with {} entries.".format(len(self)))
+			logging.debug("Populated maintain_list_t with {} active entries, {} retired entries.".format(len(self), len(self.retired_list)))
 		
 	def __len__(self):
 		return len(self.list)
@@ -499,12 +512,6 @@ class maintain_list_t:
 			
 	def add_entry(self, entry):
 		self.binary_insert( entry )
-			
-	def save_to_file(self):
-		with open(self.file_path, "w") as f:
-			f.write( '\n'.join( map( str, self.list + self.retired_list ) ) + '\n' )
-			 
-		logging.debug("Saved maintenance list to file.")
 
 	def flag_for_edits(self, args):
 		if not ( '-force' in args and args.index('-force') < len(args) ):
@@ -523,7 +530,7 @@ class maintain_list_t:
 			
 		self.sort()
 		
-		self.save_to_file()
+		self.flush()
 		
 	def next_time(self):
 		if len(self) > 0:
@@ -544,7 +551,13 @@ class maintain_list_t:
 		entry.maintain()
 		
 		# write the updated maintenance list to file
-		self.save_to_file()
+		self.flush()
+		
+	def flush(self):
+		with open(self.file_path, 'w') as f:
+			json.dump(self.list + self.retired_list, f, cls=entry_encoder_t, sort_keys=True, indent=4)
+			
+		logging.debug("Saved maintenance list to file.")
 			
 			
 			

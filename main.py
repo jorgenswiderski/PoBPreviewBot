@@ -68,7 +68,7 @@ class bot_t:
 		self.acm_lock.acquire()
 		logging.debug("MainThread acquired acm_lock.")
 		
-		self.maintain_list = maintain_list_t( self, "active_comments.txt" )
+		self.maintain_list = maintain_list_t( self, "save/active_comments.json" )
 			
 		if '-force' in sys.argv:
 			self.maintain_list.flag_for_edits(sys.argv)
