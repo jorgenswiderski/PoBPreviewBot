@@ -34,16 +34,6 @@ from logger import init_logging
 
 # =============================================================================
 # START FUNCTION DEFINITION
-
-'''
-def dthread(bot):
-	while True:
-		rl = bot.reddit._core._rate_limiter
-		
-		logging.info(rl.__dict__)
-		
-		time.sleep(1)
-'''
 	
 class bot_t:
 	def __init__(self):
@@ -84,31 +74,8 @@ class bot_t:
 		# ACM thread to go
 		self.acm_event = threading.Event()
 		
-		'''
-		dt = threading.Thread(target=dthread, name='DebugThread', args=(self,))
-		dt.daemon = True
-		dt.start()
-		'''
-		
 	def is_backlogged(self):
 		return self.backlog['comments'] or self.backlog['submissions']
-			
-	'''
-	def is_rate_limited(self):
-		# prawcore.sessions.Session object
-		# see: prawcore/sessions.py
-		session = self.reddit._core
-		
-		# prawcore.rate_limit.RateLimiter object
-		# see: prawcore/rate_limit.py
-		rl = session._rate_limiter
-		
-		# stores the time at which the next request can be performed. if the
-		# session is not throttled, this value will be None.
-		nrt = rl.next_request_timestamp
-		
-		return nrt is not None
-	'''
 		
 	def login(self):
 		logging.info("Logging in...")
