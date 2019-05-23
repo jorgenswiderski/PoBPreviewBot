@@ -55,15 +55,15 @@ class entry_t:
 		self.parent = None
 		
 		if not hasattr(self, 'time'):
-			logging.warning("Entry {} initialized without 'time' attribute!".format(self.comment_id))
+			#logging.warning("Entry {} initialized without 'time' attribute!".format(self.comment_id))
 			self.update_check_time()
 			
 		if not hasattr(self, 'last_time'):
-			logging.warning("Entry {} initialized without 'last_time' attribute!".format(self.comment_id))
+			#logging.warning("Entry {} initialized without 'last_time' attribute!".format(self.comment_id))
 			self.last_time = 0
 		
 		if not hasattr(self, 'retired'):
-			logging.warning("Entry {} initialized without 'retired' attribute!".format(self.comment_id))
+			#logging.warning("Entry {} initialized without 'retired' attribute!".format(self.comment_id))
 			self.retired = self.get_age() >= config.preserve_comments_after
 		
 	@classmethod
@@ -73,7 +73,7 @@ class entry_t:
 		return cls(list, split[0], split[2], time=split[1], last_time=split[3])
 		
 	def __str__(self):
-		return "{:s}\t{:.0f}\t{:.0f}\t{:.0f}".format(self.comment_id, self.time, self.created_utc, self.last_time)
+		return "entry {}".format(self.comment_id)
 			
 	@retry(retry_on_exception=util.is_praw_error,
 		   wait_exponential_multiplier=config.praw_error_wait_time,
@@ -306,11 +306,15 @@ class entry_t:
 	# Returns a float that represents the percentage of time that has elapsed
 	# towards the next maintainance
 	def get_progress(self):
-		return 1
+		elapsed = time.time() - self.last_time
+		dur = self.time - self.last_time
+		
+		#logging.debug("id={} elapsed={} dur={}".format(self.comment_id, elapsed, dur))
+		
+		return elapsed / dur
 		
 class aggressive_maintainer_t(threading.Thread):
 	rate_limit_window = 600
-	queries_per_maintain = 2
 	
 	def __init__(self, list):
 		threading.Thread.__init__(self, name='ACMThread')
@@ -385,8 +389,19 @@ class aggressive_maintainer_t(threading.Thread):
 			time.sleep(1)
 			
 	def choose(self):
-		# placeholder for smarter logic
-		return self.list.list.pop(0)
+		val = -1
+		highest = None
+		
+		for entry in self.list.list:
+			prog = entry.get_progress()
+			
+			if prog > val:
+				val = prog
+				highest = entry
+				
+		logging.debug("Highest entry is {} at {:.2f}% progress. Current ACM rate is {:.2f}x.".format(highest, val*100, 1/val))
+				
+		return highest
 		
 	def main(self):
 		# Wait for the rate limiter to initialize
@@ -395,7 +410,7 @@ class aggressive_maintainer_t(threading.Thread):
 		logging.debug("ACM has initialized.")
 	
 		while True:
-			while self.get_rl_utilization() < self.amu:
+			while self.get_rl_utilization() < self.amu and len(self.list) > 0:
 				# Obtain the ACM lock. This prevents the main thread from continuing
 				# while we are processing this entry
 				self.bot.acm_lock.acquire()
@@ -403,6 +418,8 @@ class aggressive_maintainer_t(threading.Thread):
 				
 				# choose the entry we will maintain
 				entry = self.choose()
+				
+				self.list.list.remove(entry)
 				
 				entry.maintain()
 				
@@ -452,10 +469,15 @@ class maintain_list_t:
 			logging.debug("ACM is disabled.")
 			
 	def __init_from_json__(self):
+		processed = {}
+	
 		with open(self.file_path, 'r') as f:
-			list = json.load(f)
+			list = util.byteify(json.load(f))
 			
 			for jdict in list:
+				if jdict['comment_id'] in processed:
+					continue
+			
 				entry = entry_t(self, jdict)
 				
 				# Only append to list if the comment is young enough
@@ -464,6 +486,8 @@ class maintain_list_t:
 					logging.debug( "Did not add comment {} to maintain list (too old)".format(entry.comment_id) )
 				else:
 					self.list.append( entry )
+					
+				processed[entry.comment_id] = True
 			
 			logging.debug("Populated maintain_list_t with {} active entries, {} retired entries.".format(len(self), len(self.retired_list)))
 		
@@ -506,7 +530,10 @@ class maintain_list_t:
 		self.list.insert(upper, entry)
 			
 	def add(self, comment):
-		entry = entry_t(self, comment.id, comment.created_utc)
+		entry = entry_t(self, {
+			"comment_id": comment.id,
+			"created_utc": comment.created_utc,
+		})
 		
 		self.add_entry( entry )
 			
