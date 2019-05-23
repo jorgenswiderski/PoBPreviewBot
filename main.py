@@ -59,15 +59,6 @@ class bot_t:
 		
 		logging.log(logger.DEBUG_ALL, self.replied_to.dict)
 		
-		# make a primitive lock for aggressive comment maintenance. the main
-		# thread will acquire the lock whenever it is doing anything, then
-		# release it whenever it idles. the aggressive maintenance thread will
-		# acquire whenever it starts maintaining an entry, then release it
-		# whenever it finishes.
-		self.acm_lock = thread.allocate_lock()
-		self.acm_lock.acquire()
-		logging.debug("MainThread acquired acm_lock.")
-		
 		self.maintain_list = maintain_list_t( self, "save/active_comments.json" )
 			
 		if '-force' in sys.argv:
@@ -88,6 +79,10 @@ class bot_t:
 		# thread whenever we want, and allow a stream subthread to signal to
 		# resume execution
 		self.stream_event = threading.Event()
+		
+		# similarly, make an acm event that main thread can use to signal the
+		# ACM thread to go
+		self.acm_event = threading.Event()
 		
 		'''
 		dt = threading.Thread(target=dthread, name='DebugThread', args=(self,))
@@ -170,19 +165,17 @@ class bot_t:
 			
 			# reset the event's status
 			self.stream_event.clear()
-			# release the aggressive comment maintenance lock, which will allow the ACM thread to start
-			self.acm_lock.release()
-			logging.debug("MainThread released acm_lock.")
+			# signal the ACM subthread that it can start maintaining comments
+			self.acm_event.set()
+			logging.debug("Main thread triggers acm_event.")
 			# make this thread wait until a stream subthread signals this
 			# thread to go, or until sleep time has elapsed
 			self.stream_event.wait(st)
 			
-			# operation has continued, so time to reclaim the ACM lock
-			if self.acm_lock.locked():
-				logging.debug("MainThread waiting to acquire acm_lock.")
-			
-			self.acm_lock.acquire()
-			logging.debug("MainThread acquired acm_lock.")
+			# operation has continued, so clear the ACM flag so the subthread
+			# knows to stop at the next reasonable stopping point
+			self.acm_event.clear()
+			logging.debug("Main thread clears acm_event.")
 			
 	@staticmethod	
 	def get_response( object ):

@@ -408,14 +408,14 @@ class aggressive_maintainer_t(threading.Thread):
 		self.wait_for_init()
 		
 		logging.debug("ACM has initialized.")
-	
+		
 		while True:
+			# Wait for a signal from main thread to begin
+			# As long as main thread is asleep, this call will return immediately.
+			# If main thread is awake, it will return as soon as it goes to sleep.
+			self.bot.acm_event.wait()
+			
 			while self.get_rl_utilization() < self.amu and len(self.list) > 0:
-				# Obtain the ACM lock. This prevents the main thread from continuing
-				# while we are processing this entry
-				self.bot.acm_lock.acquire()
-				logging.debug("ACMThread acquired acm_lock.")
-				
 				# choose the entry we will maintain
 				entry = self.choose()
 				
@@ -425,10 +425,6 @@ class aggressive_maintainer_t(threading.Thread):
 				
 				# write the updated maintenance list to file
 				self.list.flush()
-				
-				# Release the lock, allowing the main thread to reclaim control if it is currently waiting.
-				self.bot.acm_lock.release()
-				logging.debug("ACMThread released acm_lock.")
 				
 			self.sleep()
 			
