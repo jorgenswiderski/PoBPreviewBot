@@ -16,6 +16,7 @@ import threading
 import praw
 import defusedxml.ElementTree as ET
 from retrying import retry
+from pympler import tracker
 
 # Self
 from config import config_helper as config
@@ -74,6 +75,8 @@ class bot_t:
 		# ACM thread to go
 		self.acm_event = threading.Event()
 		
+		self.mem_track = tracker.SummaryTracker()
+		
 	def is_backlogged(self):
 		return self.backlog['comments'] or self.backlog['submissions']
 		
@@ -105,6 +108,8 @@ class bot_t:
 		return next_update_time - time.time()
 		
 	def run(self):
+		self.dump_mem_summary()
+	
 		self.reply_queue.process()
 		
 		self.stream_manager.process()
@@ -147,6 +152,18 @@ class bot_t:
 	@staticmethod	
 	def get_response( object ):
 		return response.get_response( object )
+		
+	def dump_mem_summary(self):
+		if hasattr(self, 'last_mem_dump') and time.time() < self.last_mem_dump + 60:
+			return
+		
+		gen = self.mem_track.format_diff()
+		n = threading.current_thread().name
+		
+		for line in gen:
+			logging.debug("[{}] {}".format(n, line))
+			
+		self.last_mem_dump = time.time()
 		
 	
 # END FUNCTION DEFINITION

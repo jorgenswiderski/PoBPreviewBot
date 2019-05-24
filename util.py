@@ -198,13 +198,3 @@ def byteify(input):
         return input.encode('utf-8')
     else:
         return input
-
-def get_num_waiters(condition):
-	if not isinstance(condition, threading._Condition):
-		raise ValueError("get_num_waiters was passed an invalid condition: {}".format(type(condition)))
-		
-	#logging.debug(repr(condition))
-
-	mo = re.search(", (\d+)\)>$", repr(condition))
-	
-	return int(mo.group(1))
