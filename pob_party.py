@@ -29,6 +29,7 @@ def get_url(pastebin):
 	hash = md5(pastebin.contents()).hexdigest()
 	
 	if hash not in hashmap:
+		# FIXME: Figure out proper way to determine the version number
 		r = requests.post(endpoint.format('3.6.0'), data=pastebin.contents(), headers=headers)
 		
 		if r.status_code != 200:
