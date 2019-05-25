@@ -123,8 +123,10 @@ def is_number(s):
 	return False
 
 def dump_debug_info(praw_object, exc=None, paste_key=None, xml=None, extra_data={}, dir="error"):
+	'''
 	if not isinstance(praw_object, praw_object_wrapper_t):
 		raise ValueError("dump_debug_info was passed an invalid praw_object: {}".format(type(praw_object)))
+	'''
 			
 	if not ( paste_key is None or isinstance(paste_key, str) ):
 		raise ValueError("dump_debug_info was passed an invalid paste_key: {}".format(type(paste_key)))

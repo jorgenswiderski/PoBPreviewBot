@@ -17,6 +17,7 @@ import praw
 import defusedxml.ElementTree as ET
 from retrying import retry
 from pympler import tracker
+from pympler import asizeof
 
 # Self
 from config import config_helper as config
@@ -75,7 +76,8 @@ class bot_t:
 		# ACM thread to go
 		self.acm_event = threading.Event()
 		
-		self.mem_track = tracker.SummaryTracker()
+		if config.debug_memory:
+			self.mem_track = tracker.SummaryTracker()
 		
 	def is_backlogged(self):
 		return self.backlog['comments'] or self.backlog['submissions']
@@ -108,7 +110,8 @@ class bot_t:
 		return next_update_time - time.time()
 		
 	def run(self):
-		self.dump_mem_summary()
+		if config.debug_memory:
+			self.dump_mem_summary()
 	
 		self.reply_queue.process()
 		
@@ -163,7 +166,17 @@ class bot_t:
 		for line in gen:
 			logging.debug("[{}] {}".format(n, line))
 			
-		self.last_mem_dump = time.time()
+		# ---
+		
+		logging.info("bot={}b replied_to={} maintain.list={} maintain.rlist={} rq.queue={} sm.list={} sm.processed={}".format(
+			asizeof.asizeof(self),
+			asizeof.asizeof(self.replied_to),
+			len(self.maintain_list.list),
+			len(self.maintain_list.retired_list),
+			len(self.reply_queue.queue),
+			len(self.stream_manager.list),
+			map(lambda t: "{}/{}".format(len(t.processed), asizeof.asizeof(t.processed)), self.stream_manager.threads)
+		))
 		
 	
 # END FUNCTION DEFINITION

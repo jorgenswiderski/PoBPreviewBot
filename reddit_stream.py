@@ -18,7 +18,6 @@ from config import config_helper as config
 import status
 import logger
 from praw_wrapper import praw_object_wrapper_t
-from response import blacklist_pastebin
 from response import get_response
 from response import reply_to_summon
 

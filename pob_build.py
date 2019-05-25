@@ -10,6 +10,7 @@ import praw.models
 import util
 import pastebin
 import logger
+import pob_party
 import passive_skill_tree as passives
 from name_overrides import skill_overrides
 from name_overrides import build_defining_uniques
@@ -18,6 +19,7 @@ from gem_data import support_gems as support_gem_data
 from _exceptions import UnsupportedException
 from _exceptions import GemDataException
 from _exceptions import EligibilityException
+from _exceptions import PoBPartyException
 
 # =============================================================================
 
@@ -523,11 +525,11 @@ class build_t:
 		"4": 15,
 	}
 	
-	def __init__(self, xml, pastebin_url, author, praw_object):
-		self.xml = xml
+	def __init__(self, pastebin, author, praw_object):
+		self.xml = pastebin.xml()
 		self.xml_build = self.xml.find('Build')
 		self.xml_config = self.xml.find('Config')
-		self.pastebin = pastebin_url
+		self.pastebin = pastebin
 		self.praw_object = praw_object
 		
 		self.__parse_items__()
@@ -1142,10 +1144,7 @@ class build_t:
 			if slot in self.equipped_items:
 				slots_filled += 1
 				
-		return slots_filled >= len(required_slots)	
-		
-	def get_poebuddy_url(self):
-		return "https://poe.technology/poebuddy/?code={}".format( pastebin.strip_url_to_key( self.pastebin ) )
+		return slots_filled >= len(required_slots)
 		
 	def get_response(self):
 		response = self.get_response_header()
@@ -1190,12 +1189,22 @@ class build_t:
 		elif self.main_gem.is_supported_by("Trap"):
 			actor_desc = " Trap"
 		
-		header = "###[{:s}{:s} {:s}{:s} {:s}]({:s})\n".format( def_desc, crit_desc, gem_name, actor_desc, self.get_class(), self.pastebin )
+		header = "###[{:s}{:s} {:s}{:s} {:s}]({:s})\n".format( def_desc, crit_desc, gem_name, actor_desc, self.get_class(), self.pastebin.url )
 		
 		# Passive Skill Tree
+			
+		line2 = "^(Level {:n}) ^[(Tree)]({:s})".format(self.level, self.passives_url)
 		
-		line2 = "^(Level {:n}) ^[(Tree)]({:s}) [^((View in Browser)^)]({:s}) ^(| by {:s})\n*****\n".format(self.level, self.passives_url, self.get_poebuddy_url(), self.author)
-		#line2 = '^' + line2.replace(' ', ' ^')
+		# pob.party link
+		try:
+			web_pob = pob_party.get_url(self.pastebin)
+			line2 += " [^((Open in Browser)^)]({:s})".format(web_pob)
+		except PoBPartyException:
+			logging.warning("Failed to get pob party url for {}.".format(self.pastebin.key))
+			pass
+			
+		# author
+		line2 += " ^(| by {:s})\n*****\n".format(self.author)
 		
 		if hasattr(self, 'ascendancy_name'):
 			line2 = "[](#{:s}) ".format(self.ascendancy_name.lower()) + line2

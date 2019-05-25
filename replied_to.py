@@ -38,7 +38,7 @@ class replied_t:
 		
 	def flush(self):
 		with open(self.path, 'w') as f:
-			json.dump(self.dict, f)
+			json.dump(self.dict, f, sort_keys=True, indent=4)
 		
 	def add(self, wo):
 		if not isinstance(wo, praw_object_wrapper_t):

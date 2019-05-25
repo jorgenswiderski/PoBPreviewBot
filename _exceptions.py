@@ -14,3 +14,6 @@ class GemDataException(PoBBotException):
 	
 class UnsupportedException(EligibilityException):
 	pass
+	
+class PoBPartyException(PoBBotException):
+	pass

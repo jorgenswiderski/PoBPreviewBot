@@ -86,7 +86,7 @@ class praw_object_wrapper_t():
 				'body_type': str(type(body)),
 				'body': body,
 			})
-			blacklist_pastebin(paste_key)
+			#blacklist_pastebin(paste_key)
 			raise exc
 	
 		response = None
