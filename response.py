@@ -57,7 +57,7 @@ def get_response( wrapped_object, ignore_blacklist=False ):
 							pastebin.blacklist()
 							continue
 						
-						#util.dump_debug_info(wrapped_object, xml=xml, dir="xml_dump")
+						util.dump_debug_info(wrapped_object, xml=pastebin.xml(), dir="xml_dump")
 							
 						responses.append(response)
 						bins_responded_to[pastebin.key] = True
