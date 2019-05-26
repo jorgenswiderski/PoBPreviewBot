@@ -40,26 +40,29 @@ def get_response( wrapped_object, ignore_blacklist=False ):
 			
 			if (not pastebin.is_blacklisted() or ignore_blacklist):
 				if pastebin.key not in bins_responded_to:
-					try:
-						build = build_t(pastebin, author, wrapped_object)
-						response = build.get_response()
-					except EligibilityException:
-						pastebin.blacklist()
-						raise
-						continue
-					except Exception as e:
-						logging.error(repr(e))
+					if pastebin.is_pob_xml():
+						try:
+							build = build_t(pastebin, author, wrapped_object)
+							response = build.get_response()
+						except EligibilityException:
+							pastebin.blacklist()
+							raise
+							continue
+						except Exception as e:
+							logging.error(repr(e))
+							
+							# dump xml for debugging later
+							util.dump_debug_info(wrapped_object, exc=e, xml=pastebin.xml())
+							
+							pastebin.blacklist()
+							continue
 						
-						# dump xml for debugging later
-						util.dump_debug_info(wrapped_object, exc=e, xml=pastebin.xml())
-						
-						pastebin.blacklist()
-						continue
-					
-					#util.dump_debug_info(wrapped_object, xml=xml, dir="xml_dump")
-						
-					responses.append(response)
-					bins_responded_to[pastebin.key] = True
+						#util.dump_debug_info(wrapped_object, xml=xml, dir="xml_dump")
+							
+						responses.append(response)
+						bins_responded_to[pastebin.key] = True
+					else:
+						logging.debug("Skipped {} as it is not valid PoB XML.".format(pastebin))
 				else:
 					logging.debug("Skipped {} as it is already included in this response.".format(pastebin))
 			else:
