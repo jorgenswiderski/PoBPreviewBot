@@ -15,7 +15,7 @@
 		"praw_error_wait_time": 5,
 		"urllib_error_wait_time": 60,
 		"preserve_comments_after": 15552000,
-		"aggressive_maintenance_utilization": 0.00,
+		"aggressive_maintenance_utilization": 0.80,
 		"debug_memory": false
 	}
 }

@@ -14,6 +14,7 @@ import copy
 import praw
 import urllib2
 from retrying import retry
+from pympler import asizeof
 
 from prawcore.exceptions import Forbidden
 from praw.exceptions import APIException
@@ -65,6 +66,17 @@ class entry_t:
 		if not hasattr(self, 'retired'):
 			#logging.warning("Entry {} initialized without 'retired' attribute!".format(self.comment_id))
 			self.retired = self.get_age() >= config.preserve_comments_after
+			
+	def asizeof(self):
+		b = 0
+		
+		if self.comment is not None:
+			b += 1
+			
+		if self.parent is not None:
+			b += 1
+		
+		return b
 		
 	@classmethod
 	def from_str(cls, list, str):
@@ -227,9 +239,17 @@ class entry_t:
 				self.last_time = time.time()
 				
 				# reinsert the entry at its chronologically correct place in the list
-				self.list.add_entry(self)
+				self.list.add_entry(self)	
 			else:
 				self.retire()
+				
+		# free memory if this entry isn't going to be visited very soon
+		# we have to fetch new data anyway so keeping the old object around
+		# probably doesn't do much. and having several thousand comment
+		# objects in memory at all times isnt doing us any favors
+		if self.retired or self.time - time.time() > 900:
+			self.comment = None
+			self.parent = None
 				
 	def retire(self):
 		self.retired = True
@@ -392,7 +412,12 @@ class aggressive_maintainer_t(threading.Thread):
 		val = -1
 		highest = None
 		
-		for entry in self.list.list:
+		# filter to entries that haven't been checked in at least 35 seconds
+		# praw caches content for 30 seconds so there is literally no point in
+		# doing it more often than that
+		now = time.time()
+		
+		for entry in filter(lambda e: now - e.last_time >= 35, self.list.list): 
 			prog = entry.get_progress()
 			
 			if prog > val:
@@ -425,6 +450,11 @@ class aggressive_maintainer_t(threading.Thread):
 				
 				# write the updated maintenance list to file
 				self.list.flush()
+				
+				if config.debug_memory:
+					items = sum(map(lambda x: x.asizeof(), self.list.list))
+					
+					logging.debug("# of cached items: {}".format(items))
 				
 			self.sleep()
 			
