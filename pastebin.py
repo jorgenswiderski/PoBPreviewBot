@@ -92,10 +92,7 @@ class Pastebin:
 		enc = enc.replace("-", "+").replace("_", "/")
 		decoded = base64.b64decode( enc )
 		
-		try:
-			xml_str = zlib.decompress( decoded )
-		except zlib.error:
-			pass
+		xml_str = zlib.decompress( decoded )
 		
 		return ET.fromstring(xml_str)
 		
