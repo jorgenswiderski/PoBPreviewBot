@@ -294,14 +294,19 @@ class gem_t:
 	def is_supported_by(self, support):
 		if self.is_support():
 			return False
+
+		support = support.lower()
+
+		for id, data in self.get_support_gem_dict().items():
+			if data.short_name.lower() == support:
+				return True
 			
-		return support.lower() in self.get_support_gem_dict()
-		
+		return False
 	
 	def get_support_gem_str(self):
 		str = ""
 		
-		for name, data in self.get_support_gem_dict().items():
+		for id, data in self.get_support_gem_dict().items():
 			if data.wiki_url is not None:
 				str += "[{:s}]({:s}#support-gem-{:s})".format(data.letter, data.wiki_url, data.get_color_str())
 			else:
@@ -336,7 +341,11 @@ class gem_t:
 		return tl
 	
 	def is_totem(self):
-		return " Totem" in self.name or self.name == "Ancestral Warchief" or self.name == "Ancestral Protector" or self.is_supported_by("Ranged Attack Totem") or self.is_supported_by("Spell Totem")
+		return (" Totem" in self.name
+			or self.name == "Ancestral Warchief"
+			or self.name == "Ancestral Protector"
+			or self.is_supported_by("Ranged Attack Totem")
+			or self.is_supported_by("Spell Totem"))
 		
 	def is_mine(self):
 		return " Mine" in self.name or self.is_supported_by("Remote Mine")
