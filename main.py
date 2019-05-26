@@ -168,7 +168,7 @@ class bot_t:
 			
 		# ---
 		
-		logging.info("bot={}b replied_to={} maintain.list={} maintain.rlist={} rq.queue={} sm.list={} sm.processed={}".format(
+		logging.debug("bot={}b replied_to={} maintain.list={} maintain.rlist={} rq.queue={} sm.list={} sm.processed={}".format(
 			asizeof.asizeof(self),
 			asizeof.asizeof(self.replied_to),
 			len(self.maintain_list.list),
