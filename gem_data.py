@@ -32,6 +32,7 @@ class gem_data_t:
 		
 		self.init_attr(json['static'], 'stat_requirements')
 		self.init_attr(json['static'], 'required_level')
+		self.init_attr(json, 'secondary_granted_effect')
 
 	def get_color(self):
 		if self.tags is not None:

@@ -91,9 +91,9 @@ class socket_group_t:
 	def __parse_active_skill__(self):
 		# index of the active skill in this socket group. 1-indexed. a value of 0 indicates the group has no active skill
 		if self.xml.attrib['mainActiveSkill'] == 'nil':
-			self.activeSkill = 0
+			self.active_skill = 0
 		else:
-			self.activeSkill = int(self.xml.attrib['mainActiveSkill']);
+			self.active_skill = int(self.xml.attrib['mainActiveSkill']);
 	
 	def __create_gems__(self):
 		self.gems = []
@@ -111,30 +111,30 @@ class socket_group_t:
 		
 		self.item = None
 		
-	def getGemOfNthActiveSkill(self, n):
-		currentSkill = 0
+	def get_gem_of_nth_active_skill(self, n):
+		current_skill = 0
 		
 		for gem in self.gems:
 			if not gem.is_support() and gem.enabled:
 				if gem.is_vaal_gem():
-					currentSkill += 2
+					current_skill += 2
 				else:
-					currentSkill += 1
+					current_skill += 1
 			
-				if currentSkill >= n:
+				if current_skill >= n:
 					return gem
 				
 					
-		if currentSkill > 1:
+		if current_skill > 1:
 			raise Exception('mainActiveSkill exceeds total number of active skill gems in socket group.')
 		else:
 			raise EligibilityException('Active skill group contains no active skill gems. {}'.format(ERR_CHECK_ACTIVE_SKILL))
 			
 	def getActiveGem(self):
-		if self.activeSkill == 0:
+		if self.active_skill == 0:
 			return False
 	
-		return self.getGemOfNthActiveSkill(self.activeSkill)
+		return self.get_gem_of_nth_active_skill(self.active_skill)
 	
 class gem_t:
 	# Gem name overrides ======================================================
@@ -173,67 +173,59 @@ class gem_t:
 		self.level = int(self.xml.attrib['level'])
 		self.quality = int(self.xml.attrib['quality'])
 		
-		self.__init_active_skill__()
-		self.__parse_name__()
 		self.__init_gem_data__()
+		self.__init_active_skill__()
+		self.__set_name__()
 		
-	def __parse_name__(self):
-		self.name = self.xml.attrib['nameSpec']
-		
-		# Extremely rarely, a skill can be exported without a proper "nameSpec" attribute in which case we can't tell what the name of the skill is.
-		# No proper solution at the moment, so just throw an exception.
-		# Github issue: https://github.com/Openarl/PathOfBuilding/issues/835
-		if self.name == "":
-			raise EligibilityException('Active skill has malformed name, please re-export the build.')
-		
-		# If active skill is the secondary skill of a vaal gem
-		if self.is_vaal_gem() and self.activeSkill == 2:
-			# Then change the name (and therefore the data) to the non-vaal variant
-			m = re.match(r"Vaal (.+)", self.name)
-			
-			if not m:
-				raise Exception("Vaal skill does not match expected name format. n={}".format(self.name))
-				
-			self.name = m.group(1)
+	def __set_name__(self):
+		if self.is_support():
+			self.name = self.get_skill_data().short_name
+		else:
+			self.name = self.get_skill_data().display_name
 			
 		if self.name in skill_overrides:
 			self.name = skill_overrides[self.name]
 			
 	def __init_gem_data__(self):
-		try:
-			self.data = self.get_gem_data(id=self.id)
-		except GemDataException:
-			if self.is_support():
-				raise
+		self.data = self.get_gem_data(id=self.id)
+
+		if self.data.secondary_granted_effect is not None:
+			# gem grants multiple skills
+			self.data_2 = self.get_gem_data(id=self.data.secondary_granted_effect)
+		else:
+			self.data_2 = None
 	
 	# For gems that grant multiple skills (vaal gems), we need to determine which of these skills is set as the active skill.
-	# Nov 11 2018: Right now the XML is a bit bare as far as including information about these cases go, so we just have to assume that a gem grants multiple skills only if it is a vaal gem.
 	def __init_active_skill__(self):
-		# 1-indexed
-		self.activeSkill = 1
+		if self.socket_group.active_skill > 0 and self.data.secondary_granted_effect is not None:
+			#logging.debug("active_skill={}".format(self.socket_group.active_skill))
 		
-		#logging.debug(self.socket_group.activeSkill)
-		#logging.debug(self.is_vaal_gem())
-	
-		if self.socket_group.activeSkill > 0 and self.is_vaal_gem():
-			#logging.debug("activeSkill={}".format(self.socket_group.activeSkill))
-		
-			currentSkill = 0
-			#logging.debug("currentSkill={}".format(currentSkill))
+			current_skill = 0
+			#logging.debug("current_skill={}".format(current_skill))
 			
 			for gem in self.socket_group.gems:
-				if not gem.is_support() and gem.enabled:
-					if gem.is_vaal_gem():
-						currentSkill += 2
-					else:
-						currentSkill += 1
-						
-					#logging.debug("currentSkill={}".format(currentSkill))
+				if not gem.enabled:
+					continue
+
+				if not gem.data.is_support:
+					current_skill += 1
+
+				if gem.data_2 is not None and not gem.data_2.is_support:
+					current_skill += 1
 					
-					if currentSkill == self.socket_group.activeSkill:
-						self.activeSkill = 2
-						logging.debug("Build is using secondary skill of vaal gem.")
-						return
+				#logging.debug("current_skill={}".format(current_skill))
+				
+				if current_skill == self.socket_group.active_skill:
+					self.active_skill = 2
+					logging.debug("Build is using secondary skill of vaal gem.")
+					return
+				elif gem == self:
+					# socket group's active skill must be in a gem whose index is higher than this one, so we're done
+					self.active_skill = 1
+					return
+		else:
+			# 1-indexed
+			self.active_skill = 1
 
 	@staticmethod
 	def get_gem_data(name=None, id=None):
@@ -261,6 +253,14 @@ class gem_t:
 			exc = ValueError("gem_t.get_gem_data was passed no parameters.")
 			util.dump_debug_info(self.build.praw_object, exc=exc, xml=self.build.xml)
 			return
+
+	def get_skill_data(self):
+		if self.active_skill == 1:
+			return self.data
+		elif self.active_skill == 2:
+			return self.data_2
+		else:
+			raise RuntimeError("Trying to access skill data before active_skill is defined") 
 		
 	def get_support_gem_dict(self):
 		dict = {}
@@ -275,21 +275,6 @@ class gem_t:
 			dict.update(self.item.support_mods)
 					
 		return dict
-			
-	def is_support(self):
-		# Seemingly will only work for skill gems, not for supports granted by items.
-		#return "/SupportGem" in self.xml.attrib['gemId']
-		
-		if self.id == "Endurance Charge on Melee Stun":
-			return True
-	
-		return "Support" in self.id
-		
-	def is_vaal_skill(self):
-		return "Vaal " in self.name
-		
-	def is_vaal_gem(self):
-		return "Vaal " in self.xml.attrib['nameSpec']
 		
 	def is_supported_by(self, support):
 		if self.is_support():
@@ -335,29 +320,39 @@ class gem_t:
 		if self.name == "Siege Ballista Totem" and self.build.has_item_equipped("Iron Commander"):
 			tl += math.floor( self.build.get_stat("Dex") / 200 )
 			
-		if self.build.has_item_equipped("Skirmish") and ( self.is_supported_by("Ranged Attack Totem") or self.name == "Ancestral Protector" or self.name == "Ancestral Warchief" ):
+		if self.build.has_item_equipped("Skirmish") and self.is_attack() and self.is_totem():
 			tl += 1
 			
 		return tl
+			
+	def is_support(self):
+		return self.data.is_support
+		
+	def is_vaal_skill(self):
+		return "vaal" in self.get_skill_data().tags
+		
+	def is_vaal_gem(self):
+		return "vaal" in self.data.tags
 	
 	def is_totem(self):
-		return (" Totem" in self.name
-			or self.name == "Ancestral Warchief"
-			or self.name == "Ancestral Protector"
+		if self.is_support():
+			raise RuntimeError("Cannot call is_totem on a support gem.")
+
+		return (self.get_skill_data().is_skill_totem
 			or self.is_supported_by("Ranged Attack Totem")
 			or self.is_supported_by("Spell Totem"))
 		
 	def is_mine(self):
-		return " Mine" in self.name or self.is_supported_by("Remote Mine")
+		return "mine" in self.get_skill_data().tags or self.is_supported_by("Remote Mine")
 	
 	def is_trap(self):
-		return " Trap" in self.name or self.is_supported_by("Trap")
+		return "trap" in self.get_skill_data().tags or self.is_supported_by("Trap")
 		
 	def is_attack(self):
-		return self.data.tags is not None and "attack" in self.data.tags
+		return "attack" in self.get_skill_data().tags
 		
 	def is_spell(self):
-		return self.data.tags is not None and "spell" in self.data.tags
+		return "spell" in self.get_skill_data().tags
 		
 	def has_stackable_dot(self):
 		if self.name == "Scorching Ray":
