@@ -28,11 +28,11 @@ class gem_data_t:
 			#self.id_long = json['base_item']['id']
 			
 		self.is_support = json['is_support']
-		self.tags = json['tags']
 		
 		self.init_attr(json['static'], 'stat_requirements')
 		self.init_attr(json['static'], 'required_level')
 		self.init_attr(json, 'secondary_granted_effect')
+		self.init_attr(json, 'tags')
 
 	def get_color(self):
 		if self.tags is not None:
