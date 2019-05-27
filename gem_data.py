@@ -94,6 +94,7 @@ class active_gem_data_t(gem_data_t):
 			
 		self.init_attr(json['static'], 'cooldown')
 		self.init_attr(json['static'], 'stored_uses')
+		self.init_attr(json['active_skill'], 'minion_types')
 		
 		if json['base_item'] is None:
 			self.display_name = json['active_skill']['display_name']

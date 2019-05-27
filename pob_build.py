@@ -370,6 +370,26 @@ class gem_t:
 			return False
 
 		return "spell" in self.get_skill_data().types
+
+	def is_attack_minion(self):
+		if self.is_support():
+			return False
+
+		if self.get_skill_data().minion_types is None:
+			return False
+
+		return ("attack" in self.get_skill_data().minion_types
+			and "spell" not in self.get_skill_data().minion_types)
+
+	def is_spell_minion(self):
+		if self.is_support():
+			return False
+
+		if self.get_skill_data().minion_types is None:
+			return False
+
+		return ("spell" in self.get_skill_data().minion_types
+			and "attack" not in self.get_skill_data().minion_types)
 		
 	def has_stackable_dot(self):
 		if self.name == "Scorching Ray":
@@ -898,12 +918,17 @@ class build_t:
 	def get_speed_str(self):
 		if self.deals_minion_damage():
 			'''
-			If its minion damage, I have no idea how to properly figure out
-			whether something is an attack or spell. So just default to "use"
-			even though its less than ideal. Better to show "use" than no speed
-			at all.
+			Relatively decent method of detecting minion type. If the minion
+			uses exclusively spells or attacks we can figure it out from its
+			minion_type attributes. If it uses both (or neither?) then who
+			knows and just put 'use' instead.
 			'''
-			return "Use/sec"
+			if self.main_gem.is_attack_minion():
+				return "Attacks/sec"
+			elif self.main_gem.is_spell_minion():
+				return "Casts/sec"
+			else:
+				return "Use/sec"
 		if self.main_gem.is_mine():
 			return "Mines/sec"
 		elif self.main_gem.is_trap():
