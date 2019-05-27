@@ -26,7 +26,7 @@ from config import config_helper as config
 import official_forum
 from praw_wrapper import praw_object_wrapper_t
 
-from _exceptions import PastebinLimitException
+from _exceptions import ImporterLimitException
 from _exceptions import EligibilityException
 
 # =============================================================================
@@ -289,7 +289,7 @@ class entry_t:
 			
 			try:
 				new_comment_body = self.bot.get_response( parent )
-			except (EligibilityException, PastebinLimitException) as e:
+			except (EligibilityException, ImporterLimitException) as e:
 				print(e)
 			
 			if new_comment_body is None:

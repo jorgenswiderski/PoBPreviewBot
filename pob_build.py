@@ -565,11 +565,11 @@ class build_t:
 		"4": 15,
 	}
 	
-	def __init__(self, pastebin, author, praw_object):
-		self.xml = pastebin.xml()
+	def __init__(self, importer, author, praw_object):
+		self.xml = importer.xml()
 		self.xml_build = self.xml.find('Build')
 		self.xml_config = self.xml.find('Config')
-		self.pastebin = pastebin
+		self.importer = importer
 		self.praw_object = praw_object
 		
 		self.__parse_items__()
@@ -1234,7 +1234,7 @@ class build_t:
 		elif self.main_gem.is_supported_by("Trap"):
 			actor_desc = " Trap"
 		
-		header = "###[{:s}{:s} {:s}{:s} {:s}]({:s})\n".format( def_desc, crit_desc, gem_name, actor_desc, self.get_class(), self.pastebin.url )
+		header = "###[{:s}{:s} {:s}{:s} {:s}]({:s})\n".format( def_desc, crit_desc, gem_name, actor_desc, self.get_class(), self.importer.url )
 		
 		# Passive Skill Tree
 			
@@ -1242,10 +1242,10 @@ class build_t:
 		
 		# pob.party link
 		try:
-			web_pob = pob_party.get_url(self.pastebin)
+			web_pob = pob_party.get_url(self.importer)
 			line2 += " [^((Open in Browser)^)]({:s})".format(web_pob)
 		except PoBPartyException:
-			logging.warning("Failed to get pob party url for {}.".format(self.pastebin.key))
+			logging.warning("Failed to get pob party url for {}.".format(self.importer.key))
 			pass
 			
 		# author

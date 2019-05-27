@@ -15,7 +15,7 @@ import defusedxml.ElementTree as ET
 import util
 import pob_party
 
-class ImporterBase:
+class ImporterBase(object):
 	def is_blacklisted(self):
 		if not self.initialized:
 			self.init_blacklist()
@@ -206,7 +206,7 @@ class PoBParty(ImporterBase):
 			return None
 
 	def xml(self):
-		super().xml()
+		super(PoBParty, self).xml()
 
 		# save the build/key combo so we don't request a new key again later
 		pob_party.set_key(self)

@@ -18,7 +18,18 @@ from praw_wrapper import praw_object_wrapper_t
 from pob_build import build_t
 
 from _exceptions import EligibilityException
-from _exceptions import PastebinLimitException
+from _exceptions import ImporterLimitException
+
+# =============================================================================
+
+def find_importers(body):
+	for match in re.finditer('pastebin\.com/\w+', body):
+		bin = "https://" + match.group(0)
+		yield Pastebin(url=bin)
+
+	for match in re.finditer('pob\.party/share/\w+', body):
+		url = "https://" + match.group(0)
+		yield PoBParty(url=url)
 
 # =============================================================================
 
@@ -31,47 +42,44 @@ def get_response( wrapped_object, ignore_blacklist=False ):
 	
 	logging.debug("Processing {}".format(wrapped_object))
 
-	if "pastebin.com/" in body:
+	if ("pastebin.com/" in body or "pob.party/share/" in body):
 		responses = []
-		bins_responded_to = {}
+		importers_responded_to = {}
 	
-		for match in re.finditer('pastebin\.com/\w+', body):
-			bin = "https://" + match.group(0)
-			pastebin = Pastebin(url=bin)
-			
-			if (not pastebin.is_blacklisted() or ignore_blacklist):
-				if pastebin.key not in bins_responded_to:
-					if pastebin.is_pob_xml():
+		for importer in find_importers(body):
+			if (not importer.is_blacklisted() or ignore_blacklist):
+				if importer.key not in importers_responded_to:
+					if importer.is_pob_xml():
 						try:
-							build = build_t(pastebin, author, wrapped_object)
+							build = build_t(importer, author, wrapped_object)
 							response = build.get_response()
 						except EligibilityException:
-							pastebin.blacklist()
+							importer.blacklist()
 							raise
 							continue
 						except Exception as e:
 							logging.error(repr(e))
 							
 							# dump xml for debugging later
-							util.dump_debug_info(wrapped_object, exc=e, xml=pastebin.xml())
+							util.dump_debug_info(wrapped_object, exc=e, xml=importer.xml())
 							
-							pastebin.blacklist()
+							importer.blacklist()
 							continue
 						
 						if config.xml_dump:
-							util.dump_debug_info(wrapped_object, xml=pastebin.xml(), dir="xml_dump")
+							util.dump_debug_info(wrapped_object, xml=importer.xml(), dir="xml_dump")
 							
 						responses.append(response)
-						bins_responded_to[pastebin.key] = True
+						importers_responded_to[importer.key] = True
 					else:
-						logging.debug("Skipped {} as it is not valid PoB XML.".format(pastebin))
+						logging.debug("Skipped {} as it is not valid PoB XML.".format(importer))
 				else:
-					logging.debug("Skipped {} as it is already included in this response.".format(pastebin))
+					logging.debug("Skipped {} as it is already included in this response.".format(importer))
 			else:
-				logging.debug("Skipped {} as it is blacklisted.".format(pastebin))
+				logging.debug("Skipped {} as it is blacklisted.".format(importer))
 		
 		if len(responses) > 5:
-			raise PastebinLimitException("Ignoring {} because it has greater than 5 valid pastebins. ({})".format(wrapped_object, len(responses)))
+			raise ImporterLimitException("Ignoring {} because it has more than 5 valid importers. ({})".format(wrapped_object, len(responses)))
 		elif len(responses) > 0:
 			comment_body = ""
 			if len(responses) > 1:
@@ -104,7 +112,7 @@ def reply_to_summon(bot, comment, ignore_blacklist=False):
 	try:
 		if parent.is_comment():
 			p_response = get_response( comment )
-	except (EligibilityException, PastebinLimitException) as e:
+	except (EligibilityException, ImporterLimitException) as e:
 		errs.append("* {}".format(str(e)))
 	
 	response = None

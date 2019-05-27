@@ -9,7 +9,7 @@ import util
 import official_forum
 from config import config_helper as config
 
-from _exceptions import PastebinLimitException
+from _exceptions import ImporterLimitException
 from _exceptions import EligibilityException
 
 class praw_object_wrapper_t():
@@ -94,7 +94,7 @@ class praw_object_wrapper_t():
 		try:
 			# get response text
 			response = self.bot.get_response( self )
-		except (EligibilityException, PastebinLimitException) as e:
+		except (EligibilityException, ImporterLimitException) as e:
 			logging.info(str(e))
 			
 		if response is None:

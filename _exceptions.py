@@ -2,7 +2,7 @@
 class PoBBotException(Exception):
 	pass
 
-class PastebinLimitException(PoBBotException):
+class ImporterLimitException(PoBBotException):
 	pass
 	
 class EligibilityException(PoBBotException):
