@@ -52,7 +52,8 @@ def get_response( wrapped_object, ignore_blacklist=False ):
 							logging.error(repr(e))
 							
 							# dump xml for debugging later
-							util.dump_debug_info(wrapped_object, exc=e, xml=pastebin.xml())
+							if config.xml_dump:
+								util.dump_debug_info(wrapped_object, exc=e, xml=pastebin.xml())
 							
 							pastebin.blacklist()
 							continue
