@@ -48,12 +48,15 @@ class ImporterBase(object):
 		if not hasattr(self, '_xml'):
 			c = self.contents()
 			
-			try:	
-				self._xml = self.decode(c)
-			except (zlib.error, TypeError, etree.ElementTree.ParseError):
-				logging.info("{} does not decode to XML data.".format(self))
-				self.blacklist()
-				return None
+			if c is not None:
+				try:	
+					self._xml = self.decode(c)
+				except (zlib.error, TypeError, etree.ElementTree.ParseError):
+					logging.info("{} does not decode to XML data.".format(self))
+					self.blacklist()
+					return None
+			else:
+				self._xml = None
 			
 		return self._xml
 		
@@ -210,7 +213,8 @@ class PoBParty(ImporterBase):
 		super(PoBParty, self).xml()
 
 		# save the build/key combo so we don't request a new key again later
-		pob_party.set_key(self)
+		if self._xml is not None:
+			pob_party.set_key(self)
 
 		return self._xml
 	
