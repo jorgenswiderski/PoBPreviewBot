@@ -115,15 +115,17 @@ class socket_group_t:
 		current_skill = 0
 		
 		for gem in self.gems:
-			if not gem.is_support() and gem.enabled:
-				if gem.is_vaal_gem():
-					current_skill += 2
-				else:
-					current_skill += 1
-			
-				if current_skill >= n:
-					return gem
-				
+			if not gem.enabled:
+				continue
+
+			if not gem.data.is_support:
+				current_skill += 1
+
+			if gem.data_2 is not None and not gem.data_2.is_support:
+				current_skill += 1
+		
+			if current_skill >= n:
+				return gem
 					
 		if current_skill > 1:
 			raise Exception('mainActiveSkill exceeds total number of active skill gems in socket group.')
@@ -329,7 +331,10 @@ class gem_t:
 		return self.data.is_support
 		
 	def is_vaal_skill(self):
-		return "vaal" in self.get_skill_data().tags
+		if self.is_support():
+			return False
+
+		return "vaal" in self.get_skill_data().types
 		
 	def is_vaal_gem(self):
 		return "vaal" in self.data.tags
@@ -343,16 +348,28 @@ class gem_t:
 			or self.is_supported_by("Spell Totem"))
 		
 	def is_mine(self):
-		return "mine" in self.get_skill_data().tags or self.is_supported_by("Remote Mine")
+		if self.is_support():
+			return False
+
+		return "mine" in self.get_skill_data().types or self.is_supported_by("Remote Mine")
 	
 	def is_trap(self):
-		return "trap" in self.get_skill_data().tags or self.is_supported_by("Trap")
+		if self.is_support():
+			return False
+
+		return "trap" in self.get_skill_data().types or self.is_supported_by("Trap")
 		
 	def is_attack(self):
-		return "attack" in self.get_skill_data().tags
+		if self.is_support():
+			return False
+
+		return "attack" in self.get_skill_data().types
 		
 	def is_spell(self):
-		return "spell" in self.get_skill_data().tags
+		if self.is_support():
+			return False
+
+		return "spell" in self.get_skill_data().types
 		
 	def has_stackable_dot(self):
 		if self.name == "Scorching Ray":

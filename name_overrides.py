@@ -13,4 +13,6 @@ build_defining_uniques = {
 	"The Poet's Pen": "Poet's Pen",
 	"Mjolner": "Mjolner",
 	"Cospri's Malice": "Cospri's",
+	"The Dancing Duo": "Dancing Dervish",
+	"The Dancing Dervish": "Dancing Dervish"
 }
