@@ -6,6 +6,7 @@ import os
 import logging
 import json
 import zlib
+import urllib2
 from xml import etree
 
 # 3rd Party
