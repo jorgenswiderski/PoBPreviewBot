@@ -1238,18 +1238,18 @@ class build_t:
 		
 		# Passive Skill Tree
 			
-		line2 = "^(Level {:n}) ^[(Tree)]({:s})".format(self.level, self.passives_url)
+		line2 = "^(Level {:n}) ^[[Tree]]({:s})".format(self.level, self.passives_url)
 		
 		# pob.party link
 		try:
 			web_pob = pob_party.get_url(self.importer)
-			line2 += " [^((Open in Browser)^)]({:s})".format(web_pob)
+			line2 += " [^([Open in Browser])]({:s})".format(web_pob)
 		except PoBPartyException:
 			logging.warning("Failed to get pob party url for {}.".format(self.importer.key))
 			pass
 			
 		# author
-		line2 += " ^(| by {:s})\n*****\n".format(self.author)
+		line2 += " ^| ^by ^[{:s}](https://reddit.com/{})\n*****\n".format(self.author, self.author)
 		
 		if hasattr(self, 'ascendancy_name'):
 			line2 = "[](#{:s}) ".format(self.ascendancy_name.lower()) + line2
