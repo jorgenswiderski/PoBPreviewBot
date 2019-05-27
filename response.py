@@ -52,13 +52,13 @@ def get_response( wrapped_object, ignore_blacklist=False ):
 							logging.error(repr(e))
 							
 							# dump xml for debugging later
-							if config.xml_dump:
-								util.dump_debug_info(wrapped_object, exc=e, xml=pastebin.xml())
+							util.dump_debug_info(wrapped_object, exc=e, xml=pastebin.xml())
 							
 							pastebin.blacklist()
 							continue
 						
-						util.dump_debug_info(wrapped_object, xml=pastebin.xml(), dir="xml_dump")
+						if config.xml_dump:
+							util.dump_debug_info(wrapped_object, xml=pastebin.xml(), dir="xml_dump")
 							
 						responses.append(response)
 						bins_responded_to[pastebin.key] = True
