@@ -22,7 +22,6 @@ from pympler import asizeof
 # Self
 from config import config_helper as config
 config.set_mode('debug') # must set before importing other modules
-import pastebin
 import util
 import status
 import exceptions

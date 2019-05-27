@@ -8,7 +8,6 @@ import praw.models
 
 # Self
 import util
-import pastebin
 import logger
 import pob_party
 import passive_skill_tree as passives

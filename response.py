@@ -10,7 +10,8 @@ import praw
 
 # Self
 import util
-from pastebin import Pastebin
+from importers import Pastebin
+from importers import PoBParty
 from config import config_helper as config
 import comment_maintenance
 from praw_wrapper import praw_object_wrapper_t

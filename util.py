@@ -21,7 +21,6 @@ from praw.exceptions import APIException
 
 # Self
 from config import config_helper as config
-import pastebin
 
 # =============================================================================
 
@@ -139,6 +138,7 @@ def dump_debug_info(praw_object, exc=None, paste_key=None, xml=None, extra_data=
 	if not os.path.exists("{}/{}".format(dir, id)):
 		os.makedirs("{}/{}".format(dir, id))
 		
+	'''
 	if xml is None and isinstance(paste_key, str):
 		try:
 			c = get_url_data("http://pastebin.com/raw/" + paste_key)
@@ -146,6 +146,7 @@ def dump_debug_info(praw_object, exc=None, paste_key=None, xml=None, extra_data=
 			xml = pastebin.decode_base64_and_inflate(c)
 		except urllib2.URLError as e:
 			logging.error("An exception occurred when attempting to fetch xml for debug dump.")
+	'''
 	
 	if xml is not None:
 		if isinstance(xml, ET.ElementTree):
