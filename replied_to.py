@@ -60,12 +60,12 @@ class replied_t:
 		
 	def remove(self, wo):
 		if not isinstance(wo, praw_object_wrapper_t):
-			raise ValueError("add passed bad wo: {}".format(type(wo)))
+			raise ValueError("remove passed bad wo: {}".format(type(wo)))
 			
 		if wo.id not in self.dict:
 			raise KeyError()
 			
 		del self.dict[wo.id]
 		
-		logging.debug("Remvoed {} from replied to list.".format(wo))
+		logging.debug("Removed {} from replied to list.".format(wo))
 		self.flush()

@@ -297,7 +297,7 @@ class entry_t:
 				logging.info("Parent {:s} no longer links to any builds, deleted response comment {:s}.".format(parent.id, self.comment_id))
 				
 				if self.list.replied_to.contains(parent.id):
-					self.list.replied_to.remove(parent.id)
+					self.list.replied_to.remove(parent)
 					
 				return True
 			elif new_comment_body != comment.body:
