@@ -5,7 +5,7 @@
 	},
 	"debug": {
 		"username": "aggixxTest",
-		"subreddits": ["test", "pobPreviewTest", "funny"]
+		"subreddits": ["test", "pobPreviewTest"]
 	},
 	"shared": {
 		"BOT_FOOTER": "[^(Path of Building)](https://github.com/Openarl/PathOfBuilding) ^| ^[Feedback](https://www.reddit.com/r/PoBPreviewBot/) ^| ^This ^reply ^updates ^automatically.",

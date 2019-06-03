@@ -131,11 +131,18 @@ class socket_group_t:
 		else:
 			raise EligibilityException('Active skill group contains no active skill gems. {}'.format(ERR_CHECK_ACTIVE_SKILL))
 			
-	def getActiveGem(self):
+	def get_active_gem(self):
 		if self.active_skill == 0:
 			return False
 	
 		return self.get_gem_of_nth_active_skill(self.active_skill)
+
+	def find_skill(self, skill_name, enabled=False):
+		for gem in self.gems:
+			if gem.has_skill(skill_name, enabled=enabled):
+				return gem
+
+		return None
 	
 class gem_t:
 	# Gem name overrides ======================================================
@@ -170,6 +177,9 @@ class gem_t:
 		self.item = socket_group.item
 		
 		self.enabled = self.xml.attrib['enabled'].lower() == "true"
+		self.enabled_skill_1 = self.xml.attrib['enableGlobal1'].lower() == "true"
+		self.enabled_skill_2 = self.xml.attrib['enableGlobal2'].lower() == "true"
+
 		self.id = self.xml.attrib['skillId']
 		self.level = int(self.xml.attrib['level'])
 		self.quality = int(self.xml.attrib['quality'])
@@ -436,6 +446,20 @@ class gem_t:
 			traps += int(match_obj.group(1))
 			
 		return traps
+
+	def has_skill(self, name, enabled=False):
+		if self.data.display_name.lower() == name.lower():
+			if enabled:
+				return self.enabled and self.enabled_skill_1
+			else:
+				return True
+		elif self.data_2 is not None and self.data_2.display_name.lower() == name.lower():
+			if enabled:
+				return self.enabled and self.enabled_skill_2
+			else:
+				return True
+		
+		return False
 		
 class item_t:
 	re_variant = re.compile("^Variant: .+")
@@ -597,29 +621,26 @@ class build_t:
 			
 		self.level = int(self.xml_build.attrib['level'])
 		
-		self.__parse_main_socket_group__()
+		self.__parse_socket_groups__()
 		self.__parse_main_gem__()
 		
-	def __parse_main_socket_group__(self):
-		main_socket_group = int(self.xml_build.attrib['mainSocketGroup'])
+	def __parse_socket_groups__(self):
 		skills = self.xml.find('Skills')
+
 		if len(skills) == 0:
 			raise EligibilityException('Build has no active skills.')
-		self.main_socket_group = socket_group_t(skills[main_socket_group-1], self)
-		
-		# check to make sure main socket group is not in an inactive weapon set
-		if 'slot' in self.main_socket_group.xml.attrib and "Weapon" in self.main_socket_group.xml.attrib['slot']:
-			useSecondWeaponSet = self.xml.find('Items').attrib['useSecondWeaponSet'].lower() == "true"
-			slot = self.main_socket_group.xml.attrib['slot']
-			
-			if ( not useSecondWeaponSet and "Swap" in slot ) or ( useSecondWeaponSet and "Swap" not in slot ):
-				raise EligibilityException('The active skill gem is socketed in an inactive weapon (ie weapon swap).')
+
+		self.socket_groups = []
+
+		for group_xml in skills:
+			sg = socket_group_t(group_xml, self)
+			self.socket_groups.append(sg)
 		
 	def __parse_main_gem__(self):
-		if self.main_socket_group is None:
-			self.__parse_main_socket_group__()
+		if self.get_main_socket_group() is None:
+			self.__parse_socket_groups__()
 		
-		self.main_gem = self.main_socket_group.getActiveGem()
+		self.main_gem = self.get_main_socket_group().get_active_gem()
 		
 		if not self.main_gem:
 			raise EligibilityException('Active skill group contains no active skill gems. {}'.format(ERR_CHECK_ACTIVE_SKILL))
@@ -718,6 +739,85 @@ class build_t:
 	def __check_build_eligibility__(self):
 		if self.main_gem.is_supported_by("Cast on Critical Strike"):
 			raise UnsupportedException('Cast on Critical Strike builds are currently not supported.')
+		
+	def __get_config_value__(self, name):
+		xml_input = self.xml_config.find("*[@name='{:s}']".format(name))
+		
+		if xml_input is None:
+			logging.log(logger.DEBUG_ALL, "CONFIG {:s}: {:s}".format(name, None))
+			return None
+			
+		if 'boolean' in xml_input.attrib:
+			logging.log(logger.DEBUG_ALL, "CONFIG {:s}: {:s}".format(name, xml_input.attrib['boolean'].lower()))
+			return xml_input.attrib['boolean'].lower()
+			
+		if 'number' in xml_input.attrib:
+			logging.log(logger.DEBUG_ALL, "CONFIG {:s}: {:n}".format(name, float(xml_input.attrib['number'])))
+			return float(xml_input.attrib['number'])
+			
+		if 'string' in xml_input.attrib:
+			logging.log(logger.DEBUG_ALL, "CONFIG {:s}: {:s}".format(name, xml_input.attrib['string'].lower()))
+			return xml_input.attrib['string'].lower()
+			
+	def __get_config_array__(self):
+		dps_config = []
+	
+		if self.__get_config_value__("enemyIsBoss") == "true":
+			dps_config.append("Boss")
+		elif self.__get_config_value__("enemyIsBoss") == "shaper":
+			dps_config.append("Shaper")
+		
+		for opt_name in self.config_bools:
+			if self.__get_config_value__(opt_name) == "true":
+				dps_config.append(self.config_bools[opt_name])
+		
+		for opt_name in self.config_numbers:
+			val = self.__get_config_value__(opt_name)
+			if val and val != 0:
+				dps_config.append(self.config_numbers[opt_name].format(val))
+				
+		for opt_name in self.config_strs:
+			val = self.__get_config_value__(opt_name)
+			if val and not isinstance(val, float):
+				dps_config.append(self.config_strs[opt_name].format(val.title()))
+				
+		if self.find_skill("Vaal Haste", enabled=True) is not None:
+			dps_config.append("Vaal Haste")
+				
+		wither_gem = self.find_skill("Wither", enabled=True)
+
+		if wither_gem is not None:
+			dps_config.append("Wither \({}\)".format(self.wither_stacks[wither_gem.xml.attrib['skillPart']]))
+				
+		if self.find_skill("Punishment", enabled=True) is not None:
+			dps_config.append("Punishment")
+				
+		logging.debug("DPS config: {}".format(dps_config))
+		
+		return dps_config
+			
+	def __get_config_string__(self):
+		dps_config = self.__get_config_array__()
+		
+		if len(dps_config) == 0:
+			return ""
+		
+		return "  \n\n" + " **Config:** {:s}".format(", ".join(dps_config)).replace(' ', " ^^")
+
+	def get_main_socket_group(self):
+		msg_index = int(self.xml_build.attrib['mainSocketGroup'])
+
+		msg = self.socket_groups[msg_index-1]
+		
+		# check to make sure main socket group is not in an inactive weapon set
+		if 'slot' in msg.xml.attrib and "Weapon" in msg.xml.attrib['slot']:
+			useSecondWeaponSet = self.xml.find('Items').attrib['useSecondWeaponSet'].lower() == "true"
+			slot = msg.xml.attrib['slot']
+			
+			if ( not useSecondWeaponSet and "Swap" in slot ) or ( useSecondWeaponSet and "Swap" not in slot ):
+				raise EligibilityException('The active skill gem is socketed in an inactive weapon (ie weapon swap).')
+
+		return msg
 	
 	# Utility function for searching all equipped gear for a particular modifier.
 	# Args:		A regex pattern that determines if a mod matches
@@ -1064,77 +1164,15 @@ class build_t:
 				stats = dps_stats
 				
 		return stats
-		
 				
-	def get_enabled_gem(self, gem_name):
-		for gem in self.xml.findall("./Skills/Skill/Gem[@nameSpec='{}']".format(gem_name)):
-			if "enabled" in gem.attrib and gem.attrib['enabled'].lower() == "true":
+	def find_skill(self, skill_name, enabled=False):
+		for sg in self.socket_groups:
+			gem = sg.find_skill(skill_name, enabled=enabled)
+
+			if gem is not None:
 				return gem
 				
 		return None
-		
-	def __get_config_value__(self, name):
-		xml_input = self.xml_config.find("*[@name='{:s}']".format(name))
-		
-		if xml_input is None:
-			logging.log(logger.DEBUG_ALL, "CONFIG {:s}: {:s}".format(name, None))
-			return None
-			
-		if 'boolean' in xml_input.attrib:
-			logging.log(logger.DEBUG_ALL, "CONFIG {:s}: {:s}".format(name, xml_input.attrib['boolean'].lower()))
-			return xml_input.attrib['boolean'].lower()
-			
-		if 'number' in xml_input.attrib:
-			logging.log(logger.DEBUG_ALL, "CONFIG {:s}: {:n}".format(name, float(xml_input.attrib['number'])))
-			return float(xml_input.attrib['number'])
-			
-		if 'string' in xml_input.attrib:
-			logging.log(logger.DEBUG_ALL, "CONFIG {:s}: {:s}".format(name, xml_input.attrib['string'].lower()))
-			return xml_input.attrib['string'].lower()
-			
-	def __get_config_array__(self):
-		dps_config = []
-	
-		if self.__get_config_value__("enemyIsBoss") == "true":
-			dps_config.append("Boss")
-		elif self.__get_config_value__("enemyIsBoss") == "shaper":
-			dps_config.append("Shaper")
-		
-		for opt_name in self.config_bools:
-			if self.__get_config_value__(opt_name) == "true":
-				dps_config.append(self.config_bools[opt_name])
-		
-		for opt_name in self.config_numbers:
-			val = self.__get_config_value__(opt_name)
-			if val and val != 0:
-				dps_config.append(self.config_numbers[opt_name].format(val))
-				
-		for opt_name in self.config_strs:
-			val = self.__get_config_value__(opt_name)
-			if val and not isinstance(val, float):
-				dps_config.append(self.config_strs[opt_name].format(val.title()))
-				
-		if self.get_enabled_gem("Vaal Haste") is not None:
-			dps_config.append("Vaal Haste")
-				
-		wither = self.get_enabled_gem("Wither")
-		if wither is not None:
-			dps_config.append("Wither \({}\)".format(self.wither_stacks[wither.attrib['skillPart']]))
-				
-		if self.get_enabled_gem("Punishment") is not None:
-			dps_config.append("Punishment")
-				
-		logging.debug("DPS config: {}".format(dps_config))
-		
-		return dps_config
-			
-	def __get_config_string__(self):
-		dps_config = self.__get_config_array__()
-		
-		if len(dps_config) == 0:
-			return ""
-		
-		return "  \n\n" + " **Config:** {:s}".format(", ".join(dps_config)).replace(' ', " ^^")
 		
 	def is_fully_geared(self):
 		# Universally required slots
