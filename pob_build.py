@@ -187,6 +187,19 @@ class gem_t:
 		self.__init_gem_data__()
 		self.__init_active_skill__()
 		self.__set_name__()
+
+	def __str__(self):
+		attr_list = []
+
+		attr_list.append("gem='{}'".format(self.id))
+
+		if 'slot' in self.socket_group.xml.attrib:
+			attr_list.append("sg_slot='{}'".format(self.socket_group.xml.attrib['slot']))
+
+		if 'label' in self.socket_group.xml.attrib:
+			attr_list.append("sg_label='{}'".format(self.socket_group.xml.attrib['label']))
+
+		return "<{}>".format("/".join(attr_list))
 		
 	def __set_name__(self):
 		if self.is_support():
@@ -234,9 +247,15 @@ class gem_t:
 					# socket group's active skill must be in a gem whose index is higher than this one, so we're done
 					self.active_skill = 1
 					return
+
+			logging.debug("{} active skill is disabled, defaulting to 1.".format(self))
+			self.active_skill = 1
 		else:
 			# 1-indexed
 			self.active_skill = 1
+
+		if not hasattr(self, 'active_skill'):
+			raise RuntimeError("Active skill was not defined.")
 
 	@staticmethod
 	def get_gem_data(name=None, id=None):
@@ -266,12 +285,15 @@ class gem_t:
 			return
 
 	def get_skill_data(self):
+		if not hasattr(self, 'active_skill'):
+			raise RuntimeError("Trying to access skill data before active_skill is defined") 
+
 		if self.active_skill == 1:
 			return self.data
 		elif self.active_skill == 2:
 			return self.data_2
 		else:
-			raise RuntimeError("Trying to access skill data before active_skill is defined") 
+			raise ValueError("active_skill has bad value: {}".format(self.active_skill)) 
 		
 	def get_support_gem_dict(self):
 		dict = {}
