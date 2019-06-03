@@ -783,14 +783,26 @@ class build_t:
 				
 		if self.find_skill("Vaal Haste", enabled=True) is not None:
 			dps_config.append("Vaal Haste")
+
+		if self.main_gem.is_spell():
+			vrf_gem = self.find_skill("Vaal Righteous Fire", enabled=True)
+
+			if vrf_gem is not None and vrf_gem != self.main_gem:
+				dps_config.append("Vaal RF")
+
+		if self.main_gem.is_attack():
+			vaw_gem = self.find_skill("Vaal Ancestral Warchief", enabled=True)
+
+			if vaw_gem is not None and vaw_gem != self.main_gem:
+				dps_config.append("Vaal Warchief")
+				
+			if self.find_skill("Punishment", enabled=True) is not None:
+				dps_config.append("Punishment")
 				
 		wither_gem = self.find_skill("Wither", enabled=True)
 
 		if wither_gem is not None:
 			dps_config.append("Wither \({}\)".format(self.wither_stacks[wither_gem.xml.attrib['skillPart']]))
-				
-		if self.find_skill("Punishment", enabled=True) is not None:
-			dps_config.append("Punishment")
 				
 		logging.debug("DPS config: {}".format(dps_config))
 		
