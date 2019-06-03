@@ -82,6 +82,11 @@ class socket_group_t:
 	def __init__(self, skill_xml, build):
 		self.xml = skill_xml
 		self.build = build
+
+		self.enabled = True
+
+		if 'enabled' in self.xml.attrib:
+			self.enabled = self.xml.attrib['enabled'].lower() == 'true'
 		
 		self.__parse_active_skill__()
 		self.__parse_parent_item__()
@@ -1201,6 +1206,9 @@ class build_t:
 				
 	def find_skill(self, skill_name, enabled=False):
 		for sg in self.socket_groups:
+			if enabled and not sg.enabled:
+				continue
+
 			gem = sg.find_skill(skill_name, enabled=enabled)
 
 			if gem is not None:
