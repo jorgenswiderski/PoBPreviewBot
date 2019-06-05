@@ -10,6 +10,7 @@ import praw.models
 import util
 import logger
 import pob_party
+import stats
 import passive_skill_tree as passives
 from name_overrides import skill_overrides
 from name_overrides import build_defining_uniques
@@ -887,6 +888,9 @@ class build_t:
 			return skill in self.passives_by_name
 		else:
 			raise Exception("has_passive_skill was passed an invalid param #2: {}".format(skill))
+
+	def get_dm_stat_total(self, stat):
+		pass
 			
 	def has_item_equipped(self, name):
 		for i in self.equipped_items:
@@ -923,6 +927,13 @@ class build_t:
 			
 		if self.has_passive_skill("Divine Guidance"):
 			p += 0.10
+		
+		'''
+		p += self.get_dm_stat_total('base_damage_removed_from_mana_before_life_%')
+
+		if self.find_skill('Clarity', enabled=True) or self.find_skill('Vaal Clarity', enabled=True):
+			p += self.get_dm_stat_total('damage_removed_from_mana_before_life_%_while_affected_by_clarity')
+		'''
 			
 		return p
 
