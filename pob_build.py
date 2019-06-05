@@ -907,6 +907,9 @@ class build_t:
 
 	def is_MoM(self):
 		return self.has_passive_skill("Mind Over Matter") or self.has_item_equipped("Cloak of Defiance")
+
+	def is_EB(self):
+		return self.has_passive_skill("Eldritch Battery") or self.has_item_equipped("The Devouring Diadem")
 		
 	# FIXME: Use values from the modifiers themselves instead of hardcoding.
 	def get_MoM_percent(self):
@@ -927,7 +930,7 @@ class build_t:
 		if self.has_passive_skill("Chaos Inoculation"):
 			return False
 		
-		if self.has_passive_skill("Eldritch Battery"):
+		if self.is_EB():
 			return False
 		
 		if self.is_low_life():
@@ -1363,9 +1366,10 @@ class build_t:
 			if self.is_MoM():
 				if self.is_fully_geared() and self.level > 1:
 					# Display the full amount of unreserved mana
-					body += " | {:n} **Mana**".format(self.get_stat('ManaUnreserved'))
+					if self.get_stat('ManaUnreserved') > 0:
+						body += " | {:n} **Mana**".format(self.get_stat('ManaUnreserved'))
 					
-					if self.has_passive_skill("Eldritch Battery"):
+					if self.is_EB():
 						body += " | {:n} **ES**".format(self.get_stat('EnergyShield'))
 					
 					# Calculate the maximum amount of mana that contributes to the player's EHP
@@ -1374,7 +1378,7 @@ class build_t:
 					
 					eff_max_mana = self.get_stat('ManaUnreserved')
 					
-					if self.has_passive_skill("Eldritch Battery"):
+					if self.is_EB():
 						eff_max_mana += self.get_stat('EnergyShield')
 					
 					# Add up to the max amount
