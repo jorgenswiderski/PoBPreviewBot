@@ -1287,7 +1287,10 @@ class build_t:
 		if self.has_passive_skill("Chaos Inoculation"):
 			def_desc = "CI"
 		elif self.is_MoM():
-			def_desc = "MoM"
+			if self.is_EB():
+				def_desc = "EB MoM"
+			else:
+				def_desc = "MoM"
 		elif self.is_low_life():
 			def_desc = "LL"
 			
