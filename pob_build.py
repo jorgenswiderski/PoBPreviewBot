@@ -1161,7 +1161,7 @@ class build_t:
 						
 					dps_stats.append( ( per_totem, " DPS per totem" ) )
 					
-					totem_limit = self.get_totem_limit()
+					totem_limit = self.main_gem.get_totem_limit()
 					dps['direct'] *= totem_limit
 					dps['poison'] *= totem_limit
 					
