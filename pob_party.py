@@ -9,8 +9,9 @@ import requests
 # Self
 from _exceptions import PoBPartyException
 
-endpoint = "https://pob.party/kv/put?ver=v{}"
+endpoint = "https://pob.party/kv/put?ver={}"
 # ex: https://pob.party/kv/put?ver=v3.6.0
+# ex: https://pob.party/kv/put?ver=latest
 
 headers = {
 	'content-type': 'text/plain',
