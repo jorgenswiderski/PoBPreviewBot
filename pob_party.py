@@ -30,7 +30,7 @@ def get_url(pastebin):
 	
 	if hash not in hashmap:
 		# FIXME: Figure out proper way to determine the version number
-		r = requests.post(endpoint.format('3.7.0'), data=pastebin.contents(), headers=headers)
+		r = requests.post(endpoint.format('latest'), data=pastebin.contents(), headers=headers)
 		
 		if r.status_code != 200:
 			raise PoBPartyException('Request failed: {}'.format(r.status_code))
