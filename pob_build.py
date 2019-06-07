@@ -1330,8 +1330,8 @@ class build_t:
 		try:
 			web_pob = pob_party.get_url(self.importer)
 			line2 += " [^([Open in Browser])]({:s})".format(web_pob)
-		except PoBPartyException:
-			logging.warning("Failed to get pob party url for {}.".format(self.importer.key))
+		except PoBPartyException as e:
+			logging.warning("Failed to get pob party url for {}. {}".format(self.importer.key, e))
 			pass
 			
 		# author
