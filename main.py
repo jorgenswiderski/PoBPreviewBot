@@ -100,8 +100,10 @@ class bot_t:
 	def get_sleep_time(self):
 		next_update_time = 1e10
 		
+		'''
 		if len(self.maintain_list) > 0:
 			next_update_time = min(next_update_time, self.maintain_list.next_time())
+		'''
 			 
 		if len(self.reply_queue) > 0:
 			next_update_time = min( next_update_time, self.reply_queue.throttled_until() )
@@ -116,7 +118,8 @@ class bot_t:
 		
 		self.stream_manager.process()
 		
-		self.maintain_list.process()
+		# Disable regular maintenance, let ACM take care of things
+		#self.maintain_list.process()
 		
 		# If comments are in queue, then don't update status or sleep, just
 		# return out so we can process them immediately
