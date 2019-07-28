@@ -5,6 +5,7 @@ import logging
 
 # 3rd Party
 import praw.models
+import defusedxml.ElementTree as ET
 
 # Self
 import util
@@ -165,33 +166,41 @@ class gem_t:
 	}
 
 	def __init__(self, gem_xml, socket_group):
-		self.xml = gem_xml
-		
-		if 'skillId' not in self.xml.attrib:
-			# If the gem has no skillId that means it grants no skills.
-			# It is most likely an abyss jewel and can safely be ignored.
-			# Return out before this gem object is added to the socket group.
-			return
-		
-		self.build = socket_group.build
-		self.socket_group = socket_group
-		
-		# Append to list now so that self is present in the list when we iterate through gems later.
-		self.socket_group.gems.append(self)
-		
-		self.item = socket_group.item
-		
-		self.enabled = self.xml.attrib['enabled'].lower() == "true"
-		self.enabled_skill_1 = self.xml.attrib['enableGlobal1'].lower() == "true"
-		self.enabled_skill_2 = self.xml.attrib['enableGlobal2'].lower() == "true"
+		try:
+			self.xml = gem_xml
+			
+			if 'skillId' not in self.xml.attrib:
+				# If the gem has no skillId that means it grants no skills.
+				# It is most likely an abyss jewel and can safely be ignored.
+				# Return out before this gem object is added to the socket group.
+				return
+			
+			self.build = socket_group.build
+			self.socket_group = socket_group
+			
+			# Append to list now so that self is present in the list when we iterate through gems later.
+			self.socket_group.gems.append(self)
+			
+			self.item = socket_group.item
+			
+			self.enabled = self.xml.attrib['enabled'].lower() == "true"
+			self.enabled_skill_1 = self.xml.attrib['enableGlobal1'].lower() == "true"
+			self.enabled_skill_2 = self.xml.attrib['enableGlobal2'].lower() == "true"
 
-		self.id = self.xml.attrib['skillId']
-		self.level = int(self.xml.attrib['level'])
-		self.quality = int(self.xml.attrib['quality'])
-		
-		self.__init_gem_data__()
-		self.__init_active_skill__()
-		self.__set_name__()
+			self.id = self.xml.attrib['skillId']
+			self.level = int(self.xml.attrib['level'])
+			self.quality = int(self.xml.attrib['quality'])
+			
+			self.__init_gem_data__()
+			self.__init_active_skill__()
+			self.__set_name__()
+		except Exception as e:
+			logging.debug("Gem XML:")
+			logging.debug(ET.tostring(self.xml))
+			logging.debug("gem_t object dict:")
+			logging.debug(self.__dict__)
+			logging.error("An error occurred when initializing a gem_t. Object information has been dumped to debug log.")
+			raise e
 
 	def __str__(self):
 		attr_list = []
@@ -207,10 +216,14 @@ class gem_t:
 		return "<{}>".format("/".join(attr_list))
 		
 	def __set_name__(self):
+		''' Don't call get_skill_data() here. If we call it here, and
+		active skill is NOT a support (ie Shockwave Support) then bad shit happens.
+
+		is_support returns based on data_1, so just always return stuff about data_1 '''
 		if self.is_support():
-			self.name = self.get_skill_data().short_name
+			self.name = self.data.short_name
 		else:
-			self.name = self.get_skill_data().display_name
+			self.name = self.data.display_name
 			
 		if self.name in skill_overrides:
 			self.name = skill_overrides[self.name]
