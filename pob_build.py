@@ -252,16 +252,25 @@ class gem_t:
 				if not gem.data.is_support:
 					current_skill += 1
 
+					if current_skill == self.socket_group.active_skill:
+						self.active_skill = 1
+
+						if gem.data_2 is not None:
+							logging.debug("Build is using primary skill of 2 part gem.")
+
+						return
+
 				if gem.data_2 is not None and not gem.data_2.is_support:
 					current_skill += 1
 					
+					if current_skill == self.socket_group.active_skill:
+						self.active_skill = 2
+						logging.debug("Build is using secondary skill of 2 part gem.")
+						return
+					
 				#logging.debug("current_skill={}".format(current_skill))
-				
-				if current_skill == self.socket_group.active_skill:
-					self.active_skill = 2
-					logging.debug("Build is using secondary skill of vaal gem.")
-					return
-				elif gem == self:
+
+				if gem == self:
 					# socket group's active skill must be in a gem whose index is higher than this one, so we're done
 					self.active_skill = 1
 					return
@@ -406,7 +415,14 @@ class gem_t:
 		if self.is_support():
 			return False
 
-		return "trap" in self.get_skill_data().types or self.is_supported_by("Trap")
+		try:
+			return "trap" in self.get_skill_data().types or self.is_supported_by("Trap")
+		except Exception as e:
+			logging.debug("Gem XML:")
+			logging.debug(ET.tostring(self.xml))
+			logging.debug("gem_t object dict:")
+			logging.debug(self.__dict__)
+			raise e
 		
 	def is_attack(self):
 		if self.is_support():
