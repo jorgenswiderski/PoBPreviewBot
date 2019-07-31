@@ -21,12 +21,35 @@ See here for more info:
 https://github.com/brather1ng/RePoE/blob/master/docs/stat_translations.md
 '''
 
+logging.basicConfig(
+	level=20,
+	format='%(asctime)s %(levelname)s %(filename)s:%(lineno)d> %(message)s',
+	datefmt='%Y/%m/%d %H:%M:%S'
+)
+
+def is_whitelisted(group):
+	for stat in stat_whitelist:
+		if stat in group['ids']:
+			return True
+
+	return False
+
 def init():
 	global trans_data
+	global stat_whitelist
 
 	with open('data/stat_translations.json', 'r') as f:
 		trans_data = json.load(f)
 
+	with open('stat_whitelist.json', 'r') as f:
+		stat_whitelist = json.load(f)
+
+	# apply stat whitelist
+	trans_data = filter(is_whitelisted, trans_data)
+
+	with open('whitelist_example.json', 'w') as f:
+		json.dump(trans_data, f, sort_keys=True, indent=4)
+ 
 	for translation_group in trans_data:
 		ids = translation_group['ids']
 		variations = translation_group['English']
@@ -77,53 +100,116 @@ def make_regex(variation):
 
 	return vstr
 
+class combined_stats_t:
+	def __init__(self, trans_str, item=None, passive=None):
+		if item is None and passive is None:
+			raise ValueError("stat_t passed invalid args, must provide source item or passive")
 
-def parse(trans_block, item=1, passive=None):
-	stats = []
+		self.item = item
+		self.passive = passive
+		self.stats = []
+		self.dict_cache = {}
+		self.cache_valid = True
 
-	for translation_group in trans_data:
-		ids = translation_group['ids']
+		self.parse_str(trans_str)
 
-		if u'dummy_stat_display_nothing' in ids:
-			continue
+	def add(self, stat):
+		self.stats.append(stat)
+		self.cache_valid = False
 
-		variations = translation_group['English']
+	def parse_str(self, trans_block, item=1, passive=None):
+		global trans_data
 
-		for variation in variations:
-			pattern = variation['regex']
+		# pad with new lines so we can easily detect each mod
+		trans_block = "\n{}\n".format(trans_block)
 
-			try:
-				match = re.search(pattern, trans_block)
-			except sre_constants.error as e:
-				logging.warn(pattern)
-				raise e
+		for translation_group in trans_data:
+			ids = translation_group['ids']
 
-			if match:
-				if len(match.groups()) > 0:
-					logging.warn("'{}' matches {} with values: {}".format(match.group(0), ids, match.groups()))
+			if u'dummy_stat_display_nothing' in ids:
+				continue
+
+			variations = translation_group['English']
+
+			for variation in variations:
+				pattern = "\n{}\n".format(variation['regex'])
+
+				try:
+					match = re.search(pattern, trans_block)
+				except sre_constants.error as e:
+					logging.error(pattern)
+					raise e
+
+				if match:
+					if len(match.groups()) > 0:
+						logging.debug("'{}' matches {} with values: {}".format(match.group(0).strip(), ids, match.groups()))
+					else:
+						logging.debug("'{}' matches {}".format(match.group(0).strip(), ids))
+
+					# construct stat dict
+					match_values = list(match.groups())
+					stat_dict = {}
+
+					for i in range(0, len(variation['format'])):
+						stat_format = variation['format'][i]
+
+						if stat_format == "ignore":
+							stat_dict[ids[i]] = True
+						else:
+							stat_dict[ids[i]] = match_values.pop(0)
+
+
+					stat = stat_t(match.group(0).strip(), stat_dict, item=item, passive=passive)
+					self.add(stat)
+
+					#logging.info(pattern)
+
+					trans_block = re.sub(pattern.strip(), "", trans_block)
+
+					#logging.info(trans_block)
+
+		for match in re.finditer("[^\n]+", trans_block):
+			logging.warn("Non-matched modifier: '{}'".format(match.group()))
+
+	def build_cache(self):
+		self.dict_cache = {}
+
+		for stat in self.stats:
+			for id, value in stat.dict.items():
+				if id in self.dict_cache:
+					if type(value) != type(self.dict_cache[id]):
+						raise ValueError('cannot combine {} with {}'.format(type(value), type(self.dict_cache[i])))
+
+					if type(value) == "int":
+						self.dict_cache[id] += value
+					else:
+						self.dict_cache[id] = value or self.dict_cache[id]
 				else:
-					logging.warn("'{}' matches {}".format(match.group(0), ids))
+					self.dict_cache[id] = value
 
-				stat = stat_t(match.group(0), ids, match.groups(), item=item, passive=passive)
-				stats.append(stat)
+		self.cache_valid = True
 
-				trans_block = re.sub(pattern, "", trans_block)
+	def dict(self):
+		if not self.cache_valid:
+			self.build_cache()
 
-	return stats
+		return self.dict_cache
 
 class stat_t:
-	def __init__(self, stat_str, stat_id, values, item=None, passive=None):
+	def __init__(self, stat_str, stats, item=None, passive=None):
 		if item is None and passive is None:
 			raise ValueError("stat_t passed invalid args, must provide source item or passive")
 
 		self.string = stat_str
-		self.id = stat_id
-		self.values = values
+		self.dict = stats
 		self.item = item
 		self.passive = passive
 
+		logging.debug(self.dict)
+
 
 init()
+
 '''
 test_mods = """Sockets cannot be modified
 +1 to Level of Socketed Gems
@@ -135,27 +221,26 @@ Zealot's Oath"""
 '''
 FIXME: 
 
-this mod is mapped incorrectly
-WARNING:root:'Adds 13 to 160 Lightning Damage' matches [u'global_minimum_added_lightning_damage', u'global_maximum_added_lightning_damage'] with values: ('13', '160')
-
 signage isn't done right for this mod, need to recognize that the value is negative
 WARNING:root:'40% reduced Soul Cost of Vaal Skills' matches [u'vaal_skill_soul_cost_+%'] with values: ('40',)
 '''
 
-test_mods = """
-100% increased Global Critical Strike Chance
-75% increased Critical Strike Chance for Spells
-40% reduced Soul Cost of Vaal Skills
-Can have multiple Crafted Modifiers
-78% increased Fire Damage
-Adds 13 to 160 Lightning Damage to Spells
-21% chance to Ignite
-"""
+
 
 #print(parse(test_mods))
 
 start = time.time()
 
-logging.warn(parse(test_mods))
+test_mods = """100% increased Global Critical Strike Chance
+75% increased Critical Strike Chance for Spells
+40% reduced Soul Cost of Vaal Skills
+Can have multiple Crafted Modifiers
+78% increased Fire Damage
+Adds 13 to 160 Lightning Damage to Spells
+21% chance to Ignite"""
 
-logging.warn(time.time()-start)
+cs = combined_stats_t(test_mods, item=1)
+
+logging.info(cs.dict())
+
+logging.info(time.time()-start)
