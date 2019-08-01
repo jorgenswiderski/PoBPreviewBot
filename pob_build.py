@@ -428,14 +428,7 @@ class gem_t:
 		if self.is_support():
 			return False
 
-		try:
-			return "trap" in self.get_skill_data().types or self.is_supported_by("Trap")
-		except Exception as e:
-			logging.debug("Gem XML:")
-			logging.debug(ET.tostring(self.xml))
-			logging.debug("gem_t object dict:")
-			logging.debug(self.__dict__)
-			raise e
+		return "trap" in self.get_skill_data().types or self.is_supported_by("Trap")
 		
 	def is_attack(self):
 		if self.is_support():
