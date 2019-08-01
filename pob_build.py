@@ -1597,7 +1597,11 @@ class build_t:
 		
 		if self.get_stat('CritChance') >= 20 and not self.has_keystone("Elemental Overload"):
 			pieces.append("{:.2f}% **Crit**".format(self.get_stat('CritChance')))
-			pieces.append("{:n}% **Multi**".format(self.get_stat('CritMultiplier')*100))
+
+			# Only show if crit multi is positive. Sometimes its not (perfect agony)
+			# FIXME: Ideally, we show ailment multi instead, but that info isn't in the PoB export.
+			if self.get_stat('CritMultiplier') > 1:
+				pieces.append("{:n}% **Multi**".format(self.get_stat('CritMultiplier')*100))
 			
 		if self.main_gem.is_trap() and self.get_stat("TrapCooldown") > 0:
 			pieces.append("{:.2f}s **Cooldown**".format(self.get_stat("TrapCooldown")))
