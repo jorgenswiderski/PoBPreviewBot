@@ -411,7 +411,7 @@ class gem_t:
 	
 	def is_totem(self):
 		if self.is_support():
-			raise RuntimeError("Cannot call is_totem on a support gem.")
+			return False
 
 		return (self.get_skill_data().is_skill_totem
 			or self.is_supported_by("Ranged Attack Totem")
