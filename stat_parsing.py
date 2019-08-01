@@ -250,7 +250,7 @@ class combined_stats_t:
 					#logging.info(trans_block)
 
 		for match in re.finditer("[^\n]+", trans_block):
-			logging.debug("Non-matched modifier: '{}'".format(match.group()))
+			logging.log(logger.DEBUG_ALL, "Non-matched modifier: '{}'".format(match.group()))
 
 	def build_cache(self):
 		self.dict_cache = {}
