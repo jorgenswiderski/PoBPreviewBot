@@ -1586,9 +1586,8 @@ class build_t:
 			pieces.append("{:.2f} **{}**".format(self.get_speed(minion=True), self.get_speed_str()))
 		else:
 			# Add a speed str as long as the skill is not instant cast.
-			if not (self.main_gem.data.cast_time is not None and self.main_gem.data.cast_time == 0):
-				# FIXME: ugly support for CwDT cd
-				if self.main_gem.is_supported_by("Cast when Damage Taken"):
+			if not (hasattr(self.main_gem.data, 'cast_time') and self.main_gem.data.cast_time == 0):
+				if self.get_stat("Cooldown") > 0:
 					pieces.append("{:.2f}s **CD**".format(self.get_stat("Cooldown")))
 				else:
 					pieces.append("{:.2f} **{}**".format(self.get_speed(), self.get_speed_str()))
