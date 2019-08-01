@@ -17,3 +17,6 @@ class UnsupportedException(EligibilityException):
 	
 class PoBPartyException(PoBBotException):
 	pass
+
+class StatWhitelistException(PoBBotException):
+	pass

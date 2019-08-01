@@ -22,6 +22,7 @@ from _exceptions import UnsupportedException
 from _exceptions import GemDataException
 from _exceptions import EligibilityException
 from _exceptions import PoBPartyException
+from _exceptions import StatWhitelistException
 
 # =============================================================================
 
@@ -986,7 +987,8 @@ class build_t:
 		return False
 
 	def get_stat_total(self, stat):
-		assert stat in stat_parsing.whitelist
+		if stat not in stat_parsing.whitelist:
+			raise StatWhitelistException("'{}' not in whitelist".config(stat))
 
 		total = 0
 
