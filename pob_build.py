@@ -2,6 +2,7 @@
 import base64
 import re
 import logging
+import math
 
 # 3rd Party
 import praw.models
@@ -521,7 +522,7 @@ class gem_t:
 class item_t:
 	re_implicits = re.compile("^Implicits: \d+")
 	re_any_curly_tag = re.compile("{.+}")
-	re_support_mod = re.compile("socketed gems are supported by level \d+ (.+)")
+	re_range = re.compile("\{range:(\d+\.?\d*)\}")
 	re_variant_tag = re.compile("{variant:([\d,]+)}")
 
 	def __init__(self, build, item_xml):
@@ -570,6 +571,27 @@ class item_t:
 			if not self.is_mod_active(rows[i]):
 				continue
 
+			# process range tags and convert range to a number
+			range_match = self.re_range.search(rows[i])
+
+			if range_match:
+				range_value = float(range_match.group(1))
+				bounds = re.search("\((\d+)\-(\d+)\)", rows[i])
+
+				if not bounds:
+					raise ValueError("could not find ranges when parsing range mod. row={} item={}".format(i, self.name))
+
+				range_min = int(bounds.group(1))
+				range_max = int(bounds.group(2))
+				range_delta = range_max - range_min
+				final_value = int(math.ceil(range_min + range_delta * range_value))
+
+				new_row = re.sub("\(\d+\-\d+\)", str(final_value), rows[i], count=1)
+
+				logging.log(logger.DEBUG_ALL, "{} ==> {}".format(rows[i], new_row))
+
+				rows[i] = new_row
+
 			# trim out the curly bracketed tags
 			replaced = self.re_any_curly_tag.sub("", rows[i])
 
@@ -580,28 +602,23 @@ class item_t:
 			mods.append(replaced)
 
 		self.stats = stat_parsing.combined_stats_t("\n".join(mods), item=self)
-		logging.info(self.stats.dict())
+		logging.log(logger.DEBUG_ALL, self.stats.dict())
 		
 	def __parse_for_support_gems__(self):
-		pass
-
-		'''
 		self.support_mods = {}
-	
-		for r in self.mods:
-			# Match in lower case just in case the mod has improper capitalization
-			s = self.re_support_mod.search(r.lower())
-			
-			if s:
-				name = s.group(1).strip()
-				data = gem_t.get_gem_data(name=name)
-				
-				if data:
-					self.support_mods[data.id] = data
-				else:
-					logging.warning("Support gem '{}' was not found in gem data and was ommitted in gem str!".format(name));
-					util.dump_debug_info(self.build.praw_object, xml=self.build.xml)
-		'''
+
+		for id, value in self.stats.dict().items():
+			if id in stat_parsing.support_gem_map:
+				for granted_effect in stat_parsing.support_gem_map[id]:
+					data = gem_t.get_gem_data(id=granted_effect)
+					
+					if data:
+						self.support_mods[data.id] = data
+						logging.log(logger.DEBUG_ALL, "{} registered as support granted by {}.".format(granted_effect, self.name))
+					else:
+						logging.warning("Support gem '{}' was not found in gem data and was ommitted in gem str!".format(name));
+						util.dump_debug_info(self.build.praw_object, xml=self.build.xml)
+
 	
 	def grants_support_gem(self, support):
 		return support.lower() in self.support_mods
@@ -940,15 +957,17 @@ class build_t:
 	def get_stat_total(self, stat):
 		total = 0
 
-		for item in self.items:
+		for item in self.items.values():
 			d = item.stats.dict()
 
 			if stat in d:
 				if d[stat] is True:
+					logging.info("'{}': {}".format(stat, d[stat]))
 					return d[stat]
 				else:
 					total += d[stat]
 
+		logging.info("'{}': {}".format(stat, total))
 		return total
 			
 	def has_item_equipped(self, name):
@@ -987,7 +1006,12 @@ class build_t:
 		'''	
 		if self.has_item_equipped("Cloak of Defiance"):
 			p += 0.10
+		'''	
+		
+		p += self.get_stat_total('base_damage_removed_from_mana_before_life_%') / 100
 
+		if self.find_skill('Clarity', enabled=True) or self.find_skill('Vaal Clarity', enabled=True):
+			p += self.get_stat_total('damage_removed_from_mana_before_life_%_while_affected_by_clarity') / 100
 			
 		return p
 

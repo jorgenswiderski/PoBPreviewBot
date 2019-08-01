@@ -8,6 +8,7 @@ import sre_constants
 # 3rd Party
 
 # Self
+import logger
 
 '''
 FIXME
@@ -44,6 +45,7 @@ def create_whitelist(data):
 
 	# whitelist all support gem stats
 	re_support = re.compile("Socketed Gems are Supported by Level", flags=re.IGNORECASE)
+	support_gem_ids = []
 
 	for translation_group in data:
 		variations = translation_group['English']
@@ -57,8 +59,11 @@ def create_whitelist(data):
 
 		if matched:
 			for id in translation_group['ids']:
-				whitelist.append(id)
+				support_gem_ids.append(id)
 				logging.debug("Whitelisted stat '{}'".format(id))
+
+	whitelist.extend(support_gem_ids)
+	init_support_gem_stat_map(support_gem_ids)
 
 
 def init():
@@ -83,7 +88,31 @@ def init():
 
 		for variation in variations:
 			variation['regex'] = make_regex(variation)
-			logging.debug('"{}" ==> "{}"'.format(variation['string'], variation['regex']))
+			logging.log(logger.DEBUG_ALL, 'Created regex for: "{}" ==>  "{}"'.format(variation['string'], variation['regex']))
+
+def init_support_gem_stat_map(support_gem_ids):
+	global support_gem_map
+
+	support_gem_map = {}
+
+	with open('data/mods.json', 'r') as f:
+		mod_data = json.load(f)
+
+	for mod_id, mod_dict in mod_data.items():
+		for stat in mod_dict['stats']:
+			if stat['id'] in support_gem_ids:
+
+				key = stat['id']
+				values = []
+
+				for effect in mod_dict['grants_effects']:
+					values.append(effect['granted_effect_id'].encode('utf-8'))
+
+				support_gem_map[key] = values
+				logging.log(logger.DEBUG_ALL, "Support gem stat {} mapped to {}".format(key, values))
+
+				support_gem_ids.remove(key)
+
 
 def escape(s):
 	if len(s) > 0 and s[0] == '+':
@@ -118,10 +147,6 @@ def make_regex(variation):
 			replacement = "[+-](\d+)%"
 		else:
 			raise ValueError("unhandled format value")
-
-		logging.debug(needle)
-		logging.debug(replacement)
-		logging.debug(vstr)
 
 		vstr = re.sub(needle, replacement, vstr)
 
@@ -169,9 +194,9 @@ class combined_stats_t:
 
 				if match:
 					if len(match.groups()) > 0:
-						logging.debug("'{}' matches {} with values: {}".format(match.group(0).strip(), ids, match.groups()))
+						logging.log(logger.DEBUG_ALL, "Item text '{}' matches stat {} with values: {}".format(match.group(0).strip(), ids, match.groups()))
 					else:
-						logging.debug("'{}' matches {}".format(match.group(0).strip(), ids))
+						logging.log(logger.DEBUG_ALL, "Item text '{}' matches stat {}".format(match.group(0).strip(), ids))
 
 					# construct stat dict
 					match_values = list(match.groups())
@@ -183,7 +208,7 @@ class combined_stats_t:
 						if stat_format == "ignore":
 							stat_dict[ids[i]] = True
 						else:
-							stat_dict[ids[i]] = match_values.pop(0)
+							stat_dict[ids[i]] = float(match_values.pop(0))
 
 
 					stat = stat_t(match.group(0).strip(), stat_dict, item=item, passive=passive)
@@ -196,7 +221,7 @@ class combined_stats_t:
 					#logging.info(trans_block)
 
 		for match in re.finditer("[^\n]+", trans_block):
-			logging.warn("Non-matched modifier: '{}'".format(match.group()))
+			logging.debug("Non-matched modifier: '{}'".format(match.group()))
 
 	def build_cache(self):
 		self.dict_cache = {}
@@ -232,7 +257,7 @@ class stat_t:
 		self.item = item
 		self.passive = passive
 
-		logging.debug(self.dict)
+		logging.log(logger.DEBUG_ALL, self.dict)
 
 
 init()
