@@ -15,6 +15,7 @@ import passive_skill_tree as passives
 from name_overrides import skill_overrides
 from name_overrides import build_defining_uniques
 from gem_data import support_gems as support_gem_data
+import stat_parsing
 
 from _exceptions import UnsupportedException
 from _exceptions import GemDataException
@@ -518,9 +519,8 @@ class gem_t:
 		return False
 		
 class item_t:
-	re_variant = re.compile("^Variant: .+")
-	re_reqs = re.compile("^Requires Level \d+")
 	re_implicits = re.compile("^Implicits: \d+")
+	re_any_curly_tag = re.compile("{.+}")
 	re_support_mod = re.compile("socketed gems are supported by level \d+ (.+)")
 	re_variant_tag = re.compile("{variant:([\d,]+)}")
 
@@ -554,19 +554,38 @@ class item_t:
 		self.__parse_for_support_gems__()
 		
 	def __parse_mods__(self, rows):
-		self.mods = []
-		for i in range(4, len(rows)):
-			if self.re_variant.search(rows[i]):
-				continue
-			if self.re_reqs.search(rows[i]):
-				continue
+		mods = []
+
+		done_skipping_through_garbage = False
+
+		for i in range(0, len(rows)):
 			if self.re_implicits.search(rows[i]):
+				done_skipping_through_garbage = True
+				continue
+
+			if not done_skipping_through_garbage:
 				continue
 				
-			if self.is_mod_active(rows[i]):
-				self.mods.append(rows[i])
+			# check if the mod is for an inactive variant
+			if not self.is_mod_active(rows[i]):
+				continue
+
+			# trim out the curly bracketed tags
+			replaced = self.re_any_curly_tag.sub("", rows[i])
+
+			# skip empty lines
+			if len(replaced.strip()) <= 0:
+				continue
+
+			mods.append(replaced)
+
+		self.stats = stat_parsing.combined_stats_t("\n".join(mods), item=self)
+		logging.info(self.stats.dict())
 		
 	def __parse_for_support_gems__(self):
+		pass
+
+		'''
 		self.support_mods = {}
 	
 		for r in self.mods:
@@ -582,6 +601,7 @@ class item_t:
 				else:
 					logging.warning("Support gem '{}' was not found in gem data and was ommitted in gem str!".format(name));
 					util.dump_debug_info(self.build.praw_object, xml=self.build.xml)
+		'''
 	
 	def grants_support_gem(self, support):
 		return support.lower() in self.support_mods
@@ -916,6 +936,20 @@ class build_t:
 			return skill in self.passives_by_name
 		else:
 			raise Exception("has_passive_skill was passed an invalid param #2: {}".format(skill))
+
+	def get_stat_total(self, stat):
+		total = 0
+
+		for item in self.items:
+			d = item.stats.dict()
+
+			if stat in d:
+				if d[stat] is True:
+					return d[stat]
+				else:
+					total += d[stat]
+
+		return total
 			
 	def has_item_equipped(self, name):
 		for i in self.equipped_items:
@@ -946,12 +980,14 @@ class build_t:
 		
 		if self.is_MoM():
 			p += 0.30
-			
-		if self.has_item_equipped("Cloak of Defiance"):
-			p += 0.10
-			
+
 		if self.has_passive_skill("Divine Guidance"):
 			p += 0.10
+			
+		'''	
+		if self.has_item_equipped("Cloak of Defiance"):
+			p += 0.10
+
 			
 		return p
 

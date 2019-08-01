@@ -21,35 +21,62 @@ See here for more info:
 https://github.com/brather1ng/RePoE/blob/master/docs/stat_translations.md
 '''
 
+'''
 logging.basicConfig(
 	level=20,
 	format='%(asctime)s %(levelname)s %(filename)s:%(lineno)d> %(message)s',
 	datefmt='%Y/%m/%d %H:%M:%S'
 )
+'''
 
 def is_whitelisted(group):
-	for stat in stat_whitelist:
+	for stat in whitelist:
 		if stat in group['ids']:
 			return True
 
 	return False
 
+def create_whitelist(data):
+	global whitelist
+
+	with open('stat_whitelist.json', 'r') as f:
+		whitelist = json.load(f)
+
+	# whitelist all support gem stats
+	re_support = re.compile("Socketed Gems are Supported by Level", flags=re.IGNORECASE)
+
+	for translation_group in data:
+		variations = translation_group['English']
+
+		matched = False
+
+		for variation in variations:
+			if re_support.search(variation['string']):
+				matched = True
+				break
+
+		if matched:
+			for id in translation_group['ids']:
+				whitelist.append(id)
+				logging.debug("Whitelisted stat '{}'".format(id))
+
+
 def init():
 	global trans_data
-	global stat_whitelist
 
 	with open('data/stat_translations.json', 'r') as f:
 		trans_data = json.load(f)
 
-	with open('stat_whitelist.json', 'r') as f:
-		stat_whitelist = json.load(f)
+	create_whitelist(trans_data)
 
 	# apply stat whitelist
 	trans_data = filter(is_whitelisted, trans_data)
 
+	'''
 	with open('whitelist_example.json', 'w') as f:
 		json.dump(trans_data, f, sort_keys=True, indent=4)
- 
+	'''
+
 	for translation_group in trans_data:
 		ids = translation_group['ids']
 		variations = translation_group['English']
@@ -135,7 +162,7 @@ class combined_stats_t:
 				pattern = "\n{}\n".format(variation['regex'])
 
 				try:
-					match = re.search(pattern, trans_block)
+					match = re.search(pattern, trans_block, flags=re.IGNORECASE)
 				except sre_constants.error as e:
 					logging.error(pattern)
 					raise e
@@ -164,7 +191,7 @@ class combined_stats_t:
 
 					#logging.info(pattern)
 
-					trans_block = re.sub(pattern.strip(), "", trans_block)
+					trans_block = re.sub(pattern.strip(), "", trans_block, flags=re.IGNORECASE)
 
 					#logging.info(trans_block)
 
@@ -229,7 +256,7 @@ WARNING:root:'40% reduced Soul Cost of Vaal Skills' matches [u'vaal_skill_soul_c
 
 #print(parse(test_mods))
 
-start = time.time()
+'''start = time.time()
 
 test_mods = """100% increased Global Critical Strike Chance
 75% increased Critical Strike Chance for Spells
@@ -243,4 +270,4 @@ cs = combined_stats_t(test_mods, item=1)
 
 logging.info(cs.dict())
 
-logging.info(time.time()-start)
+logging.info(time.time()-start)'''
