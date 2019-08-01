@@ -1017,18 +1017,12 @@ class build_t:
 		
 	def is_low_life(self):
 		return self.get_stat('LifeUnreservedPercent') < 35
-
-	def is_MoM(self):
-		return self.has_keystone("Mind Over Matter")
-
-	def is_EB(self):
-		return self.has_keystone("Eldritch Battery")
 		
 	# FIXME: Use values from the modifiers themselves instead of hardcoding.
 	def get_MoM_percent(self):
 		p = 0
 		
-		if self.is_MoM():
+		if self.has_keystone("Mind Over Matter"):
 			p += 0.30
 
 		if self.has_passive_skill("Divine Guidance"):
@@ -1050,7 +1044,7 @@ class build_t:
 		if self.has_keystone("Chaos Inoculation"):
 			return False
 		
-		if self.is_EB():
+		if self.has_keystone("Eldritch Battery"):
 			return False
 		
 		if self.is_low_life():
@@ -1404,8 +1398,8 @@ class build_t:
 		def_desc = ""
 		if self.has_keystone("Chaos Inoculation"):
 			def_desc = "CI"
-		elif self.is_MoM():
-			if self.is_EB():
+		elif self.has_keystone("Mind Over Matter"):
+			if self.has_keystone("Eldritch Battery"):
 				def_desc = "EB MoM"
 			else:
 				def_desc = "MoM"
@@ -1484,13 +1478,13 @@ class build_t:
 			else:
 				body = "{:n}% **Life**".format(self.get_stat("Spec:LifeInc"))
 			
-			if self.is_MoM():
+			if self.has_keystone("Mind Over Matter"):
 				if self.is_fully_geared() and self.level > 1:
 					# Display the full amount of unreserved mana
 					if self.get_stat('ManaUnreserved') > 0:
 						body += " | {:n} **Mana**".format(self.get_stat('ManaUnreserved'))
 					
-					if self.is_EB():
+					if self.has_keystone("Eldritch Battery"):
 						body += " | {:n} **ES**".format(self.get_stat('EnergyShield'))
 					
 					# Calculate the maximum amount of mana that contributes to the player's EHP
@@ -1499,7 +1493,7 @@ class build_t:
 					
 					eff_max_mana = self.get_stat('ManaUnreserved')
 					
-					if self.is_EB():
+					if self.has_keystone("Eldritch Battery"):
 						eff_max_mana += self.get_stat('EnergyShield')
 					
 					# Add up to the max amount
