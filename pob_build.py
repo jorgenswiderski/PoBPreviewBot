@@ -391,6 +391,9 @@ class gem_t:
 		# Skirmish
 		if self.is_attack():
 			tl += self.build.get_stat_total('attack_skills_additional_totems_allowed')
+
+		if self.is_supported_by('Multiple Totems'):
+			tl += 2
 			
 		return tl
 			
