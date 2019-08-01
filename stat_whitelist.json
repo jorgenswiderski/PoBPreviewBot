@@ -1,4 +1,7 @@
 [
 	"base_damage_removed_from_mana_before_life_%",
-	"damage_removed_from_mana_before_life_%_while_affected_by_clarity"
+	"damage_removed_from_mana_before_life_%_while_affected_by_clarity",
+	"number_of_additional_siege_ballistae_per_200_dexterity",
+	"attack_skills_additional_totems_allowed",
+	"base_number_of_totems_allowed"
 ]

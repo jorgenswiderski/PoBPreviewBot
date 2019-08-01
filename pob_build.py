@@ -379,11 +379,18 @@ class gem_t:
 		if self.name == "Searing Bond":
 			tl += 1
 			
-		if self.name == "Siege Ballista Totem" and self.build.has_item_equipped("Iron Commander"):
-			tl += math.floor( self.build.get_stat("Dex") / 200 )
+		'''
+		Iron Commander
+		NOTE: Stat search is a bit more robust than just checking for the presence
+		      of the item, in case the item was renamed or other custom item shenanigans.
+		'''
+		if self.name == "Siege Ballista Totem":
+			totems_per_200 = self.build.get_stat_total('number_of_additional_siege_ballistae_per_200_dexterity')
+			tl += totems_per_200 * math.floor( self.build.get_stat("Dex") / 200 )
 			
-		if self.build.has_item_equipped("Skirmish") and self.is_attack() and self.is_totem():
-			tl += 1
+		# Skirmish
+		if self.is_attack():
+			tl += self.build.get_stat_total('attack_skills_additional_totems_allowed')
 			
 		return tl
 			
@@ -969,6 +976,8 @@ class build_t:
 		return False
 
 	def get_stat_total(self, stat):
+		assert stat in stat_parsing.whitelist
+
 		total = 0
 
 		for item in self.items.values():
@@ -981,7 +990,7 @@ class build_t:
 				else:
 					total += d[stat]
 
-		logging.info("'{}': {}".format(stat, total))
+		logging.log(logger.DEBUG_ALL, "'{}': {}".format(stat, total))
 		return total
 			
 	def has_item_equipped(self, name):
@@ -1066,14 +1075,9 @@ class build_t:
 		if self.has_passive_skill("Pursuit of Faith"):
 			tl += 1
 		
-		if self.has_passive_skill("Ritual of Awakening"):
-			tl += 1
-		
-		# Parse equipped items for ones that grant additional Totems
-		matches = self.item_mod_search("Can have up to (\d+) additional Totems? summoned at a time")
-		
-		for match_obj in matches:
-			tl += int(match_obj.group(1))
+		# Account for items that grant additional totems
+		# eg '+1 to maximum number of Summoned Totems'
+		tl += self.get_stat_total('base_number_of_totems_allowed')
 			
 		return tl
 		
