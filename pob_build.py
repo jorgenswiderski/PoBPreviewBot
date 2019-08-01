@@ -996,11 +996,7 @@ class build_t:
 			d = item.stats.dict()
 
 			if stat in d:
-				if d[stat] is True:
-					logging.info("'{}': {}".format(stat, d[stat]))
-					return d[stat]
-				else:
-					total += d[stat]
+				total += d[stat]
 
 		logging.log(logger.DEBUG_ALL, "'{}': {}".format(stat, total))
 		return total
