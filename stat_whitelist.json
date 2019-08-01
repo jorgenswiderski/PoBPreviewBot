@@ -3,5 +3,10 @@
 	"damage_removed_from_mana_before_life_%_while_affected_by_clarity",
 	"number_of_additional_siege_ballistae_per_200_dexterity",
 	"attack_skills_additional_totems_allowed",
-	"base_number_of_totems_allowed"
+	"base_number_of_totems_allowed",
+	"number_of_additional_mines_to_place",
+	"chance_to_place_an_additional_mine_%",
+	"number_of_additional_traps_to_throw",
+	"fire_trap_number_of_additional_traps_to_throw",
+	"local_unique_jewel_fire_trap_number_of_additional_traps_to_throw_with_40_dex_in_radius"
 ]

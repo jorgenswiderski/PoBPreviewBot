@@ -235,7 +235,7 @@ class combined_stats_t:
 						stat_format = variation['format'][i]
 
 						if stat_format == "ignore":
-							stat_dict[ids[i]] = True
+							stat_dict[ids[i]] = 1.0
 						else:
 							stat_dict[ids[i]] = float(match_values.pop(0))
 
@@ -257,16 +257,10 @@ class combined_stats_t:
 
 		for stat in self.stats:
 			for id, value in stat.dict.items():
-				if id in self.dict_cache:
-					if type(value) != type(self.dict_cache[id]):
-						raise ValueError('cannot combine {} with {}'.format(type(value), type(self.dict_cache[i])))
+				if id not in self.dict_cache:
+					self.dict_cache[id] = 0
 
-					if type(value) == "int":
-						self.dict_cache[id] += value
-					else:
-						self.dict_cache[id] = value or self.dict_cache[id]
-				else:
-					self.dict_cache[id] = value
+				self.dict_cache[id] += value
 
 		self.cache_valid = True
 

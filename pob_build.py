@@ -483,13 +483,12 @@ class gem_t:
 		if self.is_supported_by("Minefield"):
 			mines += 2
 		
-		# Check for item mods
-		mines += len(self.build.item_mod_search("Place an additional Mine"))
-		
-		matches = self.build.item_mod_search("Place (\d+) additional Mines")
-		
-		for match_obj in matches:
-			mines += int(match_obj.group(1))
+		# 'Place an additional Mine' stat
+		# 'Place {0} additional Mines' stat
+		mines += self.build.get_stat_total('number_of_additional_mines_to_place')
+
+		# '{0}% chance when Placing Mines to Place an additional Mine' stat
+		mines += self.build.get_stat_total('chance_to_place_an_additional_mine_') / 100
 			
 		return mines
 	
@@ -505,13 +504,17 @@ class gem_t:
 		if self.is_supported_by("Cluster Traps"):
 			traps += 3
 		
-		# Check for item mods
-		traps += len(self.build.item_mod_search("Skills which Throw Traps throw an additional Trap"))
-		
-		matches = self.build.item_mod_search("Skills which Throw Traps throw (\d+) additional Traps")
-		
-		for match_obj in matches:
-			traps += int(match_obj.group(1))
+		# 'Skills which Throw Traps throw up to 1 additional Trap' stat
+		# 'Skills which Throw Traps throw up to {0} additional Traps' stat
+		traps += self.build.get_stat_total('number_of_additional_traps_to_throw')
+
+		if self.name == "Fire Trap":
+			# 'Fire Trap throws up to 1 additional Trap' stat
+			# 'Fire Trap throws up to {0} additional Traps' stat
+			traps += self.build.get_stat_total('fire_trap_number_of_additional_traps_to_throw')
+			# 'With at least 40 Dexterity in Radius, Fire Trap throws up to 1 additional Trap' stat
+			# 'With at least 40 Dexterity in Radius, Fire Trap throws up to {0} additional Traps' stat
+			traps += self.build.get_stat_total('local_unique_jewel_fire_trap_number_of_additional_traps_to_throw_with_40_dex_in_radius')
 			
 		return traps
 
@@ -948,22 +951,6 @@ class build_t:
 				raise EligibilityException('The active skill gem is socketed in an inactive weapon (ie weapon swap).')
 
 		return msg
-	
-	# Utility function for searching all equipped gear for a particular modifier.
-	# Args:		A regex pattern that determines if a mod matches
-	# Returns:	A list of match objects, one for each matching mod.
-	def item_mod_search(self, pattern):
-		pattern = pattern.lower()
-		matches = []
-			
-		for key in self.equipped_items:
-			item = self.equipped_items[key]
-			for mod in item.mods:
-				match_obj = re.search( pattern, mod.lower() )
-				if match_obj is not None:
-					matches.append(match_obj)
-					
-		return matches
 		
 	def get_class(self):
 		if hasattr(self, 'ascendancy_name'):
