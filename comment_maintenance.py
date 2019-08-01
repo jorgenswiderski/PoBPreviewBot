@@ -331,6 +331,10 @@ class entry_t:
 		
 		#logging.debug("id={} elapsed={} dur={}".format(self.comment_id, elapsed, dur))
 		
+		# avoid divide by zero for forced maintained comments
+		if dur == 0:
+			return 1.0
+
 		return elapsed / dur
 		
 class aggressive_maintainer_t(threading.Thread):
