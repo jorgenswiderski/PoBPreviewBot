@@ -30,6 +30,46 @@ logging.basicConfig(
 )
 '''
 
+def init_support_gem_stat_map(support_gem_ids):
+	global support_gem_map
+
+	support_gem_map = {}
+
+	with open('data/mods.json', 'r') as f:
+		mod_data = json.load(f)
+
+	for mod_id, mod_dict in mod_data.items():
+		for stat in mod_dict['stats']:
+			if stat['id'] in support_gem_ids:
+
+				key = stat['id']
+				values = []
+
+				for effect in mod_dict['grants_effects']:
+					values.append(effect['granted_effect_id'].encode('utf-8'))
+
+				support_gem_map[key] = values
+				logging.log(logger.DEBUG_ALL, "Support gem stat {} mapped to {}".format(key, values))
+
+				support_gem_ids.remove(key)
+
+def init_keystone_stat_map(keystone_ids):
+	global keystone_map
+
+	keystone_map = {}
+
+	for group in trans_data:
+		for id in group['ids']:
+			if id in keystone_ids:
+				key = group['English'][0]['string']
+				keystone_map[key] = id
+				logging.log(logger.DEBUG_ALL, "Keystone stat {} mapped to {}".format(id, key))
+				keystone_ids.remove(id)
+
+	logging.log(logger.DEBUG_ALL, keystone_map)
+
+	assert len(keystone_ids) == 0
+
 def is_whitelisted(group):
 	for stat in whitelist:
 		if stat in group['ids']:
@@ -65,6 +105,18 @@ def create_whitelist(data):
 	whitelist.extend(support_gem_ids)
 	init_support_gem_stat_map(support_gem_ids)
 
+	# whitelist all keystone stats
+	re_keystone = re.compile("keystone_.+", flags=re.IGNORECASE)
+	keystone_ids = []
+
+	for translation_group in data:
+		for id in translation_group['ids']:
+			if re_keystone.match(id):
+				keystone_ids.append(id)
+				logging.debug("Whitelisted stat '{}'".format(id))
+
+	whitelist.extend(keystone_ids)
+	init_keystone_stat_map(keystone_ids)
 
 def init():
 	global trans_data
@@ -89,29 +141,6 @@ def init():
 		for variation in variations:
 			variation['regex'] = make_regex(variation)
 			logging.log(logger.DEBUG_ALL, 'Created regex for: "{}" ==>  "{}"'.format(variation['string'], variation['regex']))
-
-def init_support_gem_stat_map(support_gem_ids):
-	global support_gem_map
-
-	support_gem_map = {}
-
-	with open('data/mods.json', 'r') as f:
-		mod_data = json.load(f)
-
-	for mod_id, mod_dict in mod_data.items():
-		for stat in mod_dict['stats']:
-			if stat['id'] in support_gem_ids:
-
-				key = stat['id']
-				values = []
-
-				for effect in mod_dict['grants_effects']:
-					values.append(effect['granted_effect_id'].encode('utf-8'))
-
-				support_gem_map[key] = values
-				logging.log(logger.DEBUG_ALL, "Support gem stat {} mapped to {}".format(key, values))
-
-				support_gem_ids.remove(key)
 
 
 def escape(s):

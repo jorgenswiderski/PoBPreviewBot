@@ -954,6 +954,20 @@ class build_t:
 		else:
 			raise Exception("has_passive_skill was passed an invalid param #2: {}".format(skill))
 
+	def has_keystone(self, keystone):
+		if self.has_passive_skill(keystone):
+			return True
+
+		assert keystone in stat_parsing.keystone_map
+
+		keystone_stat = stat_parsing.keystone_map[keystone]
+
+		for item in self.items.values():
+			if keystone_stat in item.stats.dict():
+				return True
+
+		return False
+
 	def get_stat_total(self, stat):
 		total = 0
 
@@ -988,10 +1002,10 @@ class build_t:
 		return self.get_stat('LifeUnreservedPercent') < 35
 
 	def is_MoM(self):
-		return self.has_passive_skill("Mind Over Matter") or self.has_item_equipped("Cloak of Defiance")
+		return self.has_keystone("Mind Over Matter")
 
 	def is_EB(self):
-		return self.has_passive_skill("Eldritch Battery") or self.has_item_equipped("The Devouring Diadem")
+		return self.has_keystone("Eldritch Battery")
 		
 	# FIXME: Use values from the modifiers themselves instead of hardcoding.
 	def get_MoM_percent(self):
@@ -1016,7 +1030,7 @@ class build_t:
 		return p
 
 	def is_hybrid(self):
-		if self.has_passive_skill("Chaos Inoculation"):
+		if self.has_keystone("Chaos Inoculation"):
 			return False
 		
 		if self.is_EB():
@@ -1043,7 +1057,7 @@ class build_t:
 	def get_totem_limit(self):
 		tl = 1
 		
-		if self.has_passive_skill("Ancestral Bond"):
+		if self.has_keystone("Ancestral Bond"):
 			tl += 1
 			
 		if self.has_passive_skill("Hierophant"): # Ascendant Hierophant
@@ -1096,7 +1110,7 @@ class build_t:
 	def get_bleed_dps(self):
 		bleed = self.get_stat('BleedDPS')
 		
-		if self.has_passive_skill("Crimson Dance"):
+		if self.has_keystone("Crimson Dance"):
 			desc = "\n".join(passives.nodes[self.passives_by_name["Crimson Dance"]]['sd'])
 			max_stacks = re.search("You can inflict Bleeding on an Enemy up to (\d+) times", desc).group(1)
 			bleed *= int(max_stacks)
@@ -1373,7 +1387,7 @@ class build_t:
 	def get_response_header(self):
 		# Defense descriptor
 		def_desc = ""
-		if self.has_passive_skill("Chaos Inoculation"):
+		if self.has_keystone("Chaos Inoculation"):
 			def_desc = "CI"
 		elif self.is_MoM():
 			if self.is_EB():
@@ -1393,7 +1407,7 @@ class build_t:
 		
 		# Crit descriptor
 		crit_desc = ""
-		if self.get_stat("CritChance") >= 20 and not self.has_passive_skill("Elemental Overload"):
+		if self.get_stat("CritChance") >= 20 and not self.has_keystone("Elemental Overload"):
 			crit_desc = " Crit"
 		
 		# Skill Descriptor
@@ -1442,7 +1456,7 @@ class build_t:
 		total_ehp = 0;
 		show_ehp = False
 		
-		if self.has_passive_skill("Chaos Inoculation"):
+		if self.has_keystone("Chaos Inoculation"):
 			if self.is_fully_geared():
 				body = "{:n} **ES**".format(self.get_stat('EnergyShield'))
 				total_ehp += self.get_stat('EnergyShield')
@@ -1571,7 +1585,7 @@ class build_t:
 		if self.main_gem.is_totem():
 			pieces.append("{} **Totems**".format(self.main_gem.get_totem_limit()))
 		
-		if self.get_stat('CritChance') >= 20 and not self.has_passive_skill("Elemental Overload"):
+		if self.get_stat('CritChance') >= 20 and not self.has_keystone("Elemental Overload"):
 			pieces.append("{:.2f}% **Crit**".format(self.get_stat('CritChance')))
 			pieces.append("{:n}% **Multi**".format(self.get_stat('CritMultiplier')*100))
 			
