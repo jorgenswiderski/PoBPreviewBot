@@ -776,7 +776,12 @@ class build_t:
 			
 			for stat in self.xml_build.findall(elementType):
 				if stat.attrib['stat'] in entry['stats']:
-					self.stats[key][stat.attrib['stat']] = float(stat.attrib['value'])
+					value = stat.attrib['value']
+
+					if value == 'nan':
+						self.stats[key][stat.attrib['stat']] = 0
+					else:
+						self.stats[key][stat.attrib['stat']] = float(stat.attrib['value'])
 					
 			for stat in entry['stats']:
 				if stat not in self.stats[key]:
@@ -1243,6 +1248,7 @@ class build_t:
 				else:
 					# otherwise just use the DPS stats
 					dps['direct'] = self.get_stat('TotalDPS')
+
 					if self.get_stat('WithPoisonDPS') > 0:
 						# For some reason WithPoisonDPS also includes skill DoT DPS
 						dps['poison'] = self.get_stat('WithPoisonDPS') - dps['direct'] - self.get_stat('TotalDot')
