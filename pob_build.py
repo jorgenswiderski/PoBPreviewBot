@@ -1103,6 +1103,8 @@ class build_t:
 				return True
 		if self.main_gem.is_supported_by("Cast when Damage Taken"):
 			return True
+		if self.main_gem.name == "Shockwave":
+			return True
 			
 		return False
 		
