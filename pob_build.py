@@ -592,33 +592,33 @@ class item_t:
 				bounds = re.search("\((\d+\.?\d*)\-(\d+\.?\d*)\)", rows[i])
 
 				if not bounds:
-					raise ValueError("could not find ranges when parsing range mod. row={} item={} id={}".format(i, self.name, self.id))
+					logging.warn("could not find ranges when parsing range mod. row={} item={} id={} mod={}".format(i, self.name, self.id, rows[i]))
+				else:
+					range_min = float(bounds.group(1))
+					range_max = float(bounds.group(2))
+					range_delta = range_max - range_min
 
-				range_min = float(bounds.group(1))
-				range_max = float(bounds.group(2))
-				range_delta = range_max - range_min
+					places = 0
 
-				places = 0
+					if math.ceil(range_min) != range_min:
+						p_match = re.search("\.(.+)", bounds.group(1))
 
-				if math.ceil(range_min) != range_min:
-					p_match = re.search("\.(.+)", bounds.group(1))
+						if not p_match:
+							raise ValueError("{} {}".format(rows[i], bounds.group(1)))
 
-					if not p_match:
-						raise ValueError("{} {}".format(rows[i], bounds.group(1)))
+						places = len(p_match.group(1))
 
-					places = len(p_match.group(1))
+					factor = 10 ^ places
 
-				factor = 10 ^ places
+					final_value = math.ceil( (range_min + range_delta * range_value) * factor) / factor
 
-				final_value = math.ceil( (range_min + range_delta * range_value) * factor) / factor
+					format_str = "{:." + str(places) + "f}"
 
-				format_str = "{:." + str(places) + "f}"
+					new_row = re.sub("\(\d+\.?\d*\-\d+\.?\d*\)", format_str.format(final_value), rows[i], count=1)
 
-				new_row = re.sub("\(\d+\.?\d*\-\d+\.?\d*\)", format_str.format(final_value), rows[i], count=1)
+					logging.log(logger.DEBUG_ALL, "{} ==> {}".format(rows[i], new_row))
 
-				logging.log(logger.DEBUG_ALL, "{} ==> {}".format(rows[i], new_row))
-
-				rows[i] = new_row
+					rows[i] = new_row
 
 			# trim out the curly bracketed tags
 			replaced = self.re_any_curly_tag.sub("", rows[i])
