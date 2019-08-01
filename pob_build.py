@@ -586,17 +586,32 @@ class item_t:
 
 			if range_match:
 				range_value = float(range_match.group(1))
-				bounds = re.search("\((\d+)\-(\d+)\)", rows[i])
+				bounds = re.search("\((\d+\.?\d*)\-(\d+\.?\d*)\)", rows[i])
 
 				if not bounds:
-					raise ValueError("could not find ranges when parsing range mod. row={} item={}".format(i, self.name))
+					raise ValueError("could not find ranges when parsing range mod. row={} item={} id={}".format(i, self.name, self.id))
 
-				range_min = int(bounds.group(1))
-				range_max = int(bounds.group(2))
+				range_min = float(bounds.group(1))
+				range_max = float(bounds.group(2))
 				range_delta = range_max - range_min
-				final_value = int(math.ceil(range_min + range_delta * range_value))
 
-				new_row = re.sub("\(\d+\-\d+\)", str(final_value), rows[i], count=1)
+				places = 0
+
+				if math.ceil(range_min) != range_min:
+					p_match = re.search("\.(.+)", bounds.group(1))
+
+					if not p_match:
+						raise ValueError("{} {}".format(rows[i], bounds.group(1)))
+
+					places = len(p_match.group(1))
+
+				factor = 10 ^ places
+
+				final_value = math.ceil( (range_min + range_delta * range_value) * factor) / factor
+
+				format_str = "{:." + str(places) + "f}"
+
+				new_row = re.sub("\(\d+\.?\d*\-\d+\.?\d*\)", format_str.format(final_value), rows[i], count=1)
 
 				logging.log(logger.DEBUG_ALL, "{} ==> {}".format(rows[i], new_row))
 
