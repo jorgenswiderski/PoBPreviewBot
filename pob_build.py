@@ -985,7 +985,7 @@ class build_t:
 
 	def get_stat_total(self, stat):
 		if stat not in stat_parsing.whitelist:
-			raise StatWhitelistException("'{}' not in whitelist".config(stat))
+			raise StatWhitelistException("'{}' not in whitelist".format(stat))
 
 		total = 0
 
