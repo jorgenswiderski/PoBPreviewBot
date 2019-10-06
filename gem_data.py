@@ -18,6 +18,9 @@ class gem_color(Enum):
 
 class gem_data_t:
 	url_suffix_re = re.compile(".com/(.+?)$")
+	custom_wiki_urls = {
+		"SupportElementalPenetration": "Elemental_Penetration_Support"
+	}
 
 	def __init__(self, id, json):
 		self.id = id
@@ -113,7 +116,10 @@ class support_gem_data_t(gem_data_t):
 		
 		if json['base_item'] is None:
 			self.display_name = id
-			self.wiki_url = None
+			if id in self.custom_wiki_urls:
+				self.wiki_url = "https://pathofexile.gamepedia.com/{}".format(self.custom_wiki_urls[id])
+			else:
+				self.wiki_url = None
 		else:
 			self.wiki_url = "https://pathofexile.gamepedia.com/{}".format(self.display_name.replace(" ", "_"))
 		
