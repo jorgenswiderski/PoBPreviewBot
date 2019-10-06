@@ -15,6 +15,7 @@ import praw
 import urllib2
 from retrying import retry
 from pympler import asizeof
+from atomicwrites import atomic_write
 
 from prawcore.exceptions import Forbidden
 from praw.exceptions import APIException
@@ -611,7 +612,7 @@ class maintain_list_t:
 		self.flush()
 		
 	def flush(self):
-		with open(self.file_path, 'w') as f:
+		with atomic_write(self.file_path, overwrite=True) as f:
 			json.dump(self.list + self.retired_list, f, cls=entry_encoder_t, sort_keys=True, indent=4)
 			
 		logging.debug("Saved maintenance list to file.")

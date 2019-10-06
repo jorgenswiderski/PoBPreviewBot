@@ -11,6 +11,7 @@ from xml import etree
 
 # 3rd Party
 import defusedxml.ElementTree as ET
+from atomicwrites import atomic_write
 
 # Self
 import util
@@ -124,7 +125,7 @@ class ImporterBase(object):
 	
 	@classmethod
 	def flush(cls):
-		with open(cls.path, 'w') as f:
+		with atomic_write(cls.path, overwrite=True) as f:
 			json.dump(cls.blacklist_contents, f, sort_keys=True, indent=4)
 			
 		logging.debug("{} blacklist saved to {}".format(cls.__name__, cls.path))

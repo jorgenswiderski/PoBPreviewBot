@@ -5,6 +5,7 @@ from hashlib import md5
 
 # 3rd Party
 import requests
+from atomicwrites import atomic_write
 
 # Self
 from _exceptions import PoBPartyException
@@ -45,7 +46,7 @@ def get_url(pastebin):
 		
 		hashmap[hash] = rj['url']
 		
-		with open(path, 'w') as f:
+		with atomic_write(path, overwrite=True) as f:
 			json.dump(hashmap, f, sort_keys=True, indent=4)
 		
 	return "https://pob.party/share/{}".format(hashmap[hash])

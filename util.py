@@ -12,6 +12,7 @@ import threading
 import urllib2
 from retrying import retry
 import praw
+from atomicwrites import atomic_write
 
 from prawcore.exceptions import RequestException
 from prawcore.exceptions import ServerError
@@ -180,10 +181,10 @@ def dump_debug_info(praw_object, exc=None, paste_key=None, xml=None, extra_data=
 		data['url'] = praw_object.permalink
 		
 	data.update(extra_data)
-			
-	with open("{}/{}/info.txt".format(dir, id), "w") as f:
-		f.write( json.dumps(data) )
 	
+	with atomic_write("{}/{}/info.txt".format(dir, id), overwrite=True) as f:
+		json.dump(data, f)
+
 	if exc is not None:
 		with open("{}/{}/traceback.txt".format(dir, id), "w") as f:
 			traceback.print_exc( file = f )

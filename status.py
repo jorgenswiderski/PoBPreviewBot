@@ -5,6 +5,9 @@ import os
 import logging
 import datetime
 
+# 3rd party
+from atomicwrites import atomic_write
+
 # Self
 import util
 
@@ -14,7 +17,7 @@ status = {}
 def update():
 	status['lastUpdate'] = time.time()
 
-	with open(file, 'w') as f:
+	with atomic_write(file, overwrite=True) as f:
 		json.dump(status, f, sort_keys=True, indent=4)
 		
 	logging.debug("lastUpdate set to [{}].".format(datetime.datetime.fromtimestamp(status['lastUpdate'])))

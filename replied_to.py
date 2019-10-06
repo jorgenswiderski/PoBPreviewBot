@@ -5,6 +5,7 @@ import time
 
 # 3rd Party
 import praw
+from atomicwrites import atomic_write
 
 # Self
 import util
@@ -37,7 +38,7 @@ class replied_t:
 		return id in self.dict
 		
 	def flush(self):
-		with open(self.path, 'w') as f:
+		with atomic_write(self.path, overwrite=True) as f:
 			json.dump(self.dict, f, sort_keys=True, indent=4)
 		
 	def add(self, wo):
