@@ -689,7 +689,6 @@ class build_t:
 		"enemyPhysicalReduction": "{:+n}% Phys Reduction",
 		"multiplierPoisonOnEnemy": "Poison \({:n}\)",
 		#"heraldOfAgonyVirulenceStack": "Virulence \({:n}\)",
-		"aspectOfTheSpiderWebStacks": "Spider's Web \({:n}\)",
 	}
 	
 	config_strs = {
@@ -895,6 +894,11 @@ class build_t:
 			val = self.__get_config_value__(opt_name)
 			if val and val != 0:
 				dps_config.append(self.config_numbers[opt_name].format(val))
+
+		if self.find_skill("Aspect of the Spider", enabled=True) is not None:
+			val = self.__get_config_value__("aspectOfTheSpiderWebStacks")
+			if val and val != 0:
+				dps_config.append("Spider's Web \({:n}\)".format(val))
 				
 		for opt_name in self.config_strs:
 			val = self.__get_config_value__(opt_name)
