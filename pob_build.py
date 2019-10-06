@@ -475,7 +475,7 @@ class gem_t:
 		mines = 1
 			
 		if self.is_supported_by("Minefield"):
-			mines += 2
+			mines += 4
 		
 		# 'Place an additional Mine' stat
 		# 'Place {0} additional Mines' stat
