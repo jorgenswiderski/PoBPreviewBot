@@ -1,3 +1,5 @@
+from config import config_helper as config
+config.set_mode('debug')
 import gem_data
 
 css_str = """a[href$="#support-gem-red"],
