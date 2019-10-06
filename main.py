@@ -16,8 +16,8 @@ import threading
 import praw
 import defusedxml.ElementTree as ET
 from retrying import retry
-from pympler import tracker
-from pympler import asizeof
+#from pympler import tracker
+#from pympler import asizeof
 
 # Self
 from config import config_helper as config

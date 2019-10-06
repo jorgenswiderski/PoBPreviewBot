@@ -14,7 +14,7 @@ import copy
 import praw
 import urllib2
 from retrying import retry
-from pympler import asizeof
+#from pympler import asizeof
 from atomicwrites import atomic_write
 
 from prawcore.exceptions import Forbidden
