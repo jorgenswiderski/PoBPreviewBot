@@ -482,7 +482,7 @@ class gem_t:
 		mines += self.build.get_stat_total('number_of_additional_mines_to_place')
 
 		# '{0}% chance when Placing Mines to Place an additional Mine' stat
-		mines += self.build.get_stat_total('chance_to_place_an_additional_mine_') / 100
+		mines += self.build.get_stat_total('chance_to_place_an_additional_mine_%') / 100
 			
 		return mines
 	
