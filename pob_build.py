@@ -997,17 +997,29 @@ class build_t:
 
 		logging.log(logger.DEBUG_ALL, "'{}': {}".format(stat, total))
 		return total
+
+	def get_item(self, name, equipped_only=False):
+		# prefer equipped items
+		for t in self.equipped_items.items():
+			slotName = t[0]
+			item = t[1]
+
+			if item.name.lower() == name.lower():
+				if "Weapon" in slotName:
+					if ( self.active_weapon_set == 1 and "Swap" in slotName ) or ( self.active_weapon_set == 0	and "Swap" not in slotName ):
+						return item
+				else:
+					return item
+
+		if not equipped_only:
+			for item in self.items.values():
+				if item.name.lower() == name.lower():
+					return item
+				
+		return None
 			
 	def has_item_equipped(self, name):
-		for i in self.equipped_items:
-			if self.equipped_items[i].name.lower() == name.lower():
-				if "Weapon" in i:
-					if ( self.active_weapon_set == 1 and "Swap" in i ) or ( self.active_weapon_set == 0	and "Swap" not in i ):
-						return True
-				else:
-					return True
-				
-		return False
+		return self.get_item(name, equipped_only=True) is not None
 		
 	def get_stat(self, stat_name, minion=False):
 		return self.stats['minion' if minion else 'player'][stat_name]
