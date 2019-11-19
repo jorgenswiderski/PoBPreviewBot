@@ -668,7 +668,6 @@ class build_t:
 		"conditionFullLife": "Full Life",
 		"conditionKilledRecently": "Killed Recently",
 		"conditionEnemyMoving": "Enemy Moving",
-		"conditionEnemyShocked": "Shock",
 		#"conditionEnemyBlinded": "Blind",
 		"buffUnholyMight": "Unholy Might",
 		#"buffPhasing": "Phasing",
@@ -885,6 +884,14 @@ class build_t:
 			dps_config.append("Boss")
 		elif self.__get_config_value__("enemyIsBoss") == "shaper":
 			dps_config.append("Shaper")
+
+		if self.__get_config_value__("conditionEnemyShocked") == "true":
+			val = self.__get_config_value__("conditionShockEffect")
+
+			if val and val != 0:
+				dps_config.append("Shock \({:n}%\)".format(val))
+			else:
+				dps_config.append("Shock (50%)")
 		
 		for opt_name in self.config_bools:
 			if self.__get_config_value__(opt_name) == "true":
