@@ -19,7 +19,8 @@ class gem_color(Enum):
 class gem_data_t:
 	url_suffix_re = re.compile(".com/(.+?)$")
 	custom_wiki_urls = {
-		"SupportElementalPenetration": "Elemental_Penetration_Support"
+		"SupportElementalPenetration": "Elemental_Penetration_Support",
+		"SupportGreaterSpellEcho": "Greater_Spell_Echo_Support",
 	}
 
 	def __init__(self, id, json):

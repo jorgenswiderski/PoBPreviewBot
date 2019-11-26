@@ -166,6 +166,7 @@ class gem_t:
 		# Gem has no name in the gem data
 		'greater volley': 'UniqueSupportGreaterVolley',
 		'elemental penetration': 'SupportElementalPenetration',
+		'greater spell echo': 'SupportGreaterSpellEcho',
 	}
 
 	def __init__(self, gem_xml, socket_group):
