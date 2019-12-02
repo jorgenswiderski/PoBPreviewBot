@@ -113,7 +113,7 @@ def reply_to_summon(bot, comment, ignore_blacklist=False):
 	
 	try:
 		if parent.is_comment():
-			p_response = get_response( comment )
+			p_response = get_response( parent, ignore_blacklist = True )
 	except (EligibilityException, ImporterLimitException) as e:
 		errs.append("* {}".format(str(e)))
 	
@@ -128,7 +128,7 @@ def reply_to_summon(bot, comment, ignore_blacklist=False):
 		response = "Seems like I missed comment {}! I've replied to it now, sorry about that.".format(parent.id)
 	elif len(errs) > 0:
 		logging.debug("Exception occurred when getting response for comment {}, queueing reply with summary.".format(parent.id))
-		response = "The {} {} was not responded to for the following reason{}:\n\n{}".format(parent, parent.id, "s" if len(errs) > 1 else "", "  \n".join(errs))
+		response = "The {} was not responded to for the following reason{}:\n\n{}".format(str(parent), "s" if len(errs) > 1 else "", "  \n".join(errs))
 	else:
 		logging.debug("Comment {} has no response or exceptions, queueing reply with intro.".format(parent.id))
 		response = config.BOT_INTRO
