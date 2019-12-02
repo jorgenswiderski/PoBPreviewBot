@@ -103,6 +103,8 @@ def reply_to_summon(bot, comment, ignore_blacklist=False):
 
 	errs = []
 	parent = comment.parent()
+
+	logging.debug("Comment {} summons {}, parent is comment {}.".format(comment.id, config.username, parent.id))
 	
 	if parent.author == bot.reddit.user.me():
 		return
@@ -118,12 +120,17 @@ def reply_to_summon(bot, comment, ignore_blacklist=False):
 	response = None
 		
 	if p_response is not None and not bot.replied_to.contains(parent) and not bot.reply_queue.contains_id(parent.id):
+		logging.debug("Comment {} has valid response, queued replies to both comments.".format(parent.id))
+
 		if config.username == "PoBPreviewBot" or "pathofexile" not in config.subreddits:
 			bot.reply_queue.reply(parent, p_response)
+
 		response = "Seems like I missed comment {}! I've replied to it now, sorry about that.".format(parent.id)
 	elif len(errs) > 0:
+		logging.debug("Exception occurred when getting response for comment {}, queueing reply with summary.".format(parent.id))
 		response = "The {} {} was not responded to for the following reason{}:\n\n{}".format(parent, parent.id, "s" if len(errs) > 1 else "", "  \n".join(errs))
 	else:
+		logging.debug("Comment {} has no response or exceptions, queueing reply with intro.".format(parent.id))
 		response = config.BOT_INTRO
 	
 	if response is None:
