@@ -1149,7 +1149,15 @@ class build_t:
 		
 		if self.get_stat('WithPoisonAverageDamage') > 0:
 			# If "WithPoisonAverageDamage" is available, then use that for simplicity.
-			damage['poison'] = self.get_stat('WithPoisonAverageDamage') - damage['direct']
+			damage['poison'] = self.get_stat('WithPoisonAverageDamage')
+
+			# subtract the direct damage
+			damage['poison'] -= damage['direct']
+
+			# subtract the skill DoT DPS, if any. This is very counterintuitively included in WPAD.
+			# probably a PoB bug
+			# This is gonna break whenever the bug is fixed in PoB.
+			damage['poison'] -= self.get_stat('TotalDot')
 		elif self.get_stat('WithPoisonDPS') > 0:
 			# Otherwise we need to do something janky because only average damage skills have WPAD, and "PoisonDamage"
 			# doesn't account for poison chance which also isn't in the XML.
@@ -1238,9 +1246,13 @@ class build_t:
 					stats.append( ( total, "avg damage" ) )
 				
 				ignite = self.get_stat('IgniteDPS')
+				skillDoT = self.get_stat('TotalDot') # skill DoT DPS
 				
 				if ignite * 4 >= 0.05 * total:
 					stats.append( ( ignite, "ignite DPS" ) )
+				
+				if skillDoT >= 0.05 * total:
+					stats.append( ( skillDoT, "skill DoT DPS" ) )
 				
 			if self.show_dps():
 				dps = {}
@@ -1302,8 +1314,10 @@ class build_t:
 				# only show DoTs in breakdown if, together, they add up to a meaningful amount of DPS
 				if dps['direct'] < 0.95 * total:
 					# Base DoT -- only show if its not the sole source of damage
-					if dps['skillDoT'] > 0.01 * total and total != dps['skillDoT']:
-						dps_stats.append( ( dps['skillDoT'], "skill DoT DPS" ) )
+					# don't add it if it's already been added in the average damage block above
+					if "skill DoT DPS" not in map(lambda s: s[1], stats):
+						if dps['skillDoT'] > 0.01 * total and total != dps['skillDoT']:
+							dps_stats.append( ( dps['skillDoT'], "skill DoT DPS" ) )
 						
 					# Poison
 					if dps['poison'] > 0.01 * total:
@@ -1314,8 +1328,10 @@ class build_t:
 						dps_stats.append( ( dps['bleed'], "bleed DPS" ) )
 						
 					# Ignite
-					if dps['ignite'] > 0.01 * total:
-						dps_stats.append( ( dps['ignite'], "ignite DPS" ) )
+					# don't add it if it's already been added in the average damage block above
+					if "ignite DPS" not in map(lambda s: s[1], stats):
+						if dps['ignite'] > 0.01 * total:
+							dps_stats.append( ( dps['ignite'], "ignite DPS" ) )
 						
 					# Decay
 					if dps['decay'] > 0.01 * total:
