@@ -400,7 +400,7 @@ class gem_t:
 			tl += 2
 
 		# base totem override for ballistas, incl hack for pre-3.9
-		if "Ballista" in self.main_gem.name or self.main_gem.is_supported_by("Ranged Attack Totem") or self.main_gem.is_supported_by("Ballista Totem"):
+		if "Ballista" in self.name or self.is_supported_by("Ranged Attack Totem") or self.is_supported_by("Ballista Totem"):
 			tl += 2
 
 			# FIXME: replace with get_stat_total call later once I have the stat data for the extra ballista mod
