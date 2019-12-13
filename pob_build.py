@@ -905,7 +905,7 @@ class build_t:
 			if val and val != 0:
 				dps_config.append("Shock \({:n}%\)".format(val))
 			else:
-				dps_config.append("Shock (50%)")
+				dps_config.append("Shock \(50%\)")
 		
 		for opt_name in self.config_bools:
 			if self.__get_config_value__(opt_name) == "true":
