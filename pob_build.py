@@ -1086,6 +1086,10 @@ class build_t:
 		
 	def get_totem_limit(self):
 		tl = 1
+
+		# base totem override for ballistas, incl hack for pre-3.9
+		if "Ballista" in self.main_gem.name or self.main_gem.is_supported_by("Ranged Attack Totem") or self.main_gem.is_supported_by("Ballista Totem"):
+			tl = 3
 		
 		if self.has_keystone("Ancestral Bond"):
 			tl += 1
