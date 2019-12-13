@@ -398,6 +398,17 @@ class gem_t:
 
 		if self.is_supported_by('Multiple Totems'):
 			tl += 2
+
+		# base totem override for ballistas, incl hack for pre-3.9
+		if "Ballista" in self.main_gem.name or self.main_gem.is_supported_by("Ranged Attack Totem") or self.main_gem.is_supported_by("Ballista Totem"):
+			tl += 2
+
+			# FIXME: replace with get_stat_total call later once I have the stat data for the extra ballista mod
+			if self.build.has_passive_skill("Watchtowers"):
+				tl += 1
+
+			if self.build.has_passive_skill("Panopticon"):
+				tl += 1
 			
 		return tl
 			
@@ -1086,10 +1097,6 @@ class build_t:
 		
 	def get_totem_limit(self):
 		tl = 1
-
-		# base totem override for ballistas, incl hack for pre-3.9
-		if "Ballista" in self.main_gem.name or self.main_gem.is_supported_by("Ranged Attack Totem") or self.main_gem.is_supported_by("Ballista Totem"):
-			tl = 3
 		
 		if self.has_keystone("Ancestral Bond"):
 			tl += 1
