@@ -69,6 +69,8 @@ stats_to_parse = [
 			"Spec:ManaInc",
 			"Spec:EnergyShieldInc",
 			"Cooldown",
+			"ImpaleDPS",
+			"WithImpaleDPS",
 		],
 	},
 	{
@@ -1166,6 +1168,11 @@ class build_t:
 			damage['poison'] = ( self.get_stat('WithPoisonDPS') - self.get_stat('TotalDPS') ) / self.get_stat('Speed')
 		else:
 			damage['poison'] = 0.000
+
+		if self.get_stat('ImpaleDPS') > 0:
+			damage['impale'] = self.get_stat('ImpaleDPS') / self.get_stat('Speed')
+		else:
+			damage['impale'] = 0.000
 		
 		return damage
 		
@@ -1237,22 +1244,32 @@ class build_t:
 			if self.show_average_damage():
 				damage = self.get_average_damage()
 				
-				total = damage['direct'] + damage['poison']
+				total = damage['direct'] + damage['poison'] + damage['impale']
+
+				avg_stats = []
 						
 				if damage['poison'] >= 0.05 * total:
-					stats.append( ( total, "total dmg" ) )
-					stats.append( ( damage['poison'], "poison dmg" ) )
+					avg_stats.append( ( damage['poison'], "poison dmg" ) )
+
+				if damage['impale'] >= 0.05 * total:
+					avg_stats.append( ( damage['impale'], "impale dmg" ) )
+
+				if len(avg_stats) > 0:
+					avg_stats.append( ( total, "total dmg" ) )
 				else:
-					stats.append( ( total, "avg damage" ) )
+					avg_stats.append( ( total, "avg damage" ) )
 				
 				ignite = self.get_stat('IgniteDPS')
 				skillDoT = self.get_stat('TotalDot') # skill DoT DPS
 				
 				if ignite * 4 >= 0.05 * total:
-					stats.append( ( ignite, "ignite DPS" ) )
+					avg_stats.append( ( ignite, "ignite DPS" ) )
 				
 				if skillDoT >= 0.05 * total:
-					stats.append( ( skillDoT, "skill DoT DPS" ) )
+					avg_stats.append( ( skillDoT, "skill DoT DPS" ) )
+				
+				# combine average damage stats into main list
+				stats.extend(avg_stats)
 				
 			if self.show_dps():
 				dps = {}
@@ -1266,6 +1283,7 @@ class build_t:
 					speed = self.get_speed()
 					dps['direct'] = damage['direct'] * speed
 					dps['poison'] = damage['poison'] * speed
+					dps['impale'] = damage['impale'] * speed
 				else:
 					# otherwise just use the DPS stats
 					dps['direct'] = self.get_stat('TotalDPS')
@@ -1275,6 +1293,15 @@ class build_t:
 						dps['poison'] = self.get_stat('WithPoisonDPS') - dps['direct'] - self.get_stat('TotalDot')
 					else:
 						dps['poison'] = 0.000
+
+					if self.get_stat('WithImpaleDPS') > 0:
+						# Dec 12 2019
+						# TotalDot is not included in "WithImpaleDPS" in the LocalIdentity fork
+						# see Modules\CalcOffence-3_0.lua:2224
+						# (the only fork that implements impale DPS calculations)
+						dps['impale'] = self.get_stat('WithImpaleDPS') - dps['direct']
+					else:
+						dps['impale'] = 0.000
 				
 				'''skill_hit_multiplier = self.get_stat('TotalDPS') / dps['direct']
 				dps['direct'] *= skill_hit_multiplier
@@ -1292,8 +1319,7 @@ class build_t:
 						dps['ignite'] = 0.000
 				
 				if self.main_gem.is_totem() and self.main_gem.get_totem_limit() > 1:
-					# assume skill DoT stacks
-					per_totem = dps['direct'] + dps['poison']
+					per_totem = dps['direct'] + dps['poison'] + dps['impale']
 					
 					dot_stacks = self.main_gem.has_stackable_dot()
 					
@@ -1305,6 +1331,7 @@ class build_t:
 					totem_limit = self.main_gem.get_totem_limit()
 					dps['direct'] *= totem_limit
 					dps['poison'] *= totem_limit
+					dps['impale'] *= totem_limit
 					
 					if dot_stacks:
 						dps['skillDoT'] *= totem_limit
@@ -1322,6 +1349,10 @@ class build_t:
 					# Poison
 					if dps['poison'] > 0.01 * total:
 						dps_stats.append( ( dps['poison'], "poison DPS" ) )
+
+					# Impale
+					if dps['impale'] > 0.01 * total:
+						dps_stats.append( ( dps['impale'], "impale DPS" ) )
 					
 					# Bleed
 					if dps['bleed'] > 0.01 * total:
