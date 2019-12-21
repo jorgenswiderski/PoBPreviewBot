@@ -164,7 +164,7 @@ class Pastebin(ImporterBase):
 				
 			return None
 		except urllib2.URLError as e:
-			logging.error("Failed to retrieve any data\nURL: {}\n{}".format(raw_url, str(e)))
+			logging.error("Failed to retrieve any data\nURL: {}\n{}".format(self.raw_url, str(e)))
 			util.dump_debug_info(wrapped_object, exc=e, paste_key=paste_key)
 			return None
 		
