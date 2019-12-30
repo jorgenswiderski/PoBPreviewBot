@@ -182,8 +182,8 @@ def dump_debug_info(praw_object, exc=None, paste_key=None, xml=None, extra_data=
 		
 	data.update(extra_data)
 	
-	with atomic_write("{}/{}/info.txt".format(dir, id), overwrite=True) as f:
-		json.dump(data, f)
+	with atomic_write("{}/{}/info.json".format(dir, id), overwrite=True) as f:
+		json.dump(data, f, sort_keys=True, indent=4)
 
 	if exc is not None:
 		with open("{}/{}/traceback.txt".format(dir, id), "w") as f:
