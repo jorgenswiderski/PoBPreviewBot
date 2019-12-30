@@ -412,8 +412,15 @@ class gem_t:
 		if "Ballista" in self.name or self.is_supported_by("Ballista Totem"):
 			tl += 2
 
+			# FIXME: replace with get_stat_total call once stats on passive skills are support
+			if self.build.has_passive_skill("Watchtowers"):
+				tl += 1
+
+			if self.build.has_passive_skill("Panopticon"):
+				tl += 1
+
 			# "Attack Skills have {0} to maximum number of Summoned Ballista Totems"
-			# includes Watchtowers and Panopticon
+			# currently does not include passive skills, only items
 			tl += self.build.get_stat_total('attack_skills_additional_ballista_totems_allowed')
 			
 		return tl
