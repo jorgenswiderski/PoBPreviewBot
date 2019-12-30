@@ -960,7 +960,17 @@ class build_t:
 		wither_gem = self.find_skill("Wither", enabled=True)
 
 		if wither_gem is not None:
-			dps_config.append("Wither \({}\)".format(self.wither_stacks[wither_gem.xml.attrib['skillPart']]))
+			# LocalIdentity Fork implementation:
+			# wither stacks is a config option
+			wither_stacks = self.__get_config_value__('multiplierWitheredStackCount')
+
+			# Openarl implementation:
+			# wither has skill parts that refer to a stack count
+			if wither_stacks is None and 'skillPart' in wither_gem.xml.attrib:
+				wither_stacks = self.wither_stacks[wither_gem.xml.attrib['skillPart']]
+
+			if wither_stacks is not None:
+				dps_config.append("Wither \({}\)".format(int(wither_stacks)))
 				
 		logging.debug("DPS config: {}".format(dps_config))
 		
