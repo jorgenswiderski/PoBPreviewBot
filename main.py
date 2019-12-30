@@ -32,6 +32,7 @@ from comment_maintenance import maintain_list_t
 from reply_buffer import reply_handler_t
 from reddit_stream import stream_manager_t
 from logger import init_logging
+import stat_parsing
 
 # =============================================================================
 # START FUNCTION DEFINITION
@@ -51,6 +52,8 @@ class bot_t:
 		logging.log(logger.DEBUG_ALL, self.replied_to.dict)
 		
 		self.maintain_list = maintain_list_t( self, "save/active_comments.json" )
+
+		stat_parsing.init()
 			
 		if '-force' in sys.argv:
 			self.maintain_list.flag_for_edits(sys.argv)

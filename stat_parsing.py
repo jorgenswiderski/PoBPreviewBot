@@ -282,9 +282,6 @@ class stat_t:
 
 		logging.log(logger.DEBUG_ALL, self.dict)
 
-
-init()
-
 '''
 test_mods = """Sockets cannot be modified
 +1 to Level of Socketed Gems
