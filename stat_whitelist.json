@@ -8,5 +8,6 @@
 	"chance_to_place_an_additional_mine_%",
 	"number_of_additional_traps_to_throw",
 	"fire_trap_number_of_additional_traps_to_throw",
-	"local_unique_jewel_fire_trap_number_of_additional_traps_to_throw_with_40_dex_in_radius"
+	"local_unique_jewel_fire_trap_number_of_additional_traps_to_throw_with_40_dex_in_radius",
+	"attack_skills_additional_ballista_totems_allowed"
 ]
