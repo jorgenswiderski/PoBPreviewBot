@@ -86,7 +86,7 @@ stats_to_parse = [
 
 # list of all support gems' short names
 # used for error checking in gem_t.is_supported_by
-support_gem_short_name_list = map(lambda g: g.short_name, filter(lambda g: g.is_support, support_gem_data.values()))
+support_gem_short_name_list = map(lambda g: g.short_name.lower(), filter(lambda g: g.is_support, support_gem_data.values()))
 
 class socket_group_t:
 	def __init__(self, skill_xml, build):
