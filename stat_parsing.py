@@ -4,12 +4,31 @@ import logging
 import json
 import time
 import sre_constants
-import glob
 
 # 3rd Party
 
 # Self
 import logger
+
+'''
+FIXME
+
+This will ONLY parse mods on items because stat_translations.json only includes translation for stats found on items.
+For more translations, namely passive skills, I'll need to also loadup these files in a similar manner:
+ - RePoE/stat_translations/passive_skill.json
+ - RePoE/stat_translations/passive_skill_aura.json
+
+See here for more info:
+https://github.com/brather1ng/RePoE/blob/master/docs/stat_translations.md
+'''
+
+'''
+logging.basicConfig(
+	level=20,
+	format='%(asctime)s %(levelname)s %(filename)s:%(lineno)d> %(message)s',
+	datefmt='%Y/%m/%d %H:%M:%S'
+)
+'''
 
 def init_support_gem_stat_map(support_gem_ids):
 	global support_gem_map
@@ -100,31 +119,15 @@ def create_whitelist(data):
 	init_keystone_stat_map(keystone_ids)
 
 def init():
-	logging.debug("Initializing stat parsing...")
-
 	global trans_data
 
-	with open('data\\stat_translations.json', 'r') as f:
-		logging.log(logger.DEBUG_ALL, "Loading stat_translations.json...")
+	with open('data/stat_translations.json', 'r') as f:
 		trans_data = json.load(f)
 
-	for path in glob.glob("data\\stat_translations\\*.json"):
-		logging.log(logger.DEBUG_ALL, "Loading {}...".format(path))
-
-		with open(path, 'r') as f:
-			trans_data.extend(json.load(f))
-
-	# deduplicate
-	logging.log(logger.DEBUG_ALL, "Deduplicating stat translation data...")
-	trans_data = map(lambda e: json.loads(e), list(set(map(lambda e: json.dumps(e), trans_data))))
-	logging.log(logger.DEBUG_ALL, "Finished deduplication.")
-
 	create_whitelist(trans_data)
-	logging.log(logger.DEBUG_ALL, "Created stat whitelist.")
 
 	# apply stat whitelist
 	trans_data = filter(is_whitelisted, trans_data)
-	logging.log(logger.DEBUG_ALL, "Filtered translation data.")
 
 	'''
 	with open('whitelist_example.json', 'w') as f:
@@ -138,8 +141,6 @@ def init():
 		for variation in variations:
 			variation['regex'] = make_regex(variation)
 			logging.log(logger.DEBUG_ALL, 'Created regex for: "{}" ==>  "{}"'.format(variation['string'], variation['regex']))
-
-	logging.debug("Stat parsing initialization complete.")
 
 
 def escape(s):
