@@ -399,16 +399,13 @@ class gem_t:
 		if self.is_supported_by('Multiple Totems'):
 			tl += 2
 
-		# base totem override for ballistas, incl hack for pre-3.9
-		if "Ballista" in self.name or self.is_supported_by("Ranged Attack Totem") or self.is_supported_by("Ballista Totem"):
+		# base totem override for ballistas
+		if "Ballista" in self.name or self.is_supported_by("Ballista Totem"):
 			tl += 2
 
-			# FIXME: replace with get_stat_total call later once I have the stat data for the extra ballista mod
-			if self.build.has_passive_skill("Watchtowers"):
-				tl += 1
-
-			if self.build.has_passive_skill("Panopticon"):
-				tl += 1
+			# "Attack Skills have {0} to maximum number of Summoned Ballista Totems"
+			# includes Watchtowers and Panopticon
+			tl += self.build.get_stat_total('attack_skills_additional_ballista_totems_allowed')
 			
 		return tl
 			
@@ -429,14 +426,14 @@ class gem_t:
 			return False
 
 		return (self.get_skill_data().is_skill_totem
-			or self.is_supported_by("Ranged Attack Totem")
+			or self.is_supported_by("Ballista Totem")
 			or self.is_supported_by("Spell Totem"))
 		
 	def is_mine(self):
 		if self.is_support():
 			return False
 
-		return "mine" in self.get_skill_data().types or self.is_supported_by("Remote Mine")
+		return "mine" in self.get_skill_data().types or self.is_supported_by("Blastchain Mine") or self.is_supported_by("High-Impact Mine")
 	
 	def is_trap(self):
 		if self.is_support():
@@ -1500,9 +1497,9 @@ class build_t:
 		# Totem/Trap/Mine Descriptor
 		actor_desc = ''
 		
-		if self.main_gem.is_supported_by("Spell Totem") or self.main_gem.is_supported_by("Ranged Attack Totem"):
+		if self.main_gem.is_supported_by("Spell Totem") or self.main_gem.is_supported_by("Ballista Totem"):
 			actor_desc = " Totem"
-		elif self.main_gem.is_supported_by("Remote Mine"):
+		elif self.main_gem.is_supported_by("Blastchain Mine") or self.main_gem.is_supported_by("High-Impact Mine"):
 			actor_desc = " Mine"
 		elif self.main_gem.is_supported_by("Trap"):
 			actor_desc = " Trap"
