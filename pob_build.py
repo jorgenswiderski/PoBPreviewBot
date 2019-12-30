@@ -83,7 +83,11 @@ stats_to_parse = [
 		],
 	},
 ]
-	
+
+# list of all support gems' short names
+# used for error checking in gem_t.is_supported_by
+support_gem_short_name_list = map(lambda g: g.short_name, filter(lambda g: g.is_support, support_gem_data.values()))
+
 class socket_group_t:
 	def __init__(self, skill_xml, build):
 		self.xml = skill_xml
@@ -351,6 +355,11 @@ class gem_t:
 		for id, data in self.get_support_gem_dict().items():
 			if data.short_name.lower() == support:
 				return True
+
+		# check if such a support even exists in the gem data.
+		# if it doesn't, throw an exception. that's indicative of some sort of problem
+		if support not in support_gem_short_name_list:
+			raise GemDataException("Called is_supported_by with parameter support gem {}, but no such gem exists in gem data.".format(support))
 			
 		return False
 	

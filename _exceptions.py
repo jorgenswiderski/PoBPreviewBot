@@ -8,7 +8,7 @@ class ImporterLimitException(PoBBotException):
 class EligibilityException(PoBBotException):
 	pass
 	
-# Thrown when creating a support gem that does not have gem data in data/support_gems.tsv
+# Thrown when checking whether a support gem is supporting an active skill gem, but no support gem data with that name exists.
 class GemDataException(PoBBotException):
 	pass
 	
