@@ -9,6 +9,7 @@ import json
 import praw
 
 from praw.exceptions import APIException
+from prawcore.exceptions import ServerError
 
 # Self
 import util
@@ -119,3 +120,8 @@ class reply_t:
 				reply_handler_t._throttled_until = time.time() + 60
 				
 				self.resolved = False
+		except ServerError as e:
+			logging.error("{} occurred while attempting to post response to {}. Stack trace dumped.".format(e, self.object))
+			logging.debug(self.object.permalink())
+			logging.debug(e, exc_info=True)
+			self.resolved = False
