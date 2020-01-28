@@ -122,6 +122,6 @@ class reply_t:
 				self.resolved = False
 		except ServerError as e:
 			logging.error("{} occurred while attempting to post response to {}. Stack trace dumped.".format(e, self.object))
-			logging.debug(self.object.permalink())
+			logging.debug(self.object.permalink)
 			logging.debug(e, exc_info=True)
 			self.resolved = False
