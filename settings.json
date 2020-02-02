@@ -1,7 +1,7 @@
 {
 	"live": {
 		"username": "PoBPreviewBot",
-		"subreddits": ["pathofexile", "PathOfExileBuilds", "PathOfExileFR", "paws_testing_area"]
+		"subreddits": ["pathofexile", "PathOfExileBuilds", "PathOfExileFR", "paws_testing_area", "myPoBBuildCheck"]
 	},
 	"debug": {
 		"username": "aggixxTest",
