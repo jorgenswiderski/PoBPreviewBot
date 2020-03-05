@@ -915,8 +915,6 @@ class build_t:
 		if self.__get_config_value__("conditionEnemyShocked") == "true":
 			val = self.__get_config_value__("conditionShockEffect")
 
-			logging.info("shock: {}".format(val))
-
 			if val is not None:
 				dps_config.append("Shock \({:n}%\)".format(val))
 			else:
