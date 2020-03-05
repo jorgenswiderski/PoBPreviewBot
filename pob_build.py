@@ -613,7 +613,7 @@ class item_t:
 				bounds = re.search("\((\d+\.?\d*)\-(\d+\.?\d*)\)", rows[i])
 
 				if not bounds:
-					logging.warn("could not find ranges when parsing range mod. row={} item={} id={} mod={}".format(i, self.name, self.id, rows[i]))
+					logging.debug("could not find ranges when parsing range mod. row={} item={} id={} mod={}".format(i, self.name, self.id, rows[i]))
 				else:
 					range_min = float(bounds.group(1))
 					range_max = float(bounds.group(2))
