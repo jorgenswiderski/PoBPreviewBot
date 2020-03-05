@@ -718,7 +718,7 @@ class build_t:
 	}
 	
 	config_strs = {
-		"waveOfConvictionExposureType": "{} Exposure",
+		#"waveOfConvictionExposureType": "{} Exposure",
 	}
 	
 	# Dict of Wither Stacks by its corresponding skillPart
@@ -938,6 +938,11 @@ class build_t:
 			val = self.__get_config_value__(opt_name)
 			if val and not isinstance(val, float):
 				dps_config.append(self.config_strs[opt_name].format(val.title()))
+
+		if self.find_skill("Wave of Conviction", enabled=True) is not None:
+			val = self.__get_config_value__("waveOfConvictionExposureType")
+			if val is not None:
+				dps_config.append("{} Exposure".format(val.title()))
 				
 		if self.find_skill("Vaal Haste", enabled=True) is not None:
 			dps_config.append("Vaal Haste")
