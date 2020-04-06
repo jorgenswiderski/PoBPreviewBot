@@ -837,7 +837,7 @@ class build_t:
 			id = ord(nodes[i-1]) * 256 + ord(nodes[i])
 			
 			if id in passives.nodes:
-				self.passives_by_name[passives.nodes[id]['dn']] = id
+				self.passives_by_name[passives.nodes[id]['name']] = id
 				self.passives_by_id[id] = True
 			
 		#logging.debug(allocNodes)
