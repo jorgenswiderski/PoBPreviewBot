@@ -2,7 +2,7 @@
 import logging
 import json
 
-path = 'data\\passive_skills.json'
+path = 'data/passive_skills.json'
 
 logging.debug("Loading skill tree data from '{}'...".format(path))
 
