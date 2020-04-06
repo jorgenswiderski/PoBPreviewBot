@@ -514,7 +514,7 @@ class maintain_list_t:
 				# Only append to list if the comment is young enough
 				if entry.retired:
 					self.retired_list.append( entry )
-					logging.debug( "Did not add comment {} to maintain list (too old)".format(entry.comment_id) )
+					logging.log(logger.DEBUG_ALL, "Did not add comment {} to maintain list (too old)".format(entry.comment_id))
 				else:
 					self.list.append( entry )
 					
