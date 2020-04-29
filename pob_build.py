@@ -941,7 +941,7 @@ class build_t:
 
 		if self.find_skill("Wave of Conviction", enabled=True) is not None:
 			val = self.__get_config_value__("waveOfConvictionExposureType")
-			if val is not None:
+			if val is not None and isinstance(val, str):
 				dps_config.append("{} Exposure".format(val.title()))
 				
 		if self.find_skill("Vaal Haste", enabled=True) is not None:
