@@ -1177,7 +1177,7 @@ class build_t:
 		bleed = self.get_stat('BleedDPS')
 		
 		if self.has_keystone("Crimson Dance"):
-			desc = "\n".join(passives.nodes[self.passives_by_name["Crimson Dance"]]['sd'])
+			desc = "\n".join(passives.nodes[self.passives_by_name["Crimson Dance"]]['stats'])
 			max_stacks = re.search("You can inflict Bleeding on an Enemy up to (\d+) times", desc).group(1)
 			bleed *= int(max_stacks)
 			
