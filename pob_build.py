@@ -1026,7 +1026,7 @@ class build_t:
 
 		keystone_stat = stat_parsing.keystone_map[keystone]
 
-		for item in self.items.values():
+		for item in self.equipped_items.values():
 			if keystone_stat in item.stats.dict():
 				return True
 
@@ -1038,7 +1038,7 @@ class build_t:
 
 		total = 0
 
-		for item in self.items.values():
+		for item in self.equipped_items.values():
 			d = item.stats.dict()
 
 			if stat in d:
