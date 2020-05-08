@@ -1356,6 +1356,11 @@ class build_t:
 					if dps['poison'] <= 0.000:
 						dps['direct'] = 0.000
 						dps['ignite'] = 0.000
+
+				for entry in dps.items():
+					if entry[1] < 0:
+						logging.debug("!!! DANGER WILL ROBINSON !!! {} DPS is negative ({:.2f} DPS). Overriding to 0...".format(entry[0], entry[1]))
+						dps[entry[0]] = 0.000
 				
 				if self.main_gem.is_totem() and self.main_gem.get_totem_limit() > 1:
 					per_totem = dps['direct'] + dps['poison'] + dps['impale']
