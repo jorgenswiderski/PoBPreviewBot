@@ -446,12 +446,16 @@ class aggressive_maintainer_t(threading.Thread):
 			self.bot.acm_event.wait()
 			
 			while self.get_rl_utilization() < self.amu and len(self.list) > 0:
+				self.list.lock.acquire()
+
 				# choose the entry we will maintain
 				entry = self.choose()
 				
 				self.list.list.remove(entry)
 				
 				entry.maintain()
+
+				self.list.lock.release()
 				
 				# write the updated maintenance list to file
 				self.list.flush()
@@ -484,9 +488,18 @@ class maintain_list_t:
 		
 		self.list = []
 		self.retired_list = []
+
+		# list modification lock
+		# acquire this lock when modifying self.list to prevent multithread issues
+		self.lock = threading.RLock()
+		# use of a reetrant lock allows a single thread to acquire the lock multiples
+		# times without blocking, which may be necessary in case a locking method
+		# calls another locking method during its runtime
 		
 		if not os.path.isfile(file_path):
+			self.lock.acquire()
 			self.list = []
+			self.lock.release()
 		else:
 			#self.__init_from_file__()
 			self.__init_from_json__()
@@ -500,6 +513,8 @@ class maintain_list_t:
 			logging.debug("ACM is disabled.")
 			
 	def __init_from_json__(self):
+		self.lock.acquire()
+
 		processed = {}
 	
 		with open(self.file_path, 'r') as f:
@@ -521,6 +536,8 @@ class maintain_list_t:
 				processed[entry.comment_id] = True
 			
 			logging.debug("Populated maintain_list_t with {} active entries, {} retired entries.".format(len(self), len(self.retired_list)))
+
+		self.lock.release()
 		
 	def __len__(self):
 		return len(self.list)
@@ -530,9 +547,13 @@ class maintain_list_t:
 		return a.time
 		
 	def sort(self):
+		self.lock.acquire()
 		self.list.sort(key=maintain_list_t.sorter)
+		self.lock.release()
 		
 	def binary_insert(self, entry):
+		self.lock.acquire()
+
 		# binary search for the index to insert at
 		
 		# define search boundaries
@@ -559,6 +580,8 @@ class maintain_list_t:
 		'''
 			
 		self.list.insert(upper, entry)
+
+		self.lock.release()
 			
 	def add(self, comment):
 		entry = entry_t(self, {
@@ -603,10 +626,14 @@ class maintain_list_t:
 		if not self.is_active():
 			return
 		
+		self.lock.acquire()
+
 		# pop the first entry
 		entry = self.list.pop(0)
 		
 		entry.maintain()
+
+		self.lock.release()
 		
 		# write the updated maintenance list to file
 		self.flush()
