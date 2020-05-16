@@ -122,7 +122,7 @@ def is_number(s):
  
 	return False
 
-def dump_debug_info(praw_object, exc=None, paste_key=None, xml=None, extra_data={}, dir="error"):
+def dump_debug_info(praw_object, exc=None, paste_key=None, xml=None, extra_data={}, dir="error", build=None):
 	'''
 	if not isinstance(praw_object, praw_object_wrapper_t):
 		raise ValueError("dump_debug_info was passed an invalid praw_object: {}".format(type(praw_object)))
@@ -179,6 +179,10 @@ def dump_debug_info(praw_object, exc=None, paste_key=None, xml=None, extra_data=
 			data['type'] = "submission"
 		
 		data['url'] = praw_object.permalink
+
+	if build is not None:
+		if hasattr(build, 'passives_by_name'):
+			data['passives'] = build.passives_by_name
 		
 	data.update(extra_data)
 	

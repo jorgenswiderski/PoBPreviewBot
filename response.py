@@ -50,6 +50,8 @@ def get_response( wrapped_object, ignore_blacklist=False ):
 			if (not importer.is_blacklisted() or ignore_blacklist):
 				if importer.key not in importers_responded_to:
 					if importer.is_pob_xml():
+						build = None
+
 						try:
 							build = build_t(importer, author, wrapped_object)
 							response = build.get_response()
@@ -67,7 +69,7 @@ def get_response( wrapped_object, ignore_blacklist=False ):
 							continue
 						
 						if config.xml_dump:
-							util.dump_debug_info(wrapped_object, xml=importer.xml(), dir="xml_dump")
+							util.dump_debug_info(wrapped_object, xml=importer.xml(), dir="xml_dump", build=build)
 							
 						responses.append(response)
 						importers_responded_to[importer.key] = True
