@@ -410,9 +410,7 @@ class cluster_jewel_t(item_t):
 	def __init_subgraphs__(self):
 		self.subgraphs = []
 
-		sockets = self.build.xml.find('Tree').find('Spec').find('Sockets')
-
-		for socket in sockets.findall('Socket'):
+		for socket in self.build.xml.findall('Tree/Spec/Sockets/Socket'):
 			if int(socket.attrib['itemId']) == self.id:
 				node_id = int(socket.attrib['nodeId'])
 
