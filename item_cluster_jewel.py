@@ -305,9 +305,9 @@ class cluster_jewel_t(item_t):
 	def __init__(self, build, item_xml):
 		super(cluster_jewel_t, self).__init__(build, item_xml)
 		
+		self.__init_notables__()
 		self.__init_skill__()
 		self.__init_keystone__()
-		self.__init_notables__()
 		self.__init_subgraphs__()
 		self.__update_build_passives__()
 	
@@ -332,25 +332,21 @@ class cluster_jewel_t(item_t):
 	@property
 	def nothingness_count(self):
 		if 'local_unique_jewel_grants_x_empty_passives' in self.stats.dict():
+			# Voices
 			return int(self.stats.dict()['local_unique_jewel_grants_x_empty_passives'])
+		elif 'local_affliction_jewel_display_small_nodes_grant_nothing' in self.stats.dict():
+			# Megalomaniac
+
+			# Make sure the number of points is specified, or this won't work (stack overflow)
+			assert 'local_jewel_expansion_passive_node_count' in self.stats.dict()
+
+			return self.node_count - self.socket_count - self.notable_count
 		else:
 			return 0
 	
 	@property
 	def data(self):
 		return data['jewels'][self.base]
-
-	'''
-	@property
-	def stats(self):
-		stats = stat_parsing.combined_stats_t('', item=self)
-
-		for node in self.nodes:
-			if node.allocated:
-				stats += node.stats
-
-		return stats
-	'''
 
 	def __init_skill__(self):
 		if self.nothingness_count > 0:

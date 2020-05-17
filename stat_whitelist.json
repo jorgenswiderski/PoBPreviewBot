@@ -12,5 +12,7 @@
 	"attack_skills_additional_ballista_totems_allowed",
 	"local_jewel_expansion_passive_node_count",
 	"local_jewel_expansion_jewels_count",
-	"local_unique_jewel_grants_x_empty_passives"
+	"local_unique_jewel_grants_x_empty_passives",
+	"local_affliction_jewel_display_small_nodes_grant_nothing",
+	"local_jewel_expansion_jewels_count_override"
 ]
