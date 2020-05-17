@@ -348,6 +348,15 @@ class cluster_jewel_t(item_t):
 	'''
 
 	def __init_skill__(self):
+		if self.nothingness_count > 0:
+			self.skill = {
+				"name": "Nothingness",
+				"tag": None,
+				"stats": []
+			}
+			return
+
+
 		rows = self.xml.text.split('\n')
 		self.skill = None
 
