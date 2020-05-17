@@ -113,6 +113,10 @@ class cluster_node_t(object):
 	def stats(self):
 		pass
 
+	@property
+	def name(self):
+		pass
+
 class cluster_small_node_t(cluster_node_t):
 	@property
 	def stats(self):
@@ -305,6 +309,7 @@ class cluster_jewel_t(item_t):
 		self.__init_keystone__()
 		self.__init_notables__()
 		self.__init_subgraphs__()
+		self.__update_build_passives__()
 	
 	@property
 	def node_count(self):
@@ -414,3 +419,9 @@ class cluster_jewel_t(item_t):
 				# only generate a subgraph for that socket if the socket is allocated
 				if node_id in self.build.passives_by_id:
 					self.subgraphs.append(subgraph_t(self, node_id))
+
+	def __update_build_passives__(self):
+		for subgraph in self.subgraphs:
+			for node in subgraph.nodes.values():
+				if node.allocated:
+					self.build.passives_by_name[node.name] = node.get_id()
