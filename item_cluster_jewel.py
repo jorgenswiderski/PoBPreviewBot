@@ -320,6 +320,8 @@ class cluster_jewel_t(item_t):
 
 	@property
 	def socket_count(self):
+		if 'local_jewel_expansion_jewels_count_override' in self.stats.dict():
+			return int(self.stats.dict()['local_jewel_expansion_jewels_count_override'])
 		if 'local_jewel_expansion_jewels_count' in self.stats.dict():
 			return int(self.stats.dict()['local_jewel_expansion_jewels_count'])
 		else:
