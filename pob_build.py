@@ -313,7 +313,7 @@ class build_t:
 				# non-cluster jewel node
 				# just sanity check that we already processed it
 				if node_id not in self.passives_by_id:
-					logging.warn("{} ({}) was excluded from tree data!".format(passives.nodes[node_id]['name'], node_id))
+					logging.debug("{} ({}) was excluded from tree data!".format(passives.nodes[node_id]['name'], node_id))
 					self.passives_by_id[node_id] = True
 			else:
 				# cluster passive
@@ -323,7 +323,7 @@ class build_t:
 
 		
 	def __parse_items__(self):
-		logging.info("{} parses items.".format(self.importer.key))
+		logging.debug("{} parses items.".format(self.importer.key))
 
 		self.items = {}
 		

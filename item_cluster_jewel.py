@@ -9,14 +9,6 @@ import logger
 import copy
 import passive_skill_tree
 
-'''
-
- TODO:
-
- integrate with the rest of the program
-
-'''
-
 with open('data/cluster_jewels.json', 'r') as f:
 	data = json.load(f)
 
@@ -176,8 +168,8 @@ class subgraph_t():
 		self.__init_proxy_group__()
 		self.__init_nodes__()
 
-		for node in self.nodes.values():
-			logging.log(logger.DEBUG_ALL, "Node {} ({}) allocation: {}".format(node.name, node.get_id(), node.allocated))
+		#for node in self.nodes.values():
+		#	logging.info("Cluster jewel passive node {} ({}) allocation is: {}".format(node.name, node.get_id(), node.allocated))
 
 	@property
 	def data(self):
@@ -189,7 +181,7 @@ class subgraph_t():
 		self.proxy_group = copy.deepcopy(passive_skill_tree.groups[self.proxy_node['group']])
 
 	def __init_nodes__(self):
-		logging.debug("Initializing nodes for socket {} ({} {} [{}])".format(self.parent_socket['skill'], self.jewel.name, self.jewel.base, self.jewel.id))
+		#logging.info("Initializing nodes for socket {} ({} {} [{}])".format(self.parent_socket['skill'], self.jewel.name, self.jewel.base, self.jewel.id))
 
 		# Special handling for keystones
 		if self.jewel.keystone_id:
@@ -295,7 +287,7 @@ class subgraph_t():
 
 			indicies[node_index] = cluster_small_node_t(self)
 
-		logging.log(logger.DEBUG_ALL, "Indicies: {}".format(indicies))
+		#logging.info("Indicies: {}".format(indicies))
 
 		assert indicies[0] and "No entrance to subgraph"
 
