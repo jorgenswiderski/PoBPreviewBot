@@ -9,6 +9,7 @@ import defusedxml.ElementTree as ET
 import util
 import logger
 import stat_parsing
+from gem import gem_t
 
 # Base Item Class
 
