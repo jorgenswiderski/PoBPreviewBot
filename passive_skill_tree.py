@@ -1,6 +1,7 @@
 # Python
 import logging
 import json
+import copy
 
 path = 'data/passive_skills.json'
 
@@ -15,8 +16,18 @@ logging.debug("Parsing nodes from data...")
 
 for key, value in data['nodes'].iteritems():
 	try:
-		nodes[int(key)] = value
+		nodes[int(key)] = copy.deepcopy(value)
 	except ValueError as e:
 		logging.debug("Skipped passive skill node key '{}'".format(key))
+
+logging.debug("Initializing group data...")
+
+groups = {}
+
+for key, value in data['groups'].iteritems():
+	groups[int(key)] = copy.deepcopy(value)
+
+# We've copied everything we need, delete data now to free up memory
+del data
 
 logging.debug("Skill tree data parsing complete.")

@@ -17,6 +17,7 @@ from name_overrides import skill_overrides
 from name_overrides import build_defining_uniques
 from gem_data import support_gems as support_gem_data
 import stat_parsing
+from item import make_item
 
 from _exceptions import UnsupportedException
 from _exceptions import GemDataException
@@ -552,143 +553,6 @@ class gem_t:
 				return True
 		
 		return False
-		
-class item_t:
-	re_implicits = re.compile("^Implicits: \d+")
-	re_any_curly_tag = re.compile("{.+}")
-	re_range = re.compile("\{range:(\d+\.?\d*)\}")
-	re_variant_tag = re.compile("{variant:([\d,]+)}")
-
-	def __init__(self, build, item_xml):
-		self.build = build
-		self.xml = item_xml
-		self.id = int(self.xml.attrib['id'])
-		
-		# set by build_t.__parse_items__()
-		self.slot = None
-		
-		self.__parse_xml__()
-		
-	def __parse_xml__(self):
-		rows = self.xml.text.split('\n')
-		
-		#logging.debug(repr(rows))
-		
-		reg = re.compile("Rarity: ([A-Z])+")
-		s = reg.search(rows[1])
-		
-		if not s:
-			raise Exception('Failure to parse rarity of Item id={:.0f}'.format(self.id))
-			
-		self.rarity = s.group(1)
-		
-		self.name = rows[2].strip()
-		self.base = rows[3].strip()
-		
-		self.__parse_mods__(rows)
-		self.__parse_for_support_gems__()
-		
-	def __parse_mods__(self, rows):
-		mods = []
-
-		done_skipping_through_garbage = False
-
-		for i in range(0, len(rows)):
-			if self.re_implicits.search(rows[i]):
-				done_skipping_through_garbage = True
-				continue
-
-			if not done_skipping_through_garbage:
-				continue
-				
-			# check if the mod is for an inactive variant
-			if not self.is_mod_active(rows[i]):
-				continue
-
-			# process range tags and convert range to a number
-			range_match = self.re_range.search(rows[i])
-
-			if range_match:
-				range_value = float(range_match.group(1))
-				bounds = re.search("\((\d+\.?\d*)\-(\d+\.?\d*)\)", rows[i])
-
-				if not bounds:
-					logging.debug("could not find ranges when parsing range mod. row={} item={} id={} mod={}".format(i, self.name, self.id, rows[i]))
-				else:
-					range_min = float(bounds.group(1))
-					range_max = float(bounds.group(2))
-					range_delta = range_max - range_min
-
-					places = 0
-
-					if math.ceil(range_min) != range_min:
-						p_match = re.search("\.(.+)", bounds.group(1))
-
-						if not p_match:
-							raise ValueError("{} {}".format(rows[i], bounds.group(1)))
-
-						places = len(p_match.group(1))
-
-					factor = 10 ^ places
-
-					final_value = math.ceil( (range_min + range_delta * range_value) * factor) / factor
-
-					format_str = "{:." + str(places) + "f}"
-
-					new_row = re.sub("\(\d+\.?\d*\-\d+\.?\d*\)", format_str.format(final_value), rows[i], count=1)
-
-					logging.log(logger.DEBUG_ALL, "{} ==> {}".format(rows[i], new_row))
-
-					rows[i] = new_row
-
-			# trim out the curly bracketed tags
-			replaced = self.re_any_curly_tag.sub("", rows[i])
-
-			# skip empty lines
-			if len(replaced.strip()) <= 0:
-				continue
-
-			mods.append(replaced)
-
-		self.stats = stat_parsing.combined_stats_t("\n".join(mods), item=self)
-		logging.log(logger.DEBUG_ALL, self.stats.dict())
-		
-	def __parse_for_support_gems__(self):
-		self.support_mods = {}
-
-		for id, value in self.stats.dict().items():
-			if id in stat_parsing.support_gem_map:
-				for granted_effect in stat_parsing.support_gem_map[id]:
-					data = gem_t.get_gem_data(id=granted_effect)
-					
-					if data:
-						self.support_mods[data.id] = data
-						logging.log(logger.DEBUG_ALL, "{} registered as support granted by {}.".format(granted_effect, self.name))
-					else:
-						logging.warning("Support gem '{}' was not found in gem data and was ommitted in gem str!".format(name));
-						util.dump_debug_info(self.build.praw_object, xml=self.build.xml)
-
-	
-	def grants_support_gem(self, support):
-		return support.lower() in self.support_mods
-		
-	def is_mod_active(self, mod):
-		# If there's a variant tag, skip any mods who require a variant different than the one the item is using.
-		var = self.re_variant_tag.search(mod)
-		
-		if var:
-			if 'variant' not in self.xml.attrib:
-				raise Exception("Item {} does not have attrib variant".format(self.id))
-				
-			req_variants = [int(v) for v in var.group(1).split(",")]
-			
-			if int(self.xml.attrib['variant']) not in req_variants:
-				#print("Ignoring row (v={}): {}", int(self.xml.attrib['variant']), rows[i])
-				return False
-				
-			#print("Row is valid (v={}): {}", int(self.xml.attrib['variant']), rows[i])
-			
-		return True
 
 class build_t:
 	config_bools = {
@@ -736,10 +600,10 @@ class build_t:
 		self.importer = importer
 		self.praw_object = praw_object
 		
+		self.__parse_passive_skills__()
 		self.__parse_items__()
 		self.__parse_author__(author)
 		self.__parse_stats__()
-		self.__parse_passive_skills__()
 		self.__parse_character_info__()
 		
 		self.__check_build_eligibility__()
@@ -839,16 +703,31 @@ class build_t:
 			if id in passives.nodes:
 				self.passives_by_name[passives.nodes[id]['name']] = id
 				self.passives_by_id[id] = True
-			
-		#logging.debug(allocNodes)
+
+		# parse cluster jewel nodes
+		for node_id in active_spec.attrib['nodes'].split(','):
+			node_id = int(node_id)
+
+			if node_id < 65536:
+				# non-cluster jewel node
+				# just sanity check that we already processed it
+				assert node_id in self.passives_by_id
+			else:
+				# cluster passive
+				# just flag it as allocated, the black magic determining what
+				# the passive actually is is handled in item_cluster_jewel.py
+				self.passives_by_id[node_id] = True
+
 		
 	def __parse_items__(self):
+		logging.info("{} parses items.".format(self.importer.key))
+
 		self.items = {}
 		
 		xml_items = self.xml.find('Items')
 		
 		for i in xml_items.findall('Item'):
-			self.items[int(i.attrib['id'])] = item_t(self, i)
+			self.items[int(i.attrib['id'])] = make_item(self, i)
 			
 		self.equipped_items = {}
 			
@@ -863,12 +742,17 @@ class build_t:
 			self.equipped_items[slot.attrib['name']].slot = slot.attrib['name']
 			
 		# Jewels
+		# FIXME
 		jewel_idx = 0
 		for sock in self.xml.findall("Socket"):
 			id = int(sock.attrib['itemId'])
+
 			if id > 0:
 				jewel_idx += 1;
 				key = "Jewel{}".format(jewel_idx)
+
+				logging.info("{} equips jewel ({}) {} {}.".format(self.importer.key, id, self.items[id].name, self.items[id].base))
+
 				self.equipped_items[key] = self.items[id]
 				
 				if self.equipped_items[key].slot is None:
@@ -1019,16 +903,20 @@ class build_t:
 			raise Exception("has_passive_skill was passed an invalid param #2: {}".format(skill))
 
 	def has_keystone(self, keystone):
+		# check if the passive skill is allocated
 		if self.has_passive_skill(keystone):
 			return True
 
-		assert keystone in stat_parsing.keystone_map
+		# use stat parsing to identify any items that grant a stat which grants the keystone
+		if keystone in stat_parsing.keystone_map:
+			# get the list of stats that grant the specified keystone
+			# usually only 1 stat but in some cases its more
+			keystone_stats = stat_parsing.keystone_map[keystone]
 
-		keystone_stat = stat_parsing.keystone_map[keystone]
-
-		for item in self.equipped_items.values():
-			if keystone_stat in item.stats.dict():
-				return True
+			for item in self.equipped_items.values():
+				for keystone_stat in keystone_stats:
+					if keystone_stat in item.stats.dict():
+						return True
 
 		return False
 
@@ -1472,12 +1360,27 @@ class build_t:
 			if "Weapon 2 Swap" in required_slots:
 				required_slots.remove("Weapon 2 Swap")
 		'''
-			
-		if self.has_item_equipped("Facebreaker"):
+
+		'''
+		May 15 2020
+		It would probably be more accurate to check whether Hollow Palm Technique is
+		allocated, however currently the only cluster jewel passives that are allocated
+		in the decoded tree data are the cluster jewel sockets. Any other passives
+		which are determined by the socketed jewel (small passives, notables, and
+		keystones) are not present in the tree data.
+		'''
+		one_with_nothing = self.has_item_equipped("One With Nothing")
+
+		logging.info("{} has Hollow Palm: {}".format(self.importer.key, one_with_nothing))
+
+		if self.has_item_equipped("Facebreaker") or one_with_nothing:
 			if "Weapon 1" in required_slots:
 				required_slots.remove("Weapon 1")
 			if "Weapon 1 Swap" in required_slots:
 				required_slots.remove("Weapon 1 Swap")
+
+		if one_with_nothing:
+			required_slots.remove("Gloves")
 			
 		if self.has_item_equipped("Bringer of Rain"):
 			required_slots.remove("Body Armour")

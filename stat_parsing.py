@@ -9,6 +9,7 @@ import sre_constants
 
 # Self
 import logger
+import passive_skill_tree
 
 '''
 FIXME
@@ -59,16 +60,80 @@ def init_keystone_stat_map(keystone_ids):
 	keystone_map = {}
 
 	for group in trans_data:
-		for id in group['ids']:
-			if id in keystone_ids:
+		for stat_id in group['ids']:
+			if stat_id in keystone_ids:
 				key = group['English'][0]['string']
-				keystone_map[key] = id
-				logging.log(logger.DEBUG_ALL, "Keystone stat {} mapped to {}".format(id, key))
-				keystone_ids.remove(id)
+
+				if key not in keystone_map:
+					keystone_map[key] = []
+
+				keystone_map[key].append(stat_id)
+				logging.log(logger.DEBUG_ALL, "Keystone stat '{}' mapped to {}".format(stat_id, key))
+				keystone_ids.remove(stat_id)
 
 	logging.log(logger.DEBUG_ALL, keystone_map)
 
 	assert len(keystone_ids) == 0
+
+def init_cluster_keystone_stat_map(keystone_ids):
+	global cluster_keystone_map
+
+	cluster_keystone_map = {}
+
+	for group in trans_data:
+		for stat_id in group['ids']:
+			if stat_id in keystone_ids:
+				stat_str = group['English'][0]['string']
+
+				match = re.search("Adds (.+)", stat_str).groups()
+				assert len(match) > 0
+				keystone_name = match[0]
+
+				passives = filter(lambda n: n['name'] == keystone_name, passive_skill_tree.nodes.values())
+
+				if len(passives) == 0:
+					logging.warn("No passive found for '{}'".format(stat_id))
+					keystone_ids.remove(stat_id)
+					continue
+
+				assert len(passives) == 1
+
+				cluster_keystone_map[stat_id] = passives[0]['skill']
+				logging.log(logger.DEBUG_ALL, "Cluster keystone stat '{}' mapped to passive {} ({})".format(stat_id, passives[0]['name'], passives[0]['skill']))
+				keystone_ids.remove(stat_id)
+
+	logging.log(logger.DEBUG_ALL, cluster_keystone_map)
+
+	assert len(keystone_ids) == 0
+
+def init_cluster_notable_map(notable_stat_ids):
+	global cluster_notable_map
+
+	cluster_notable_map = {}
+
+	re_notable = re.compile("Added Passive Skill is (.+)", flags=re.IGNORECASE)
+
+	for group in trans_data:
+		for stat_id in group['ids']:
+			if stat_id in notable_stat_ids:
+				for variation in group['English']:
+					if re_notable.search(variation['string']):
+						notable_name = re_notable.search(variation['string']).groups()[0]
+
+						#logging.log(logger.DEBUG_ALL, "'{}' notable is named '{}'".format(stat_id, notable_name))
+
+						cluster_notable_map[stat_id] = notable_name
+
+	notable_names = cluster_notable_map.values()
+	notable_nodes = filter(lambda n: n[1]['name'] in notable_names, passive_skill_tree.nodes.items())
+
+	for stat_id, name in cluster_notable_map.items():
+		matching_nodes = filter(lambda n: n[1]['name'] == name, notable_nodes)
+
+		assert len(matching_nodes) == 1
+
+		cluster_notable_map[stat_id] = (name, matching_nodes[0][0])
+		logging.log(logger.DEBUG_ALL, "'{}' mapped to passive {} ({})".format(stat_id, name, matching_nodes[0][0]))
 
 def is_whitelisted(group):
 	for stat in whitelist:
@@ -117,6 +182,69 @@ def create_whitelist(data):
 
 	whitelist.extend(keystone_ids)
 	init_keystone_stat_map(keystone_ids)
+
+	# whitelist cluster jewel enchantments
+	re_cluster_ench = re.compile("Added Small Passive Skills grant", flags=re.IGNORECASE)
+
+	cluster_ench_ids = []
+
+	for translation_group in data:
+		variations = translation_group['English']
+
+		matched = False
+
+		for variation in variations:
+			if re_cluster_ench.search(variation['string']):
+				matched = True
+				break
+
+		if matched:
+			for id in translation_group['ids']:
+				cluster_ench_ids.append(id)
+				logging.debug("Whitelisted stat '{}'".format(id))
+
+	whitelist.extend(cluster_ench_ids)
+	global cluster_enchant_stats
+	cluster_enchant_stats = cluster_ench_ids
+
+	# whitelist cluster keystone stats
+	re_cluster_keystone = re.compile("local_jewel_expansion_keystone_.+", flags=re.IGNORECASE)
+	cluster_keystone_ids = []
+
+	for translation_group in data:
+		for id in translation_group['ids']:
+			if re_cluster_keystone.match(id):
+				cluster_keystone_ids.append(id)
+				logging.debug("Whitelisted stat '{}'".format(id))
+
+	whitelist.extend(cluster_keystone_ids)
+	init_cluster_keystone_stat_map(cluster_keystone_ids)
+
+	# whitelist cluster jewel notable stats
+	re_notable = re.compile("Added Passive Skill is", flags=re.IGNORECASE)
+
+	cluster_notable_ids = []
+
+	for translation_group in data:
+		variations = translation_group['English']
+
+		matched = False
+
+		for variation in variations:
+			if re_notable.search(variation['string']):
+				matched = True
+				break
+
+		if matched:
+			for id in translation_group['ids']:
+				if id in whitelist:
+					continue
+
+				cluster_notable_ids.append(id)
+				logging.debug("Whitelisted stat '{}'".format(id))
+
+	whitelist.extend(cluster_notable_ids)
+	init_cluster_notable_map(cluster_notable_ids)
 
 def init():
 	global trans_data

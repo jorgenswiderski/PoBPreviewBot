@@ -9,5 +9,8 @@
 	"number_of_additional_traps_to_throw",
 	"fire_trap_number_of_additional_traps_to_throw",
 	"local_unique_jewel_fire_trap_number_of_additional_traps_to_throw_with_40_dex_in_radius",
-	"attack_skills_additional_ballista_totems_allowed"
+	"attack_skills_additional_ballista_totems_allowed",
+	"local_jewel_expansion_passive_node_count",
+	"local_jewel_expansion_jewels_count",
+	"local_unique_jewel_grants_x_empty_passives"
 ]
