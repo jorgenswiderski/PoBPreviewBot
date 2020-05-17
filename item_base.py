@@ -33,7 +33,7 @@ class item_t(object):
 		
 		#logging.debug(repr(rows))
 		
-		reg = re.compile("Rarity: ([A-Z])+")
+		reg = re.compile("Rarity: ([A-Z]+)")
 		s = reg.search(rows[1])
 		
 		if not s:
