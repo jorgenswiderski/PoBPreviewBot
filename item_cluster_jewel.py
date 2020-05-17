@@ -372,7 +372,8 @@ class cluster_jewel_t(item_t):
 		if self.skill:
 			logging.debug("{} {} [{}] skill is {} ({})".format(self.name, self.base, self.id, self.skill['name'], self.skill['tag']))
 		else:
-			logging.warn("{} {} [{}] has no skill".format(self.name, self.base, self.id))
+			log_level = logging.DEBUG if self.rarity == "UNIQUE" else logging.WARNING
+			logging.log(log_level, "{} {} [{}] has no skill".format(self.name, self.base, self.id))
 
 	def __init_keystone__(self):
 		for stat in self.stats.dict():
