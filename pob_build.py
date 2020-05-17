@@ -345,16 +345,17 @@ class build_t:
 			self.equipped_items[slot.attrib['name']].slot = slot.attrib['name']
 			
 		# Jewels
-		# FIXME
 		jewel_idx = 0
-		for sock in self.xml.findall("Socket"):
-			id = int(sock.attrib['itemId'])
 
-			if id > 0:
+		for sock in self.xml.findall('Tree/Spec/Sockets/Socket'):
+			id = int(sock.attrib['itemId'])
+			node_id = int(sock.attrib['nodeId'])
+
+			if id > 0 and node_id in self.passives_by_id:
 				jewel_idx += 1;
 				key = "Jewel{}".format(jewel_idx)
 
-				logging.info("{} equips jewel ({}) {} {}.".format(self.importer.key, id, self.items[id].name, self.items[id].base))
+				#logging.info("{} equips jewel ({}) {} {}.".format(self.importer.key, id, self.items[id].name, self.items[id].base))
 
 				self.equipped_items[key] = self.items[id]
 				
