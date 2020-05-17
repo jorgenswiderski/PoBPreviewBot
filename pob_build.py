@@ -711,7 +711,9 @@ class build_t:
 			if node_id < 65536:
 				# non-cluster jewel node
 				# just sanity check that we already processed it
-				assert node_id in self.passives_by_id
+				if node_id not in self.passives_by_id:
+					logging.warn("{} ({}) was excluded from tree data!".format(passives.nodes[node_id]['name'], node_id))
+					self.passives_by_id[node_id] = True
 			else:
 				# cluster passive
 				# just flag it as allocated, the black magic determining what
