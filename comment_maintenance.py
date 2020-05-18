@@ -39,10 +39,8 @@ class entry_encoder_t(json.JSONEncoder):
 		if isinstance(obj, entry_t):
 			return {
 				'comment_id': obj.comment_id,
-				'time': obj.time,
-				'created_utc': obj.created_utc,
-				'last_time': obj.last_time,
-				'retired': obj.retired,
+				'created_utc': int(obj.created_utc),
+				'last_time': int(obj.last_time),
 			}
 		return json.JSONEncoder.default(self, obj)
 		
@@ -458,7 +456,8 @@ class aggressive_maintainer_t(threading.Thread):
 				self.list.lock.release()
 				
 				# write the updated maintenance list to file
-				self.list.flush()
+				if time.time() - self.list.last_flush >= config.max_acm_flush_interval:
+					self.list.flush()
 				
 				if config.debug_memory:
 					items = sum(map(lambda x: x.asizeof(), self.list.list))
@@ -485,6 +484,7 @@ class maintain_list_t:
 		self.file_path = file_path
 		self.reddit = bot.reddit
 		self.replied_to = bot.replied_to
+		self.last_flush = 0
 		
 		self.list = []
 		self.retired_list = []
@@ -525,17 +525,11 @@ class maintain_list_t:
 					continue
 			
 				entry = entry_t(self, jdict)
-				
-				# Only append to list if the comment is young enough
-				if entry.retired:
-					self.retired_list.append( entry )
-					logging.log(logger.DEBUG_ALL, "Did not add comment {} to maintain list (too old)".format(entry.comment_id))
-				else:
-					self.list.append( entry )
+				self.list.append( entry )
 					
 				processed[entry.comment_id] = True
 			
-			logging.debug("Populated maintain_list_t with {} active entries, {} retired entries.".format(len(self), len(self.retired_list)))
+			logging.debug("Populated maintain_list_t with {} entries.".format(len(self)))
 
 		self.lock.release()
 		
@@ -590,6 +584,8 @@ class maintain_list_t:
 		})
 		
 		self.add_entry( entry )
+
+		self.flush()
 			
 	def add_entry(self, entry):
 		self.binary_insert( entry )
@@ -621,7 +617,8 @@ class maintain_list_t:
 			
 	def is_active(self):
 		return len(self) > 0 and self.next_time() <= time.time()
-			
+
+	# no longer used, superceded by ACM	
 	def process(self):
 		if not self.is_active():
 			return
@@ -639,10 +636,17 @@ class maintain_list_t:
 		self.flush()
 		
 	def flush(self):
+		#start = time.time()
+
 		with atomic_write(self.file_path, overwrite=True) as f:
-			json.dump(self.list + self.retired_list, f, cls=entry_encoder_t, sort_keys=True, indent=4)
+			json.dump(self.list, f, cls=entry_encoder_t, sort_keys=True, indent=4)
+
+		#json.dumps(self.list + self.retired_list, f, cls=entry_encoder_t, sort_keys=True, indent=4)
 			
+		#logging.debug("Saved maintenance list to file. ({:.3f}s elapsed)".format(time.time()-start)
 		logging.debug("Saved maintenance list to file.")
+
+		self.last_flush = time.time()
 			
 			
 			
