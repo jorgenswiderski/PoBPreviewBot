@@ -305,21 +305,29 @@ class build_t:
 				self.passives_by_name[passives.nodes[id]['name']] = id
 				self.passives_by_id[id] = True
 
-		# parse cluster jewel nodes
-		for node_id in active_spec.attrib['nodes'].split(','):
-			node_id = int(node_id)
+		'''
+		May 17 2020
+		parse 'nodes' section
+		explicitly lists all nodes allocated by ID
+		mainly this is relevant for cluster jewels
+		(which are not supported by the passive skill tree URL format)
+		Only PoBs from a somewhat new version of PoB have this so we cant necessarily rely on it
+		'''
+		if 'nodes' in active_spec.attrib:
+			for node_id in active_spec.attrib['nodes'].split(','):
+				node_id = int(node_id)
 
-			if node_id < 65536:
-				# non-cluster jewel node
-				# just sanity check that we already processed it
-				if node_id not in self.passives_by_id:
-					logging.debug("{} ({}) was excluded from tree data!".format(passives.nodes[node_id]['name'], node_id))
+				if node_id < 65536:
+					# non-cluster jewel node
+					# just sanity check that we already processed it
+					if node_id not in self.passives_by_id:
+						logging.debug("{} ({}) was excluded from tree data!".format(passives.nodes[node_id]['name'], node_id))
+						self.passives_by_id[node_id] = True
+				else:
+					# cluster passive
+					# just flag it as allocated, the black magic determining what
+					# the passive actually is is handled in item_cluster_jewel.py
 					self.passives_by_id[node_id] = True
-			else:
-				# cluster passive
-				# just flag it as allocated, the black magic determining what
-				# the passive actually is is handled in item_cluster_jewel.py
-				self.passives_by_id[node_id] = True
 
 		
 	def __parse_items__(self):
