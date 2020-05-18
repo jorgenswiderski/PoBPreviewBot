@@ -391,6 +391,12 @@ class aggressive_maintainer_t(threading.Thread):
 		# rate limit window end timestamp
 		end = rl.reset_timestamp
 
+		# rate limit window start timestamp (assumed)
+		start = end - self.rate_limit_window
+		
+		queries_total = rl.used + rl.remaining
+		used_pct = rl.used / queries_total
+
 		dur = 0
 
 		if time.time() >= end and used_pct >= self.amu:
@@ -400,12 +406,6 @@ class aggressive_maintainer_t(threading.Thread):
 			# since we don't know when the cycle will actually end, just sleep in 100ms increments
 			dur = 0.100
 		else:
-			# rate limit window start timestamp (assumed)
-			start = end - self.rate_limit_window
-			
-			queries_total = rl.used + rl.remaining
-			used_pct = rl.used / queries_total
-			
 			ready_time = start + self.rate_limit_window * min( 1.0, used_pct / self.amu )
 			
 			# add 10ms to avoid rounding issues causing excessive cycles
