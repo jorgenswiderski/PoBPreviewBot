@@ -390,18 +390,28 @@ class aggressive_maintainer_t(threading.Thread):
 		
 		# rate limit window end timestamp
 		end = rl.reset_timestamp
-		# rate limit window start timestamp (assumed)
-		start = end - self.rate_limit_window
+
+		dur = 0
+
+		if time.time() >= end and used_pct >= self.amu:
+			# sometimes the RL cycle last longer than its stated duration.
+			# if that happens and we've used what we can, then sleep til the cycle ends
+			# otherwise we'll end up looping through main as fast as possible and wasting a lot of CPU cycles
+			# since we don't know when the cycle will actually end, just sleep in 100ms increments
+			dur = 0.100
+		else:
+			# rate limit window start timestamp (assumed)
+			start = end - self.rate_limit_window
+			
+			queries_total = rl.used + rl.remaining
+			used_pct = rl.used / queries_total
+			
+			ready_time = start + self.rate_limit_window * min( 1.0, used_pct / self.amu )
+			
+			# add 10ms to avoid rounding issues causing excessive cycles
+			dur = ready_time - time.time() + 0.010
 		
-		queries_total = rl.used + rl.remaining
-		used_pct = rl.used / queries_total
-		
-		ready_time = start + self.rate_limit_window * min( 1.0, used_pct / self.amu )
-		
-		# add 10ms to avoid rounding issues causing excessive cycles
-		dur = ready_time - time.time() + 0.01
-		
-		if dur >= 0:
+		if dur > 0.000:
 			logging.debug("ACMThread idling for {:.3f}s.".format(dur))
 			time.sleep(dur)
 			
