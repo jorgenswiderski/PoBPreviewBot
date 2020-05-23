@@ -378,10 +378,12 @@ class aggressive_maintainer_t(threading.Thread):
 		
 		used_pct = rl.used / queries_total
 		
-		logging.log(logger.DEBUG_ALL, "used={:.0f} rem={:.0f} total={:.0f} start={:.3f} end={:.3f} elapsed={:.3f} el_pct={:.2f}% used_pct={:.2f}% util={:.2f}%".format(
+		'''
+		logging.debug("PRAW rate limit utilization: used={:.0f} rem={:.0f} total={:.0f} start={:.3f} end={:.3f} elapsed={:.3f} el_pct={:.2f}% used_pct={:.2f}% util={:.2f}%".format(
 			rl.used, rl.remaining, queries_total,
 			start, end, elapsed,
 			elapsed_pct*100, used_pct*100, used_pct / elapsed_pct * 100 ) )
+		'''
 		
 		return used_pct / elapsed_pct
 		
