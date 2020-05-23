@@ -246,6 +246,11 @@ class subgraph_t():
 		for base_node in notable_list:
 			index = notable_list.index(base_node)
 
+			if index >= len(notable_index_list):
+				# Jewel has more notables than is possible
+				# Mirror PoB's approach and just silently ignore excess notables
+				break
+
 			# Get the index
 			node_index = notable_index_list[index]
 
