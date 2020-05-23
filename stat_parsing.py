@@ -4,31 +4,24 @@ import logging
 import json
 import time
 import sre_constants
+import glob
 
 # 3rd Party
 
 # Self
 import logger
 import passive_skill_tree
+import util
 
 '''
-FIXME
-
-This will ONLY parse mods on items because stat_translations.json only includes translation for stats found on items.
-For more translations, namely passive skills, I'll need to also loadup these files in a similar manner:
+This will ONLY parse mods whose stat translations are present in the following files:
+ - RePoE/stat_translations.json
  - RePoE/stat_translations/passive_skill.json
- - RePoE/stat_translations/passive_skill_aura.json
+
+To add additional files, just drop them in the stat translations folder.
 
 See here for more info:
 https://github.com/brather1ng/RePoE/blob/master/docs/stat_translations.md
-'''
-
-'''
-logging.basicConfig(
-	level=20,
-	format='%(asctime)s %(levelname)s %(filename)s:%(lineno)d> %(message)s',
-	datefmt='%Y/%m/%d %H:%M:%S'
-)
 '''
 
 def init_support_gem_stat_map(support_gem_ids):
@@ -74,66 +67,6 @@ def init_keystone_stat_map(keystone_ids):
 	logging.log(logger.DEBUG_ALL, keystone_map)
 
 	assert len(keystone_ids) == 0
-
-def init_cluster_keystone_stat_map(keystone_ids):
-	global cluster_keystone_map
-
-	cluster_keystone_map = {}
-
-	for group in trans_data:
-		for stat_id in group['ids']:
-			if stat_id in keystone_ids:
-				stat_str = group['English'][0]['string']
-
-				match = re.search("Adds (.+)", stat_str).groups()
-				assert len(match) > 0
-				keystone_name = match[0]
-
-				passives = filter(lambda n: n['name'] == keystone_name, passive_skill_tree.nodes.values())
-
-				if len(passives) == 0:
-					logging.warn("No passive found for '{}'".format(stat_id))
-					keystone_ids.remove(stat_id)
-					continue
-
-				assert len(passives) == 1
-
-				cluster_keystone_map[stat_id] = passives[0]['skill']
-				logging.log(logger.DEBUG_ALL, "Cluster keystone stat '{}' mapped to passive {} ({})".format(stat_id, passives[0]['name'], passives[0]['skill']))
-				keystone_ids.remove(stat_id)
-
-	logging.log(logger.DEBUG_ALL, cluster_keystone_map)
-
-	assert len(keystone_ids) == 0
-
-def init_cluster_notable_map(notable_stat_ids):
-	global cluster_notable_map
-
-	cluster_notable_map = {}
-
-	re_notable = re.compile("Added Passive Skill is (.+)", flags=re.IGNORECASE)
-
-	for group in trans_data:
-		for stat_id in group['ids']:
-			if stat_id in notable_stat_ids:
-				for variation in group['English']:
-					if re_notable.search(variation['string']):
-						notable_name = re_notable.search(variation['string']).groups()[0]
-
-						#logging.log(logger.DEBUG_ALL, "'{}' notable is named '{}'".format(stat_id, notable_name))
-
-						cluster_notable_map[stat_id] = notable_name
-
-	notable_names = cluster_notable_map.values()
-	notable_nodes = filter(lambda n: n[1]['name'] in notable_names, passive_skill_tree.nodes.items())
-
-	for stat_id, name in cluster_notable_map.items():
-		matching_nodes = filter(lambda n: n[1]['name'] == name, notable_nodes)
-
-		assert len(matching_nodes) == 1
-
-		cluster_notable_map[stat_id] = (name, matching_nodes[0][0])
-		logging.log(logger.DEBUG_ALL, "'{}' mapped to passive {} ({})".format(stat_id, name, matching_nodes[0][0]))
 
 def is_whitelisted(group):
 	for stat in whitelist:
@@ -207,50 +140,35 @@ def create_whitelist(data):
 	global cluster_enchant_stats
 	cluster_enchant_stats = cluster_ench_ids
 
-	# whitelist cluster keystone stats
-	re_cluster_keystone = re.compile("local_jewel_expansion_keystone_.+", flags=re.IGNORECASE)
-	cluster_keystone_ids = []
+	# whitelist cluster passive stats
+	# (any cluster jewel stat that grants a passive)
+	with open('data/cluster_jewel_notables.json', 'r') as f:
+		cluster_passive_stat_ids = map(lambda n: n['jewel_stat'], json.load(f))
 
-	for translation_group in data:
-		for id in translation_group['ids']:
-			if re_cluster_keystone.match(id):
-				cluster_keystone_ids.append(id)
-				logging.debug("Whitelisted stat '{}'".format(id))
+	whitelist.extend(cluster_passive_stat_ids)
 
-	whitelist.extend(cluster_keystone_ids)
-	init_cluster_keystone_stat_map(cluster_keystone_ids)
+	# whitelist cluster enchant stats
+	with open('data/cluster_jewels.json', 'r') as f:
+		cluster_data = json.load(f)
 
-	# whitelist cluster jewel notable stats
-	re_notable = re.compile("Added Passive Skill is", flags=re.IGNORECASE)
+		cluster_enchant_stats_ids = []
 
-	cluster_notable_ids = []
+		for key, value in cluster_data.iteritems():
+			for skill_data in value['passive_skills']:
+				for stat_id in skill_data['stats'].keys():
+					cluster_enchant_stats_ids.append(stat_id)
 
-	for translation_group in data:
-		variations = translation_group['English']
-
-		matched = False
-
-		for variation in variations:
-			if re_notable.search(variation['string']):
-				matched = True
-				break
-
-		if matched:
-			for id in translation_group['ids']:
-				if id in whitelist:
-					continue
-
-				cluster_notable_ids.append(id)
-				logging.debug("Whitelisted stat '{}'".format(id))
-
-	whitelist.extend(cluster_notable_ids)
-	init_cluster_notable_map(cluster_notable_ids)
+	whitelist.extend(cluster_enchant_stats_ids)
 
 def init():
 	global trans_data
 
 	with open('data/stat_translations.json', 'r') as f:
 		trans_data = json.load(f)
+
+	for file in glob.glob('data/stat_translations/*.json'):
+		with open(file, 'r') as f:
+			trans_data += json.load(f)
 
 	create_whitelist(trans_data)
 
@@ -310,9 +228,12 @@ def make_regex(variation):
 	return vstr
 
 class combined_stats_t:
-	def __init__(self, trans_str, item=None, passive=None):
+	def __init__(self, trans_str, stats_dict=None, item=None, passive=None):
 		if item is None and passive is None:
 			raise ValueError("stat_t passed invalid args, must provide source item or passive")
+
+		if trans_str is None and stats_dict is None:
+			raise ValueError("stat_t passed invalid args, must provide stat strings or stat dict")
 
 		self.item = item
 		self.passive = passive
@@ -320,7 +241,11 @@ class combined_stats_t:
 		self.dict_cache = {}
 		self.cache_valid = True
 
-		self.parse_str(trans_str)
+		if trans_str is not None:
+			self.parse_str(trans_str)
+		else:
+			for key, value in stats_dict.iteritems():
+				self.add(stat_t(None, {key: value}))
 
 	def add(self, stat):
 		self.stats.append(stat)
@@ -367,6 +292,8 @@ class combined_stats_t:
 						else:
 							stat_dict[ids[i]] = float(match_values.pop(0))
 
+							if len(variation['index_handlers']) > i and variation['index_handlers'][i] == 'negate':
+								stat_dicts[ids[i]] *= -1
 
 					stat = stat_t(match.group(0).strip(), stat_dict, item=item, passive=passive)
 					self.add(stat)
@@ -400,15 +327,77 @@ class combined_stats_t:
 
 class stat_t:
 	def __init__(self, stat_str, stats, item=None, passive=None):
-		if item is None and passive is None:
-			raise ValueError("stat_t passed invalid args, must provide source item or passive")
+		if stat_str is not None:
+			self._string = stat_str
 
-		self.string = stat_str
+		#self.dict = util.byteify(stats)
 		self.dict = stats
 		self.item = item
 		self.passive = passive
 
 		logging.log(logger.DEBUG_ALL, self.dict)
+
+	@property
+	def string(self):
+		try:
+			return self._string
+		except AttributeError:
+			pass
+
+		global trans_data
+
+		stat_strs = []
+
+		for stat_id, value in self.dict.iteritems():
+			for translation_group in trans_data:
+				translated = False
+
+				if stat_id in translation_group['ids']:
+					#logging.info("Found matching stat id '{}'".format(stat_id))
+
+					# Loop through the variations
+					for variation in translation_group['English']:
+						# Find one that satifies the conditions
+						if 'min' in variation['condition']:
+							if value < variation['condition']['min']:
+								continue
+
+						if 'max' in variation['condition']:
+							if value > variation['condition']['max']:
+								continue
+
+						formatted_value = None
+
+						if len(variation['index_handlers']) > 0 and variation['index_handlers'][0] == "negate":
+							value *= -1
+
+						if variation['format'][0] == '#':
+							formatted_value = "{}".format(value)
+						elif variation['format'][0] == '+#':
+							formatted_value = "{:+}".format(value)
+						elif variation['format'][0] == '#%':
+							formatted_value = "{}%".format(value)
+						elif variation['format'][0] == '+#%':
+							formatted_value = "{:+}%".format(value)
+						elif variation['format'][0] == 'ignored':
+							raise ValueError("Attempted to format stat '{}' with value '{}' but format is ignored.".format(stat_id, value))
+
+						stat_strs.append(variation['string'].format(formatted_value))
+						translated = True
+						break
+
+				if translated:
+					break
+
+			if not translated:
+				raise Exception("Could not find suitable translation for stat '{}' with value '{}'.".format(stat_id, value))
+
+		self._string = "\n".join(stat_strs)
+		return self._string
+
+
+
+	
 
 '''
 test_mods = """Sockets cannot be modified

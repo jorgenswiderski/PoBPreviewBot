@@ -9,8 +9,67 @@ import logger
 import copy
 import passive_skill_tree
 
-with open('data/cluster_jewels.json', 'r') as f:
-	data = json.load(f)
+# load in a function to aid garbage collection
+def init():
+	with open('data/cluster_jewels.json', 'r') as f:
+		raw_data = json.load(f)
+
+		global data
+		data = {}
+
+		# Initialized hardcoded size indices
+		# This value is not from the game data but is present in PoB, so we supplement here
+		size_indices = {
+			'Large': 2,
+			'Medium': 1,
+			'Small': 0
+		}
+
+		for key, value in raw_data.iteritems():
+			value['size_index'] = size_indices[value['size']]
+			data[value['name']] = value
+
+			for skill_data in value['passive_skills']:
+				# Add enchant value
+				skill_data['enchant'] = []
+
+				for stat_id, value in skill_data['stats'].iteritems():
+					stat = stat_parsing.stat_t(None, {stat_id: value})
+					skill_data['enchant'].append("Added Small Passive Skills grant: {}".format(stat.string))
+					del stat
+
+	with open('data/cluster_jewel_notables.json', 'r') as f:
+		notable_data = json.load(f)
+
+		# Create these dicts
+		global notable_sort_order
+		notable_sort_order = {}
+		global cluster_notable_map
+		cluster_notable_map = {}
+		global cluster_keystone_map
+		cluster_keystone_map = {}
+
+		for notable in notable_data:
+			# Create sort order entry
+			notable_sort_order[notable['name']] = notable_data.index(notable)
+
+			# Create notable / keystone map entry
+			try:
+				matching_nodes = passive_skill_tree.find_nodes_by_name(notable['name'])
+			except KeyError:
+				logging.warning("No passive found for {} ({})".format(notable['name'], notable['jewel_stat']))
+				continue
+
+			assert len(matching_nodes) == 1
+
+			if 'isKeystone' in matching_nodes[0] and matching_nodes[0]['isKeystone']:
+				cluster_keystone_map[notable['jewel_stat']] = (notable['name'], matching_nodes[0]['skill'])
+			elif 'isNotable' in matching_nodes[0] and matching_nodes[0]['isNotable']:
+				cluster_notable_map[notable['jewel_stat']] = (notable['name'], matching_nodes[0]['skill'])
+			else:
+				raise RuntimeError("Cluster jewel notable found passive that is neither a notable or a keystone")
+
+			#logging.info("'{}' mapped to passive {} ({})".format(notable['jewel_stat'], notable['name'], matching_nodes[0]['skill']))
 
 class cluster_node_t(object):
 	def __init__(self, subgraph):
@@ -52,7 +111,7 @@ class cluster_node_t(object):
 		id += self.index
 
 		# Step 2: Group size
-		id += self.jewel.data['sizeIndex'] << 4
+		id += self.jewel.data['size_index'] << 4
 
 		# Step 3: Large index
 		node = self.subgraph.parent_socket
@@ -112,9 +171,7 @@ class cluster_node_t(object):
 class cluster_small_node_t(cluster_node_t):
 	@property
 	def stats(self):
-		stat_str = '\n'.join(self.jewel.skill['stats'])
-
-		return stat_parsing.combined_stats_t(stat_str, passive=self)
+		return stat_parsing.combined_stats_t(None, stats_dict=self.jewel.skill['stats'], passive=self)
 
 	@property
 	def name(self):
@@ -188,7 +245,7 @@ class subgraph_t():
 			self.nodes = { 0: cluster_data_node_t(self, self.jewel.keystone_id) }
 			return
 
-		indicies = {}
+		indices = {}
 		node_count = self.jewel.node_count
 
 		# First pass: sockets
@@ -198,19 +255,19 @@ class subgraph_t():
 			# Large clusters always have the single jewel at index 6
 			node_index = 6
 
-			assert node_index not in indicies
+			assert node_index not in indices
 
-			indicies[node_index] = cluster_socket_t(self, 1)
+			indices[node_index] = cluster_socket_t(self, 1)
 		else:
-			assert socket_count <= len(self.data['socketIndicies']) and "Too many sockets!"
+			assert socket_count <= len(self.data['socket_indices']) and "Too many sockets!"
 			get_jewels = [ 0, 2, 1 ]
 
 			for i in range(0, socket_count):
-				node_index = self.data['socketIndicies'][i]
+				node_index = self.data['socket_indices'][i]
 
-				assert node_index not in indicies
+				assert node_index not in indices
 
-				indicies[node_index] = cluster_socket_t(self, get_jewels[i])
+				indices[node_index] = cluster_socket_t(self, get_jewels[i])
 
 		# Second pass: notables
 		notable_count = self.jewel.notable_count
@@ -220,7 +277,7 @@ class subgraph_t():
 
 		notable_index_list = []
 
-		for node_index in self.data['notableIndicies']:
+		for node_index in self.data['notable_indices']:
 			if len(notable_index_list) == notable_count:
 				break
 
@@ -238,7 +295,7 @@ class subgraph_t():
 					elif node_index == 2:
 						node_index = 3
 
-			if node_index not in indicies:
+			if node_index not in indices:
 				notable_index_list.append(node_index)
 
 		notable_index_list.sort()
@@ -254,17 +311,17 @@ class subgraph_t():
 			# Get the index
 			node_index = notable_index_list[index]
 
-			assert node_index not in indicies
+			assert node_index not in indices
 
-			indicies[node_index] = cluster_data_node_t(self, base_node[1])
+			indices[node_index] = cluster_data_node_t(self, base_node[1])
 
 		# Third pass: small fill
 		small_count = node_count - socket_count - notable_count
 
-		# Gather small indicies
+		# Gather small indices
 		small_index_list = []
 
-		for node_index in self.data['smallIndicies']:
+		for node_index in self.data['small_indices']:
 			if len(small_index_list) == small_count:
 				break
 
@@ -278,7 +335,7 @@ class subgraph_t():
 					elif node_index == 4:
 						node_index = 3
 
-			if node_index not in indicies:
+			if node_index not in indices:
 				small_index_list.append(node_index)
 
 		# Create the small nodes
@@ -288,15 +345,15 @@ class subgraph_t():
 
 			# TODO: inject the cluster jewel added mods here
 
-			assert node_index not in indicies
+			assert node_index not in indices
 
-			indicies[node_index] = cluster_small_node_t(self)
+			indices[node_index] = cluster_small_node_t(self)
 
-		#logging.info("Indicies: {}".format(indicies))
+		#logging.info("indices: {}".format(indices))
 
-		assert indicies[0] and "No entrance to subgraph"
+		assert indices[0] and "No entrance to subgraph"
 
-		self.nodes = indicies
+		self.nodes = indices
 
 class cluster_jewel_t(item_t):
 	def __init__(self, build, item_xml):
@@ -345,7 +402,7 @@ class cluster_jewel_t(item_t):
 	
 	@property
 	def data(self):
-		return data['jewels'][self.base]
+		return data[self.base]
 
 	def __init_skill__(self):
 		if self.nothingness_count > 0:
@@ -360,25 +417,25 @@ class cluster_jewel_t(item_t):
 		rows = self.xml.text.split('\n')
 		self.skill = None
 
-		for id, values in self.data['skills'].items():
+		for skill_data in self.data['passive_skills']:
 			for row in rows:
-				if values['enchant'][0].lower() in row.lower():
-					self.skill = copy.deepcopy(values)
+				if skill_data['enchant'][0].lower() in row.lower():
+					self.skill = copy.deepcopy(skill_data)
 					break
 
 			if self.skill:
 				break
 
 		if self.skill:
-			logging.debug("{} {} [{}] skill is {} ({})".format(self.name, self.base, self.id, self.skill['name'], self.skill['tag']))
+			logging.debug("{} {} [{}] skill is {} ({})".format(self.name, self.base, self.id, self.skill['name'], self.skill['id']))
 		else:
 			log_level = logging.DEBUG if self.rarity == "UNIQUE" else logging.WARNING
 			logging.log(log_level, "{} {} [{}] has no skill".format(self.name, self.base, self.id))
 
 	def __init_keystone__(self):
 		for stat in self.stats.dict():
-			if stat in stat_parsing.cluster_keystone_map:
-				self.keystone_id = stat_parsing.cluster_keystone_map[stat]
+			if stat in cluster_keystone_map:
+				self.keystone_id = cluster_keystone_map[stat][1]
 				#self.keystone = passive_skill_tree.nodes[self.keystone_id]
 				return
 
@@ -389,16 +446,16 @@ class cluster_jewel_t(item_t):
 		self.notable_stats = []
 
 		for stat in self.stats.dict():
-			if stat in stat_parsing.cluster_notable_map:
+			if stat in cluster_notable_map:
 				self.notable_stats.append(stat)
 
 		# make notable list from stats
 		self.notable_list = []
 
 		for stat in self.notable_stats:
-			self.notable_list.append(stat_parsing.cluster_notable_map[stat])
+			self.notable_list.append(cluster_notable_map[stat])
 
-		self.notable_list.sort(key=lambda n: data['notableSortOrder'][n[0]])
+		self.notable_list.sort(key=lambda n: notable_sort_order[n[0]])
 
 		logging.log(logger.DEBUG_ALL, "Sorted notable order: {}".format(self.notable_list))
 

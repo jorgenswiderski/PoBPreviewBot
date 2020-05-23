@@ -4,7 +4,10 @@ import logging
 
 # Self
 from item_base import item_t
-from item_cluster_jewel import cluster_jewel_t
+import item_cluster_jewel
+
+def init():
+	item_cluster_jewel.init()
 
 def make_item(build, item_xml):
 	item = item_t(build, item_xml)
@@ -13,6 +16,6 @@ def make_item(build, item_xml):
 	# I'm using item_t.__parse_xml__() to determine the base type
 
 	if item.base in ["Large Cluster Jewel", "Medium Cluster Jewel", "Small Cluster Jewel"]:
-		return cluster_jewel_t(build, item_xml)
+		return item_cluster_jewel.cluster_jewel_t(build, item_xml)
 
 	return item
