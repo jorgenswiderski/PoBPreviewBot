@@ -166,7 +166,14 @@ class Pastebin(ImporterBase):
 	# returns text contents of pastebin
 	def get_contents(self):
 		try:
-			return util.get_url_data(self.url_raw)
+			data = util.get_url_data(self.url_raw)
+
+			if isinstance(data, str):
+				data = data.encode('utf-8')
+
+			assert isinstance(data, (bytes, bytearray))
+
+			return data
 		except urllib.error.HTTPError as e:
 			logging.error("urllib2 {:s}".format(repr(e)))
 			
@@ -206,9 +213,14 @@ class PoBParty(ImporterBase):
 		try:
 			raw = util.get_url_data(self.url_get)
 			
-			j = json.loads(raw)
-			
-			return j['data']
+			data = json.loads(raw)['data']
+
+			if isinstance(data, str):
+				data = data.encode('utf-8')
+
+			assert isinstance(data, (bytes, bytearray))
+
+			return data
 		except urllib.error.HTTPError as e:
 			logging.error("urllib2 {:s}".format(repr(e)))
 			
