@@ -16,8 +16,7 @@ import threading
 import praw
 import defusedxml.ElementTree as ET
 from retrying import retry
-#from pympler import tracker
-#from pympler import asizeof
+import git
 
 # Self
 from config import config_helper as config
@@ -86,7 +85,24 @@ class bot_t:
 		
 	def is_backlogged(self):
 		return self.backlog['comments'] or self.backlog['submissions']
-		
+
+	def get_git_sha(self):
+		try:
+			repo = git.Repo(search_parent_directories=True)
+			sha = repo.head.object.hexsha
+
+			with open('sha.txt', 'w') as f:
+				f.write(sha)
+
+			return sha[:7]
+		except Exception:
+			if os.path.isfile('sha.txt'):
+				with open('sha.txt', 'r') as f:
+					return f.read()[:7]
+
+		logging.warning("No git revision sha found!")
+		return 'no_sha'
+
 	def login(self):
 		logging.info("Logging in...")
 		
@@ -97,7 +113,7 @@ class bot_t:
 			password = config.password,
 			client_id = config.client_id,
 			client_secret = config.client_secret,
-			user_agent = "linux:PoBPreviewBot:v1.0 (by /u/aggixx)")
+			user_agent = "linux:PoBPreviewBot:{} (by /u/aggixx)".format(self.get_git_sha()))
 			
 		logging.info("Successfully logged in as {:s}.".format(config.username))
 			
