@@ -133,8 +133,8 @@ class stream_manager_t:
 		self.threads.append(stream_thread_t(self, 'submissions'))
 		
 		for thread in self.threads:
-			_thread.daemon = True
-			_thread.start()
+			thread.daemon = True
+			thread.start()
 		
 	def __len__(self):
 		return len(self.list)

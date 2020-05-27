@@ -24,7 +24,6 @@ from config import config_helper as config
 config.set_mode('debug') # must set before importing other modules
 import util
 import status
-import exceptions
 import logger
 import response
 import replied_to
@@ -41,7 +40,9 @@ import item
 class bot_t:
 	def __init__(self):
 		locale.setlocale(locale.LC_ALL, '')
-		file("bot.pid", 'w').write(str(os.getpid()))
+
+		with open("bot.pid", 'w') as f:
+			f.write(str(os.getpid()))
 
 		init_logging()
 		status.init()
@@ -103,7 +104,7 @@ class bot_t:
 		self.reddit = r
 		
 	def get_sleep_time(self):
-		next_update_time = 1e10
+		next_update_time = time.time() + 1e6
 		
 		'''
 		if len(self.maintain_list) > 0:
@@ -152,7 +153,7 @@ class bot_t:
 			logging.debug("Main thread triggers acm_event.")
 			# make this thread wait until a stream subthread signals this
 			# thread to go, or until sleep time has elapsed
-			self.stream_event.wait(st)
+			self.stream_event.wait(timeout=st)
 			
 			# operation has continued, so clear the ACM flag so the subthread
 			# knows to stop at the next reasonable stopping point

@@ -12,7 +12,6 @@ import glob
 import logger
 import passive_skill_tree
 import util
-from profile_tools import profile_cumulative, profile, ChunkProfiler
 from trie import Trie
 
 '''
@@ -291,35 +290,32 @@ class combined_stats_t:
 		if trans_str is not None:
 			self.parse_str(trans_str)
 		else:
-			with ChunkProfiler('combined_stats_t.__init__-1'):
-				for key, value in list(stats_dict.items()):
-					self.add(stat_t(None, {key: value}))
+			for key, value in list(stats_dict.items()):
+				self.add(stat_t(None, {key: value}))
 
 	def add(self, stat):
 		self.stats.append(stat)
 		self.cache_valid = False
 
-	@profile_cumulative
 	def parse_str(self, trans_block, item=1, passive=None):
 		global trans_data
 
 		# pad with new lines so we can easily detect each mod
 		trans_block = "\n{}\n".format(trans_block)
 
-		with ChunkProfiler('parse_str-0'):
-			# Use Trie Regex as an extremely quick first pass to see if there is anything of interest in the item's mods
-			m = re.search(trans_trie_regex, trans_block)
+		# Use Trie Regex as an extremely quick first pass to see if there is anything of interest in the item's mods
+		m = re.search(trans_trie_regex, trans_block)
 
-			if not m:
-				return
+		if not m:
+			return
 
-			# Find all trie matches so we know what specifically to parse
-			matches = re.findall(trans_trie_regex_all, trans_block)
+		# Find all trie matches so we know what specifically to parse
+		matches = re.findall(trans_trie_regex_all, trans_block)
 
-			trans_group_indices = set()
+		trans_group_indices = set()
 
-			for match in matches:
-				trans_group_indices.update(trie_stat_map[match.lower()])
+		for match in matches:
+			trans_group_indices.update(trie_stat_map[match.lower()])
 
 		#logging.info(trans_block)
 
