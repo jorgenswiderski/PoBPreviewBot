@@ -54,10 +54,17 @@ def urllib_error_retry(attempt_number, ms_since_first_attempt):
 	delay = 1 * ( 2 ** ( attempt_number - 1 ) )
 	logging.error("An error occurred during get_url_data(). Sleeping for {:.0f}s before retrying...".format(delay))
 	return delay * 1000
+
+def urllib_error_types(exception):
+	if isinstance(exception, urllib.error.HTTPError) and exception.code == 404:
+		return False
+	
+	return True
 	
 @retry(wait_exponential_multiplier=1000,
 	stop_max_attempt_number=8,
-	wait_func=urllib_error_retry)
+	wait_func=urllib_error_retry,
+	retry_on_exception=urllib_error_types)
 def get_url_data(raw_url):
 	# Necessary for proper response from official forums
 	hdr = { 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36' }
