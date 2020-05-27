@@ -5,7 +5,7 @@ import traceback
 import logging
 
 # 3rd Party
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 import praw
 
 # Self

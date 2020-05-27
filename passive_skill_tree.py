@@ -15,7 +15,7 @@ nodes_by_name = {}
 
 logging.debug("Parsing nodes from data...")
 
-for key, value in data['nodes'].iteritems():
+for key, value in list(data['nodes'].items()):
 	try:
 		nodes[int(key)] = copy.deepcopy(value)
 
@@ -30,7 +30,7 @@ logging.debug("Initializing group data...")
 
 groups = {}
 
-for key, value in data['groups'].iteritems():
+for key, value in list(data['groups'].items()):
 	groups[int(key)] = copy.deepcopy(value)
 
 # We've copied everything we need, delete data now to free up memory

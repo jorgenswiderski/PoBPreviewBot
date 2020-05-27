@@ -6,7 +6,7 @@ import os
 import logging
 import json
 import zlib
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 from xml import etree
 
 # 3rd Party
@@ -61,8 +61,9 @@ class ImporterBase(object):
 			if c is not None:
 				try:	
 					self._xml = self.decode(c)
-				except (zlib.error, TypeError, etree.ElementTree.ParseError):
+				except (zlib.error, TypeError, etree.ElementTree.ParseError) as e:
 					logging.info("{} does not decode to XML data.".format(self))
+					logging.exception(e)
 					self.blacklist()
 					return None
 			else:
@@ -71,8 +72,9 @@ class ImporterBase(object):
 		return self._xml
 		
 	def decode(self, enc):
-		enc = enc.replace("-", "+").replace("_", "/")
-		decoded = base64.b64decode( enc )
+		bytelike = enc.decode()
+		replaced = bytelike.replace('-', '+').replace('_', '/')
+		decoded = base64.b64decode( replaced )
 		
 		xml_str = zlib.decompress( decoded )
 		
@@ -114,7 +116,7 @@ class ImporterBase(object):
 			with open("{}_blacklist.txt".format(cls.__name__.lower())) as f:
 				list = f.read()
 				list = list.split("\n")
-				list = filter(None, list)
+				list = [_f for _f in list if _f]
 				
 				for entry in list:
 					cls.blacklist_contents[entry] = True
@@ -145,7 +147,7 @@ class Pastebin(ImporterBase):
 	path = 'save/pastebin_blacklist.json'
 	
 	def __init__(self, key=None, url=None):
-		if not (isinstance(key, (str, unicode)) or isinstance(url, (str, unicode))):
+		if not (isinstance(key, str) or isinstance(url, str)):
 			raise ValueError("Passed invalid args: {} {}".format(type(key), type(url)))
 			
 		if url is not None:
@@ -165,14 +167,14 @@ class Pastebin(ImporterBase):
 	def get_contents(self):
 		try:
 			return util.get_url_data(self.url_raw)
-		except urllib2.HTTPError as e:
+		except urllib.error.HTTPError as e:
 			logging.error("urllib2 {:s}".format(repr(e)))
 			
 			if "Service Temporarily Unavailable" not in repr(e):
 				self.blacklist()
 				
 			return None
-		except urllib2.URLError as e:
+		except urllib.error.URLError as e:
 			logging.error("Failed to retrieve any data\nURL: {}\n{}".format(self.raw_url, str(e)))
 			util.dump_debug_info(wrapped_object, exc=e, paste_key=paste_key)
 			return None
@@ -183,7 +185,7 @@ class PoBParty(ImporterBase):
 	path = 'save/pobparty_blacklist.json'
 	
 	def __init__(self, key=None, url=None):
-		if not (isinstance(key, (str, unicode)) or isinstance(url, (str, unicode))):
+		if not (isinstance(key, str) or isinstance(url, str)):
 			raise ValueError("Passed invalid args: {} {}".format(type(key), type(url)))
 			
 		if url is not None:
@@ -207,14 +209,14 @@ class PoBParty(ImporterBase):
 			j = json.loads(raw)
 			
 			return j['data']
-		except urllib2.HTTPError as e:
+		except urllib.error.HTTPError as e:
 			logging.error("urllib2 {:s}".format(repr(e)))
 			
 			if "Service Temporarily Unavailable" not in repr(e):
 				self.blacklist()
 				
 			return None
-		except urllib2.URLError as e:
+		except urllib.error.URLError as e:
 			logging.error("Failed to retrieve any data\nURL: {}\n{}".format(raw_url, str(e)))
 			util.dump_debug_info(wrapped_object, exc=e, paste_key=paste_key)
 			return None

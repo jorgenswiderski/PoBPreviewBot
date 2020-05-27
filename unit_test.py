@@ -8,13 +8,16 @@ import os
 
 # 3rd Party
 import praw
+import progressbar
 
 # Self
 from config import config_helper as config
-config.set_mode('debug') # must set before importing other modules
+config.set_mode("debug") # must set before importing other modules
 import comment_maintenance
 import response
 import util
+import stat_parsing
+import item
 from importers import ImporterEncoder, Pastebin, PoBParty
 import profile_tools
 from profile_tools import profile_cumulative, profile, ChunkProfiler
@@ -31,6 +34,9 @@ class unit_tester_t:
 		self.acm_event = threading.Event()
 		self.maintain = comment_maintenance.maintain_list_t(self, "save/active_comments.json.server")
 		self.list_size = 20
+
+		stat_parsing.init()
+		item.init()
 		
 	def login(self):
 		logging.info("Logging in...")
@@ -99,31 +105,25 @@ class unit_tester_t:
 			build = None
 
 			try:
-				build = build_t(importer, author, None)
+				build = build_t(importer, self.reddit.user.me(), None)
 				response = build.get_response()
 			except EligibilityException:
 				importer.blacklist()
 				raise
 				return
 			except Exception as e:
-				logging.error(repr(e))
+				logging.exception(e)
 				
 				# dump xml for debugging later
 				#util.dump_debug_info(None, exc=e, xml=importer.xml())
 				
 				importer.blacklist()
 				return
-			
-			#if config.xml_dump:
-			#	util.dump_debug_info(None, xml=importer.xml(), dir="xml_dump", build=build)
-				
-			responses.append(response)
-			importers_responded_to[importer.key] = True
 		else:
 			logging.debug("Skipped {} as it is not valid PoB XML.".format(importer))
 
 	def run(self):
-		for importer in self.importers:
+		for importer in progressbar.progressbar(self.importers[:self.list_size]):
 			self.do_test(importer)
 	
 

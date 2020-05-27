@@ -9,7 +9,7 @@ import logging
 import threading
 
 # 3rd Party
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 from retrying import retry
 import praw
 from atomicwrites import atomic_write
@@ -62,8 +62,8 @@ def get_url_data(raw_url):
 	# Necessary for proper response from official forums
 	hdr = { 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36' }
 
-	req = urllib2.Request(raw_url, headers=hdr)
-	page = urllib2.urlopen(req)
+	req = urllib.request.Request(raw_url, headers=hdr)
+	page = urllib.request.urlopen(req)
 	
 	contents = page.read()
 	return contents
@@ -105,23 +105,14 @@ def get_praw_comment_by_id(reddit, id):
 	return praw.models.Comment(reddit, id=id)
 		
 def is_number(s):
-    try:
-        float(s)
-        return True
-    except ValueError:
-        pass
- 
-	'''
-    try:
-        import unicodedata
-        unicodedata.numeric(s)
-        return True
-    except (TypeError, ValueError):
-        pass
-	'''
- 
-	return False
+	try:
+		float(s)
+		return True
+	except ValueError:
+		pass
 
+	return False
+	
 def dump_debug_info(praw_object, exc=None, paste_key=None, xml=None, extra_data={}, dir="error", build=None):
 	'''
 	if not isinstance(praw_object, praw_object_wrapper_t):
@@ -194,15 +185,3 @@ def dump_debug_info(praw_object, exc=None, paste_key=None, xml=None, extra_data=
 			traceback.print_exc( file = f )
 	
 	logging.info("Dumped info to {}/{}/".format(dir, id))
-
-# Used to convert json.loads() output's keys and values from unicode to strings
-def byteify(input):
-    if isinstance(input, dict):
-        return {byteify(key): byteify(value)
-                for key, value in input.iteritems()}
-    elif isinstance(input, list):
-        return [byteify(element) for element in input]
-    elif isinstance(input, unicode):
-        return input.encode('utf-8')
-    else:
-        return input

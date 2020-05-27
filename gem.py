@@ -11,6 +11,7 @@ import defusedxml.ElementTree as ET
 # Self
 from name_overrides import skill_overrides
 import util
+from _exceptions import GemDataException
 
 # =============================================================================
 
@@ -139,7 +140,7 @@ def load_gems_from_file(path):
 	raw_data = None
 	
 	with open(path, "r") as f:
-		raw_data = util.byteify(json.loads(f.read()))
+		raw_data = json.loads(f.read())
 		
 	for id in raw_data:
 		data = raw_data[id]
@@ -162,7 +163,7 @@ support_gems = load_gems_from_file("data/gems.json")
 
 # list of all support gems' short names
 # used for error checking in gem_t.is_supported_by
-support_gem_short_name_list = map(lambda g: g.short_name.lower(), filter(lambda g: g.is_support, support_gems.values()))
+support_gem_short_name_list = [g.short_name.lower() for g in [g for g in list(support_gems.values()) if g.is_support]]
 
 def get_support_gem_by_name(name):
 	if name in support_gems:
@@ -363,7 +364,7 @@ class gem_t:
 
 		support = support.lower()
 
-		for id, data in self.get_support_gem_dict().items():
+		for id, data in list(self.get_support_gem_dict().items()):
 			if data.short_name.lower() == support:
 				return True
 
@@ -377,7 +378,7 @@ class gem_t:
 	def get_support_gem_str(self):
 		str = ""
 		
-		for id, data in self.get_support_gem_dict().items():
+		for id, data in list(self.get_support_gem_dict().items()):
 			if data.wiki_url is not None:
 				str += "[{:s}]({:s}#support-gem-{:s})".format(data.letter, data.wiki_url, data.get_color_str())
 			else:

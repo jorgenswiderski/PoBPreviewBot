@@ -17,7 +17,7 @@ class replied_t:
 	
 		try:
 			with open(file_path, 'r') as f:
-				self.dict = util.byteify(json.load(f))
+				self.dict = json.load(f)
 		except IOError:
 			self.dict = {}
 			pass
@@ -28,7 +28,7 @@ class replied_t:
 	def contains(self, obj):
 		id = None
 		
-		if isinstance(obj, (str, unicode)):
+		if isinstance(obj, str):
 			id = obj
 		elif isinstance(obj, (praw_object_wrapper_t, praw.models.Comment, praw.models.Submission)):
 			id = obj.id

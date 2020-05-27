@@ -35,6 +35,6 @@ def init():
 			global status
 			
 			try:
-				status = util.byteify(json.load(f))
+				status = json.load(f)
 			except ValueError:
 				pass

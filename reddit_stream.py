@@ -1,5 +1,5 @@
 # Python
-import thread
+import _thread
 import threading
 import logging
 import os
@@ -100,7 +100,7 @@ class stream_thread_t(threading.Thread):
 		# If ANY unhandled exception occurs, catch it, log it, THEN crash.
 		except BaseException:
 			logging.exception("Fatal error occurred in {} thread.".format(self.type))
-			thread.interrupt_main()
+			_thread.interrupt_main()
 			raise
 			
 	def main(self):
@@ -133,8 +133,8 @@ class stream_manager_t:
 		self.threads.append(stream_thread_t(self, 'submissions'))
 		
 		for thread in self.threads:
-			thread.daemon = True
-			thread.start()
+			_thread.daemon = True
+			_thread.start()
 		
 	def __len__(self):
 		return len(self.list)

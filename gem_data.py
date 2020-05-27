@@ -135,7 +135,7 @@ def load_gems_from_file(path):
 	raw_data = None
 	
 	with open(path, "r") as f:
-		raw_data = util.byteify(json.loads(f.read()))
+		raw_data = json.loads(f.read())
 		
 	for id in raw_data:
 		data = raw_data[id]

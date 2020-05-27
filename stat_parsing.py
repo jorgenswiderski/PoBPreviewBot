@@ -32,7 +32,7 @@ def init_support_gem_stat_map(support_gem_ids):
 	with open('data/mods.json', 'r') as f:
 		mod_data = json.load(f)
 
-	for mod_id, mod_dict in mod_data.items():
+	for mod_id, mod_dict in list(mod_data.items()):
 		for stat in mod_dict['stats']:
 			if stat['id'] in support_gem_ids:
 
@@ -40,7 +40,7 @@ def init_support_gem_stat_map(support_gem_ids):
 				values = []
 
 				for effect in mod_dict['grants_effects']:
-					values.append(effect['granted_effect_id'].encode('utf-8'))
+					values.append(effect['granted_effect_id'])
 
 				support_gem_map[key] = values
 				logging.log(logger.DEBUG_ALL, "Support gem stat {} mapped to {}".format(key, values))
@@ -143,7 +143,7 @@ def create_whitelist(data):
 	# whitelist cluster passive stats
 	# (any cluster jewel stat that grants a passive)
 	with open('data/cluster_jewel_notables.json', 'r') as f:
-		cluster_passive_stat_ids = map(lambda n: n['jewel_stat'], json.load(f))
+		cluster_passive_stat_ids = [n['jewel_stat'] for n in json.load(f)]
 
 	whitelist.extend(cluster_passive_stat_ids)
 
@@ -153,9 +153,9 @@ def create_whitelist(data):
 
 		cluster_enchant_stats_ids = []
 
-		for key, value in cluster_data.iteritems():
+		for key, value in list(cluster_data.items()):
 			for skill_data in value['passive_skills']:
-				for stat_id in skill_data['stats'].keys():
+				for stat_id in list(skill_data['stats'].keys()):
 					cluster_enchant_stats_ids.append(stat_id)
 
 	whitelist.extend(cluster_enchant_stats_ids)
@@ -173,7 +173,7 @@ def init():
 	create_whitelist(trans_data)
 
 	# apply stat whitelist
-	trans_data = filter(is_whitelisted, trans_data)
+	trans_data = list(filter(is_whitelisted, trans_data))
 
 	'''
 	with open('whitelist_example.json', 'w') as f:
@@ -213,13 +213,13 @@ def make_regex(variation):
 		replacement = None
 
 		if stat_format == "#":
-			replacement = "(\d+)"
+			replacement = "(\\\\d+)"
 		elif stat_format == "+#":
-			replacement = "[+-](\d+)"
+			replacement = "[+-](\\\\d+)"
 		elif stat_format == "#%":
-			replacement = "(\d+)%"
+			replacement = "(\\\\d+)%"
 		elif stat_format == "+#%":
-			replacement = "[+-](\d+)%"
+			replacement = "[+-](\\\\d+)%"
 		else:
 			raise ValueError("unhandled format value")
 
@@ -244,7 +244,7 @@ class combined_stats_t:
 		if trans_str is not None:
 			self.parse_str(trans_str)
 		else:
-			for key, value in stats_dict.iteritems():
+			for key, value in list(stats_dict.items()):
 				self.add(stat_t(None, {key: value}))
 
 	def add(self, stat):
@@ -260,7 +260,7 @@ class combined_stats_t:
 		for translation_group in trans_data:
 			ids = translation_group['ids']
 
-			if u'dummy_stat_display_nothing' in ids:
+			if 'dummy_stat_display_nothing' in ids:
 				continue
 
 			variations = translation_group['English']
@@ -311,7 +311,7 @@ class combined_stats_t:
 		self.dict_cache = {}
 
 		for stat in self.stats:
-			for id, value in stat.dict.items():
+			for id, value in list(stat.dict.items()):
 				if id not in self.dict_cache:
 					self.dict_cache[id] = 0
 
@@ -330,7 +330,7 @@ class stat_t:
 		if stat_str is not None:
 			self._string = stat_str
 
-		#self.dict = util.byteify(stats)
+		#self.dict = stats
 		self.dict = stats
 		self.item = item
 		self.passive = passive
@@ -348,7 +348,7 @@ class stat_t:
 
 		stat_strs = []
 
-		for stat_id, value in self.dict.iteritems():
+		for stat_id, value in list(self.dict.items()):
 			for translation_group in trans_data:
 				translated = False
 

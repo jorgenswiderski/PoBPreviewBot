@@ -3,7 +3,7 @@ import time
 import os
 import random
 import math
-import thread
+import _thread
 import threading
 import datetime
 import json
@@ -12,7 +12,7 @@ import copy
 
 # 3rd Party
 import praw
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 from retrying import retry
 #from pympler import asizeof
 from atomicwrites import atomic_write
@@ -212,7 +212,7 @@ class entry_t:
 
 					if not deleted:
 						deleted = self.check_for_edit()
-				except urllib2.HTTPError as e:
+				except urllib.error.HTTPError as e:
 					logging.error("An HTTPError occurred while maintaining comment {}. Skipping the check for now.".format(self.comment_id))
 				except Forbidden as e:
 					logging.error("Attempted to perform forbidden action on comment {:s}. Removing from list of active comments.\n{:s}".format(self.comment_id, self.get_comment().permalink()))
@@ -432,7 +432,7 @@ class aggressive_maintainer_t(threading.Thread):
 		# doing it more often than that
 		now = time.time()
 		
-		for entry in filter(lambda e: now - e.last_time >= 35, self.list.list): 
+		for entry in [e for e in self.list.list if now - e.last_time >= 35]: 
 			prog = entry.get_progress()
 			
 			if prog > val:
@@ -472,7 +472,7 @@ class aggressive_maintainer_t(threading.Thread):
 					self.list.flush()
 				
 				if config.debug_memory:
-					items = sum(map(lambda x: x.asizeof(), self.list.list))
+					items = sum([x.asizeof() for x in self.list.list])
 					
 					logging.debug("# of cached items: {}".format(items))
 				
@@ -487,7 +487,7 @@ class aggressive_maintainer_t(threading.Thread):
 		# If ANY unhandled exception occurs, catch it, log it, THEN crash.
 		except BaseException:
 			logging.exception("Fatal error occurred in ACMThread.")
-			thread.interrupt_main()
+			_thread.interrupt_main()
 			raise
 		
 class maintain_list_t:
@@ -530,7 +530,7 @@ class maintain_list_t:
 		processed = {}
 	
 		with open(self.file_path, 'r') as f:
-			list = util.byteify(json.load(f))
+			list = json.load(f)
 			
 			for jdict in list:
 				if jdict['comment_id'] in processed:
@@ -609,13 +609,13 @@ class maintain_list_t:
 		time_str = args[ args.index('-force') + 1 ]
 		cutoff = time.time() - util.parse_time_str(time_str)
 		
-		filtered = filter(lambda x: x.created_utc >= cutoff, self.list)
+		filtered = [x for x in self.list if x.created_utc >= cutoff]
 		
 		for e in filtered:
 			e.flag()
 				
 		logging.info("Flagged {} comments for update.".format( len( filtered ) ))
-		logging.debug(", ".join( map( lambda e: e.comment_id, filtered ) ) )
+		logging.debug(", ".join( [e.comment_id for e in filtered] ) )
 			
 		self.sort()
 		

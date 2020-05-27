@@ -4,7 +4,7 @@ import time
 import logging
 
 # 3rd Party
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 from bs4 import BeautifulSoup
 
 # Self
@@ -31,7 +31,7 @@ def get_soup_from_url( url ):
 	if url != cache_url or time.time() > cache_time + 5:
 		try:
 			html = util.get_url_data(url)
-		except urllib2.URLError as e:
+		except urllib.error.URLError as e:
 			logging.error("Failed to retrieve any data\n{}\n{}".format(url, str(e)))
 			return None
 			

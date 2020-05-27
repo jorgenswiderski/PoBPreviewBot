@@ -1,21 +1,10 @@
 import inspect
 import logging
 import time
+import statistics as stats
 
 cumulative_data = {}
 method_names = {}
-
-def mean(l):
-    return sum(l) / len(l)
-
-def median(l):
-    sl = sorted(l)
-    n = len(sl)
-
-    if n % 2 == 0:
-        return (sl[n//2]+sl[n//2-1])/2
-    else:
-        return sl[n//2]
 
 
 def profile(f):
@@ -62,11 +51,11 @@ def log_digest():
         logging.info("       \tSUM\tMEAN\tMEDIAN\tMIN\tMAX\tCOUNT\tDESC")
         logging.info("=========================================================================================")
 
-    for entry in cumulative_data.items():
+    for entry in list(cumulative_data.items()):
         key = entry[0]
         vals = entry[1]
         #logging.info("Total time spent on '{}': {:.3f}s".format(method_names[key], vals))
-        logging.info("Profile\t{:.3f}s\t{:.3f}s\t{:.3f}s\t{:.3f}s\t{:.3f}s\t{}\t{}".format(sum(vals), mean(vals), median(vals), min(vals), max(vals), len(vals), method_names[key]))
+        logging.info("Profile\t{:.3f}s\t{:.3f}s\t{:.3f}s\t{:.3f}s\t{:.3f}s\t{}\t{}".format(sum(vals), stats.mean(vals), stats.median(vals), min(vals), max(vals), len(vals), method_names[key]))
 
 class ChunkProfiler(object):
     def __init__(self, desc):

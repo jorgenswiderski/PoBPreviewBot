@@ -27,7 +27,7 @@ def init():
 			'Small': 0
 		}
 
-		for key, value in raw_data.iteritems():
+		for key, value in list(raw_data.items()):
 			value['size_index'] = size_indices[value['size']]
 			data[value['name']] = value
 
@@ -35,9 +35,17 @@ def init():
 				# Add enchant value
 				skill_data['enchant'] = []
 
-				for stat_id, value in skill_data['stats'].iteritems():
+				for stat_id, value in list(skill_data['stats'].items()):
 					stat = stat_parsing.stat_t(None, {stat_id: value})
-					skill_data['enchant'].append("Added Small Passive Skills grant: {}".format(stat.string))
+
+					stat_str = stat.string
+
+					# blargh, phys damage stat translates to "global phys damage" even though thats now how it works ingame
+					# spaghet
+					if stat_id == "physical_damage_+%":
+						stat_str = "{0}% increased Physical Damage".format(value)
+
+					skill_data['enchant'].append("Added Small Passive Skills grant: {}".format(stat_str))
 					del stat
 
 	with open('data/cluster_jewel_notables.json', 'r') as f:
@@ -80,7 +88,7 @@ class cluster_node_t(object):
 
 	@property
 	def index(self):
-		nodes = filter(lambda n: n[1] == self, self.subgraph.nodes.items())
+		nodes = [n for n in list(self.subgraph.nodes.items()) if n[1] == self]
 
 		assert len(nodes) == 1
 
@@ -177,7 +185,10 @@ class cluster_small_node_t(cluster_node_t):
 
 	@property
 	def name(self):
-		return self.jewel.skill['name']
+		if self.jewel.skill:
+			self.jewel.skill['name']
+		else:
+			raise RuntimeError("{} {} [{}] has no skill".format(self.jewel.name, self.jewel.base, self.jewel.id))
 
 class cluster_data_node_t(cluster_node_t):
 	def __init__(self, subgraph, passive_id):
@@ -474,6 +485,6 @@ class cluster_jewel_t(item_t):
 
 	def __update_build_passives__(self):
 		for subgraph in self.subgraphs:
-			for node in subgraph.nodes.values():
+			for node in list(subgraph.nodes.values()):
 				if node.allocated:
 					self.build.passives_by_name[node.name] = node.get_id()

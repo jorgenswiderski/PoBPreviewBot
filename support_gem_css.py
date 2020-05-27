@@ -71,4 +71,4 @@ out = "data\support_gems.css"
 with open(out, "w") as f:
 	f.write(css_str)
 	
-print "Gem CSS written to {}".format(out)
+print(("Gem CSS written to {}".format(out)))

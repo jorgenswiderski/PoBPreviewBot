@@ -212,7 +212,7 @@ class build_t:
 	def __parse_author__(self, author):
 		if isinstance(author, praw.models.reddit.redditor.Redditor):
 			self.author = "/u/{:s}".format(author.name)
-		elif isinstance(author, (str, unicode)):
+		elif isinstance(author, str):
 			self.author = author
 		else:
 			# FIXME: This exception should NOT cause the pastbin to be blacklisted.
@@ -285,8 +285,10 @@ class build_t:
 		
 		if not b or len(b) < 6:
 			raise Exception('The build\'s passive skill tree is invalid.')
+
+		#logging.info(b)
 		
-		ver = ord(b[0]) * 16777216 + ord(b[1]) * 65536 + ord(b[2]) * 256 + ord(b[3])
+		ver = b[0] * 16777216 + b[1] * 65536 + b[2] * 256 + b[3]
 		
 		if ver > 4:
 			raise Exception("The build's passive skill tree link uses an unknown version (number '{:s}').".format(ver))
@@ -299,11 +301,13 @@ class build_t:
 		self.passives_by_id = {}
 		
 		for i in range(8, len(nodes)-1, 2):
-			id = ord(nodes[i-1]) * 256 + ord(nodes[i])
+			id = nodes[i-1] * 256 + nodes[i]
 			
 			if id in passives.nodes:
 				self.passives_by_name[passives.nodes[id]['name']] = id
 				self.passives_by_id[id] = True
+
+				#logging.info("{} ({}) is allocated.".format(passives.nodes[id]['name'], id))
 
 		'''
 		May 17 2020
@@ -385,7 +389,7 @@ class build_t:
 		xml_input = self.xml_config.find("*[@name='{:s}']".format(name))
 		
 		if xml_input is None:
-			logging.log(logger.DEBUG_ALL, "CONFIG {:s}: {:s}".format(name, None))
+			logging.log(logger.DEBUG_ALL, "CONFIG {:s}: {:s}".format(name, "None"))
 			return None
 			
 		if 'boolean' in xml_input.attrib:
@@ -525,7 +529,7 @@ class build_t:
 			# usually only 1 stat but in some cases its more
 			keystone_stats = stat_parsing.keystone_map[keystone]
 
-			for item in self.equipped_items.values():
+			for item in list(self.equipped_items.values()):
 				for keystone_stat in keystone_stats:
 					if keystone_stat in item.stats.dict():
 						return True
@@ -538,7 +542,7 @@ class build_t:
 
 		total = 0
 
-		for item in self.equipped_items.values():
+		for item in list(self.equipped_items.values()):
 			d = item.stats.dict()
 
 			if stat in d:
@@ -549,7 +553,7 @@ class build_t:
 
 	def get_item(self, name, equipped_only=False):
 		# prefer equipped items
-		for t in self.equipped_items.items():
+		for t in list(self.equipped_items.items()):
 			slotName = t[0]
 			item = t[1]
 
@@ -561,7 +565,7 @@ class build_t:
 					return item
 
 		if not equipped_only:
-			for item in self.items.values():
+			for item in list(self.items.values()):
 				if item.name.lower() == name.lower():
 					return item
 				
@@ -857,7 +861,7 @@ class build_t:
 						dps['direct'] = 0.000
 						dps['ignite'] = 0.000
 
-				for entry in dps.items():
+				for entry in list(dps.items()):
 					if entry[1] < 0:
 						logging.debug("!!! DANGER WILL ROBINSON !!! {} DPS is negative ({:.2f} DPS). Overriding to 0...".format(entry[0], entry[1]))
 						dps[entry[0]] = 0.000
@@ -886,7 +890,7 @@ class build_t:
 				if dps['direct'] < 0.95 * total:
 					# Base DoT -- only show if its not the sole source of damage
 					# don't add it if it's already been added in the average damage block above
-					if "skill DoT DPS" not in map(lambda s: s[1], stats):
+					if "skill DoT DPS" not in [s[1] for s in stats]:
 						if dps['skillDoT'] > 0.01 * total and total != dps['skillDoT']:
 							dps_stats.append( ( dps['skillDoT'], "skill DoT DPS" ) )
 						
@@ -904,7 +908,7 @@ class build_t:
 						
 					# Ignite
 					# don't add it if it's already been added in the average damage block above
-					if "ignite DPS" not in map(lambda s: s[1], stats):
+					if "ignite DPS" not in [s[1] for s in stats]:
 						if dps['ignite'] > 0.01 * total:
 							dps_stats.append( ( dps['ignite'], "ignite DPS" ) )
 						

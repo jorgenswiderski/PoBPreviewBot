@@ -116,7 +116,7 @@ class item_t(object):
 	def __parse_for_support_gems__(self):
 		self.support_mods = {}
 
-		for id, value in self.stats.dict().items():
+		for id, value in list(self.stats.dict().items()):
 			if id in stat_parsing.support_gem_map:
 				for granted_effect in stat_parsing.support_gem_map[id]:
 					data = gem_t.get_gem_data(id=granted_effect)

@@ -9,7 +9,7 @@ import random
 import sys
 import logging
 import datetime
-import thread
+import _thread
 import threading
 
 # 3rd Party
@@ -182,7 +182,7 @@ class bot_t:
 			len(self.maintain_list.retired_list),
 			len(self.reply_queue.queue),
 			len(self.stream_manager.list),
-			map(lambda t: "{}/{}".format(len(t.processed), asizeof.asizeof(t.processed)), self.stream_manager.threads)
+			["{}/{}".format(len(t.processed), asizeof.asizeof(t.processed)) for t in self.stream_manager.threads]
 		))
 		
 	
