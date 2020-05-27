@@ -325,7 +325,7 @@ class build_t:
 					# non-cluster jewel node
 					# just sanity check that we already processed it
 					if node_id not in self.passives_by_id:
-						logging.debug("{} ({}) was excluded from tree data!".format(passives.nodes[node_id]['name'], node_id))
+						#logging.info("{} ({}) was excluded from tree data!".format(passives.nodes[node_id]['name'], node_id))
 						self.passives_by_id[node_id] = True
 				else:
 					# cluster passive
@@ -335,7 +335,7 @@ class build_t:
 
 		
 	def __parse_items__(self):
-		logging.debug("{} parses items.".format(self.importer.key))
+		#logging.info("{} parses items.".format(self.importer.key))
 
 		self.items = {}
 		
@@ -477,7 +477,7 @@ class build_t:
 			if wither_stacks is not None:
 				dps_config.append("Wither \({}\)".format(int(wither_stacks)))
 				
-		logging.debug("DPS config: {}".format(dps_config))
+		#logging.info("DPS config: {}".format(dps_config))
 		
 		return dps_config
 			
