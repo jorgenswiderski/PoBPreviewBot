@@ -193,7 +193,7 @@ class cluster_small_node_t(cluster_node_t):
 		if self.jewel.skill:
 			self.jewel.skill['name']
 		else:
-			raise RuntimeError("{} {} [{}] has no skill".format(self.jewel.name, self.jewel.base, self.jewel.id))
+			raise RuntimeError("{} has no skill".format(self.jewel))
 
 class cluster_data_node_t(cluster_node_t):
 	def __init__(self, subgraph, passive_id):
@@ -256,7 +256,7 @@ class subgraph_t():
 		self.proxy_group = copy.deepcopy(passive_skill_tree.groups[self.proxy_node['group']])
 
 	def __init_nodes__(self):
-		#logging.info("Initializing nodes for socket {} ({} {} [{}])".format(self.parent_socket['skill'], self.jewel.name, self.jewel.base, self.jewel.id))
+		#logging.info("Initializing nodes for socket {} ({})".format(self.parent_socket['skill'], self.jewel))
 
 		# Special handling for keystones
 		if self.jewel.keystone_id:
@@ -382,6 +382,9 @@ class cluster_jewel_t(item_t):
 		self.__init_keystone__()
 		self.__init_subgraphs__()
 		self.__update_build_passives__()
+
+	def __str__(self):
+		return "{} {} [{}]".format(self.name, self.base, self.id)
 	
 	@cached_property
 	def node_count(self):
@@ -445,10 +448,10 @@ class cluster_jewel_t(item_t):
 				break
 
 		if self.skill:
-			logging.debug("{} {} [{}] skill is {} ({})".format(self.name, self.base, self.id, self.skill['name'], self.skill['id']))
+			logging.debug("{} skill is {} ({})".format(self, self.skill['name'], self.skill['id']))
 		else:
 			log_level = logging.DEBUG if self.rarity == "UNIQUE" else logging.WARNING
-			logging.log(log_level, "{} {} [{}] has no skill".format(self.name, self.base, self.id))
+			logging.log(log_level, "{} has no skill".format(self))
 
 	def __init_keystone__(self):
 		for stat in self.stats.dict():
