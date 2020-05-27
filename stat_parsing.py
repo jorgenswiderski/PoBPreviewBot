@@ -12,6 +12,8 @@ import glob
 import logger
 import passive_skill_tree
 import util
+from profile_tools import profile_cumulative, profile, ChunkProfiler
+from trie import Trie
 
 '''
 This will ONLY parse mods whose stat translations are present in the following files:
@@ -69,21 +71,19 @@ def init_keystone_stat_map(keystone_ids):
 	assert len(keystone_ids) == 0
 
 def is_whitelisted(group):
-	for stat in whitelist:
-		if stat in group['ids']:
-			return True
+	common_elements = whitelist.intersection(set(group['ids']))
 
-	return False
+	return len(common_elements) > 0
 
 def create_whitelist(data):
 	global whitelist
 
 	with open('stat_whitelist.json', 'r') as f:
-		whitelist = json.load(f)
+		whitelist = set(json.load(f))
 
 	# whitelist all support gem stats
 	re_support = re.compile("Socketed Gems are Supported by Level", flags=re.IGNORECASE)
-	support_gem_ids = []
+	support_gem_ids = set()
 
 	for translation_group in data:
 		variations = translation_group['English']
@@ -97,29 +97,29 @@ def create_whitelist(data):
 
 		if matched:
 			for id in translation_group['ids']:
-				support_gem_ids.append(id)
+				support_gem_ids.add(id)
 				logging.debug("Whitelisted stat '{}'".format(id))
 
-	whitelist.extend(support_gem_ids)
+	whitelist.update(support_gem_ids)
 	init_support_gem_stat_map(support_gem_ids)
 
 	# whitelist all keystone stats
 	re_keystone = re.compile("keystone_.+", flags=re.IGNORECASE)
-	keystone_ids = []
+	keystone_ids = set()
 
 	for translation_group in data:
 		for id in translation_group['ids']:
 			if re_keystone.match(id):
-				keystone_ids.append(id)
+				keystone_ids.add(id)
 				logging.debug("Whitelisted stat '{}'".format(id))
 
-	whitelist.extend(keystone_ids)
+	whitelist.update(keystone_ids)
 	init_keystone_stat_map(keystone_ids)
 
 	# whitelist cluster jewel enchantments
 	re_cluster_ench = re.compile("Added Small Passive Skills grant", flags=re.IGNORECASE)
 
-	cluster_ench_ids = []
+	cluster_ench_ids = set()
 
 	for translation_group in data:
 		variations = translation_group['English']
@@ -133,10 +133,10 @@ def create_whitelist(data):
 
 		if matched:
 			for id in translation_group['ids']:
-				cluster_ench_ids.append(id)
+				cluster_ench_ids.add(id)
 				logging.debug("Whitelisted stat '{}'".format(id))
 
-	whitelist.extend(cluster_ench_ids)
+	whitelist.update(cluster_ench_ids)
 	global cluster_enchant_stats
 	cluster_enchant_stats = cluster_ench_ids
 
@@ -145,20 +145,23 @@ def create_whitelist(data):
 	with open('data/cluster_jewel_notables.json', 'r') as f:
 		cluster_passive_stat_ids = [n['jewel_stat'] for n in json.load(f)]
 
-	whitelist.extend(cluster_passive_stat_ids)
+	whitelist.update(cluster_passive_stat_ids)
 
 	# whitelist cluster enchant stats
 	with open('data/cluster_jewels.json', 'r') as f:
 		cluster_data = json.load(f)
 
-		cluster_enchant_stats_ids = []
+		cluster_enchant_stats_ids = set()
 
 		for key, value in list(cluster_data.items()):
 			for skill_data in value['passive_skills']:
 				for stat_id in list(skill_data['stats'].keys()):
-					cluster_enchant_stats_ids.append(stat_id)
+					cluster_enchant_stats_ids.add(stat_id)
+					logging.debug("Whitelisted stat '{}'".format(stat_id))
 
-	whitelist.extend(cluster_enchant_stats_ids)
+	whitelist.update(cluster_enchant_stats_ids)
+
+	logging.debug("Finished whitelist with {} entries.".format(len(whitelist)))
 
 def init():
 	global trans_data
@@ -175,6 +178,27 @@ def init():
 	# apply stat whitelist
 	trans_data = list(filter(is_whitelisted, trans_data))
 
+	# Construct a Trie regex out of all the translation strings
+	# This is a very very long, very very fast regex that will match any of the sub strings we feed it
+	# We will use this later to efficiently find areas of interest in item text
+	trie = Trie()
+	longest_substr = re.compile('[^(){}]+')
+	for translation_group in trans_data:
+		variations = translation_group['English']
+
+		for variation in variations:
+			# For each variation, find the longest plain-text string (ie doesn't contain any special elements)
+			tweaked = re.sub(r'{\d}', '{}', variation['string'])
+			m = re.search(longest_substr, tweaked)
+			#logging.info("{}\n\t{}".format(variation['string'], m.group(0)))
+			trie.add(m.group(0))
+
+	global trans_trie_regex
+	trans_trie_regex = re.compile(trie.pattern(), re.IGNORECASE)
+
+	#logging.info("Trie complete.")
+
+
 	'''
 	with open('whitelist_example.json', 'w') as f:
 		json.dump(trans_data, f, sort_keys=True, indent=4)
@@ -186,7 +210,7 @@ def init():
 
 		for variation in variations:
 			variation['regex'] = make_regex(variation)
-			logging.log(logger.DEBUG_ALL, 'Created regex for: "{}" ==>  "{}"'.format(variation['string'], variation['regex']))
+			#logging.info('Created regex for: "{}" ==>  "{}"'.format(variation['string'], variation['regex']))
 
 
 def escape(s):
@@ -256,6 +280,12 @@ class combined_stats_t:
 
 		# pad with new lines so we can easily detect each mod
 		trans_block = "\n{}\n".format(trans_block)
+
+
+		with ChunkProfiler('parse_str-0'):
+			# Use Trie Regex as an extremely quick first pass to see if there is anything of interest in the item's mods
+			if not re.search(trans_trie_regex, trans_block):
+				return
 
 		for translation_group in trans_data:
 			ids = translation_group['ids']
