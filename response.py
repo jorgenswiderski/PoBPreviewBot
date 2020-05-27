@@ -63,14 +63,14 @@ def get_response( wrapped_object, ignore_blacklist=False ):
 							logging.error(repr(e))
 							
 							# dump xml for debugging later
-							util.dump_debug_info(wrapped_object, exc=e, xml=importer.xml())
+							util.dump_debug_info(wrapped_object, exc=e, xml=importer.xml)
 							
 							importer.blacklist()
 							continue
 						
 						if config.xml_dump:
-							util.dump_debug_info(wrapped_object, xml=importer.xml(), dir="xml_dump", build=build)
-							
+							util.dump_debug_info(wrapped_object, xml=importer.xml, dir="xml_dump", build=build)
+						
 						responses.append(response)
 						importers_responded_to[importer.key] = True
 					else:

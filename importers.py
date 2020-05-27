@@ -8,6 +8,7 @@ import json
 import zlib
 import urllib.request, urllib.error, urllib.parse
 from xml import etree
+from functools import cached_property
 
 # 3rd Party
 import defusedxml.ElementTree as ET
@@ -47,29 +48,23 @@ class ImporterBase(object):
 		self.flush()
 	
 	# returns text contents of importer
+	@cached_property
 	def contents(self):
-		if not hasattr(self, '_contents'):
-			self._contents = self.get_contents()
-			
-		return self._contents
+		pass
 	
 	# returns xml contents of importer
+	@cached_property
 	def xml(self):
-		if not hasattr(self, '_xml'):
-			c = self.contents()
-			
-			if c is not None:
-				try:	
-					self._xml = self.decode(c)
-				except (zlib.error, TypeError, etree.ElementTree.ParseError) as e:
-					logging.info("{} does not decode to XML data.".format(self))
-					logging.exception(e)
-					self.blacklist()
-					return None
-			else:
-				self._xml = None
-			
-		return self._xml
+		if self.contents is not None:
+			try:	
+				return self.decode(self.contents)
+			except (zlib.error, TypeError, etree.ElementTree.ParseError) as e:
+				logging.info("{} does not decode to XML data.".format(self))
+				logging.exception(e)
+				self.blacklist()
+				return None
+		else:
+			return None
 		
 	def decode(self, enc):
 		bytelike = enc.decode()
@@ -81,11 +76,9 @@ class ImporterBase(object):
 		return ET.fromstring(xml_str)
 		
 	def is_pob_xml(self):
-		xml = self.xml()
-		
-		if xml is not None:
-			if xml.tag == "PathOfBuilding":
-				if xml.find('Build').find('PlayerStat') is not None:
+		if self.xml is not None:
+			if self.xml.tag == "PathOfBuilding":
+				if self.xml.find('Build').find('PlayerStat') is not None:
 					return True
 				else:
 					logging.error("{} XML does not contain player stats.".format(self))
@@ -164,7 +157,8 @@ class Pastebin(ImporterBase):
 		return "<pastebin-{}>".format(self.key)
 		
 	# returns text contents of pastebin
-	def get_contents(self):
+	@cached_property
+	def contents(self):
 		try:
 			data = util.get_url_data(self.url_raw)
 
@@ -209,7 +203,8 @@ class PoBParty(ImporterBase):
 		return "<pob.party-{}>".format(self.key)
 		
 	# returns text contents of pobparty
-	def get_contents(self):
+	@cached_property
+	def contents(self):
 		try:
 			raw = util.get_url_data(self.url_get)
 			
@@ -233,12 +228,11 @@ class PoBParty(ImporterBase):
 			util.dump_debug_info(wrapped_object, exc=e, paste_key=paste_key)
 			return None
 
+	@cached_property
 	def xml(self):
-		super(PoBParty, self).xml()
-
 		# save the build/key combo so we don't request a new key again later
-		if self._xml is not None:
+		if super(PoBParty, self).xml is not None:
 			pob_party.set_key(self)
 
-		return self._xml
+		return super(PoBParty, self).xml
 	

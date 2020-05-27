@@ -139,6 +139,9 @@ class unit_tester_t:
 
 		with progressbar.ProgressBar(max_value=self.list_size) as bar:
 			for importer in self.importers:
+				# retrieve contents ahead of time because it'll cache that and we aren't interesting in profiling that
+				importer.contents
+
 				if self.do_test(importer):
 					successes += 1
 					bar.update(successes)

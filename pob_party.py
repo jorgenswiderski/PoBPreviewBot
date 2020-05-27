@@ -28,11 +28,11 @@ except IOError:
 	pass
 
 def get_url(pobparty):
-	hash = md5(pobparty.contents()).hexdigest()
+	hash = md5(pobparty.contents).hexdigest()
 	
 	if hash not in hashmap:
 		# FIXME: Figure out proper way to determine the version number
-		r = requests.post(endpoint.format('latest'), data=pobparty.contents(), headers=headers)
+		r = requests.post(endpoint.format('latest'), data=pobparty.contents, headers=headers)
 		
 		if r.status_code != 200:
 			raise PoBPartyException('Request failed: {}'.format(r.status_code))
@@ -52,7 +52,7 @@ def get_url(pobparty):
 	return "https://pob.party/share/{}".format(hashmap[hash])
 
 def set_key(pobparty):
-	hash = md5(pobparty.contents()).hexdigest()
+	hash = md5(pobparty.contents).hexdigest()
 
 	if hash not in hashmap:
 		hashmap[hash] = pobparty.key.lower()

@@ -195,7 +195,7 @@ class build_t:
 	}
 	
 	def __init__(self, importer, author, praw_object):
-		self.xml = importer.xml()
+		self.xml = importer.xml
 		self.xml_build = self.xml.find('Build')
 		self.xml_config = self.xml.find('Config')
 		self.importer = importer
