@@ -460,6 +460,13 @@ class aggressive_maintainer_t(threading.Thread):
 
 				# choose the entry we will maintain
 				entry = self.choose()
+
+				if not entry:
+					# there are no entries to maintain
+					self.list.lock.release()
+					# sleep to avoid spinlock
+					time.sleep(0.100)
+					break
 				
 				self.list.list.remove(entry)
 				
