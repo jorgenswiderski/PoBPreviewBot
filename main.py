@@ -34,6 +34,26 @@ import stat_parsing
 import item
 
 # =============================================================================
+# SIGINT HANDLING
+
+'''
+manual handling of signals that should kill the process
+in python 3.x, on windows, blocking caused threading.Event().wait() and some
+other constructs blocks SIGINT (ctrl+C) until the wait is complete
+
+so manual handling like this is necessary unless we want to wait 20 years for
+our keyboard interrupt to go through
+
+see for more info:
+https://bugs.python.org/issue35935
+'''
+
+import signal
+for sig in ('SIGTERM', 'SIGHUP', 'SIGINT'):
+	if hasattr(signal, sig):
+		signal.signal(getattr(signal, sig), signal.SIG_DFL)
+
+# =============================================================================
 # START FUNCTION DEFINITION
 	
 class bot_t:
@@ -120,17 +140,16 @@ class bot_t:
 		self.reddit = r
 		
 	def get_sleep_time(self):
-		next_update_time = time.time() + 1e6
-		
 		'''
 		if len(self.maintain_list) > 0:
 			next_update_time = min(next_update_time, self.maintain_list.next_time())
 		'''
 			 
 		if len(self.reply_queue) > 0:
-			next_update_time = min( next_update_time, self.reply_queue.throttled_until() )
+			reply_time = min( next_update_time, self.reply_queue.throttled_until() )
+			return reply_time - time.time()
 		
-		return next_update_time - time.time()
+		return 1e6
 		
 	def run(self):
 		if config.debug_memory:
