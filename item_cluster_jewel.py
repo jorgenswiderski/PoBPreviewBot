@@ -1,6 +1,7 @@
 # Python
 import logging
 import json
+from functools import cached_property
 
 # Self
 from item import item_t
@@ -81,12 +82,16 @@ def init():
 
 			#logging.info("'{}' mapped to passive {} ({})".format(notable['jewel_stat'], notable['name'], matching_nodes[0]['skill']))
 
+	# define bases for constructor selection in item.py
+	global bases
+	bases = [x['name'] for x in data.values()]
+
 class cluster_node_t(object):
 	def __init__(self, subgraph):
 		self.subgraph = subgraph
 		self.jewel = subgraph.jewel
 
-	@property
+	@cached_property
 	def index(self):
 		nodes = [n for n in list(self.subgraph.nodes.items()) if n[1] == self]
 
@@ -163,27 +168,27 @@ class cluster_node_t(object):
 
 		return id
 
-	@property
+	@cached_property
 	def allocated(self):
 		if self.subgraph.parent_socket is None:
 			return False
 
 		return self.get_id() in self.jewel.build.passives_by_id
 
-	@property
+	@cached_property
 	def stats(self):
 		pass
 
-	@property
+	@cached_property
 	def name(self):
 		pass
 
 class cluster_small_node_t(cluster_node_t):
-	@property
+	@cached_property
 	def stats(self):
 		return stat_parsing.combined_stats_t(None, stats_dict=self.jewel.skill['stats'], passive=self)
 
-	@property
+	@cached_property
 	def name(self):
 		if self.jewel.skill:
 			self.jewel.skill['name']
@@ -196,17 +201,17 @@ class cluster_data_node_t(cluster_node_t):
 
 		super(cluster_data_node_t, self).__init__(subgraph)
 
-	@property
+	@cached_property
 	def passive(self):
 		return passive_skill_tree.nodes[self.passive_id]
 
-	@property
+	@cached_property
 	def stats(self):
 		stat_str = '\n'.join(self.passive['stats'])
 
 		return stat_parsing.combined_stats_t(stat_str, passive=self)
 
-	@property
+	@cached_property
 	def name(self):
 		return self.passive['name']
 
@@ -241,7 +246,7 @@ class subgraph_t():
 		#for node in self.nodes.values():
 		#	logging.info("Cluster jewel passive node {} ({}) allocation is: {}".format(node.name, node.get_id(), node.allocated))
 
-	@property
+	@cached_property
 	def data(self):
 		return self.jewel.data
 
@@ -378,14 +383,14 @@ class cluster_jewel_t(item_t):
 		self.__init_subgraphs__()
 		self.__update_build_passives__()
 	
-	@property
+	@cached_property
 	def node_count(self):
 		if 'local_jewel_expansion_passive_node_count' in self.stats.dict():
 			return int(self.stats.dict()['local_jewel_expansion_passive_node_count'])
 		else:
 			return self.socket_count + self.notable_count + self.nothingness_count
 
-	@property
+	@cached_property
 	def socket_count(self):
 		if 'local_jewel_expansion_jewels_count_override' in self.stats.dict():
 			return int(self.stats.dict()['local_jewel_expansion_jewels_count_override'])
@@ -394,11 +399,11 @@ class cluster_jewel_t(item_t):
 		else:
 			return 0
 
-	@property
+	@cached_property
 	def notable_count(self):
 		return len(self.notable_stats)
 
-	@property
+	@cached_property
 	def nothingness_count(self):
 		if 'local_unique_jewel_grants_x_empty_passives' in self.stats.dict():
 			# Voices
@@ -413,7 +418,7 @@ class cluster_jewel_t(item_t):
 		else:
 			return 0
 	
-	@property
+	@cached_property
 	def data(self):
 		return data[self.base]
 

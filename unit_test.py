@@ -60,12 +60,20 @@ class unit_tester_t:
 		random.shuffle(self.maintain.list)
 
 		self._importers = []
+		keys = {}
 
-		while len(self._importers) < self.list_size:
-			entry = self.maintain.list.pop(0)
+		logging.info("Building importer list...")
 
-			for importer in response.find_importers(entry.get_parent().get_body()):
-				self._importers.append(importer)
+		with progressbar.ProgressBar(max_value=self.list_size) as bar:
+			while len(self._importers) < self.list_size:
+				entry = self.maintain.list.pop(0)
+
+				for importer in response.find_importers(entry.get_parent().get_body()):
+					if importer.key not in keys:
+						keys[importer.key] = True
+						self._importers.append(importer)
+
+				bar.update(len(self._importers))
 
 		self.maintain.lock.release()
 
@@ -107,10 +115,11 @@ class unit_tester_t:
 			try:
 				build = build_t(importer, self.reddit.user.me(), None)
 				response = build.get_response()
+
+				return True
 			except EligibilityException:
 				importer.blacklist()
-				raise
-				return
+				return False
 			except Exception as e:
 				logging.exception(e)
 				
@@ -118,13 +127,24 @@ class unit_tester_t:
 				#util.dump_debug_info(None, exc=e, xml=importer.xml())
 				
 				importer.blacklist()
-				return
+				return False
 		else:
 			logging.debug("Skipped {} as it is not valid PoB XML.".format(importer))
+			return False
 
 	def run(self):
-		for importer in progressbar.progressbar(self.importers[:self.list_size]):
-			self.do_test(importer)
+		successes = 0
+
+		logging.info("Running test...")
+
+		with progressbar.ProgressBar(max_value=self.list_size) as bar:
+			for importer in self.importers:
+				if self.do_test(importer):
+					successes += 1
+					bar.update(successes)
+
+					if successes >= self.list_size:
+						break
 	
 
 tester = unit_tester_t()

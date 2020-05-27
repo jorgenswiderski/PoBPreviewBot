@@ -28,6 +28,11 @@ class item_t(object):
 		self.slot = None
 		
 		self.__parse_xml__()
+
+	@staticmethod
+	def get_base(xml):
+		rows = xml.text.split('\n')
+		return rows[3].strip()
 		
 	def __parse_xml__(self):
 		rows = self.xml.text.split('\n')

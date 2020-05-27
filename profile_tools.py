@@ -4,8 +4,6 @@ import time
 import statistics as stats
 
 cumulative_data = {}
-method_names = {}
-
 
 def profile(f):
     def f_timer(*args, **kwargs):
@@ -24,23 +22,22 @@ def profile_cumulative(f):
         result = f(*args, **kwargs)
         end = time.time()
 
-        if f.__name__ not in cumulative_data:
-	        try:
-	        	is_method = inspect.getfullargspec(f)[0][0] == 'self'
-	        except IndexError:
-	        	is_method = False
+        try:
+            is_method = inspect.getfullargspec(f)[0][0] == 'self'
+        except IndexError:
+            is_method = False
 
-	        name = ""
+        key = None
 
-	        if is_method:
-	        	name = "{}.{}".format(args[0].__class__.__name__, f.__name__)
-	        else:
-	        	name = f.__name__
+        if is_method:
+            key = "{}.{}".format(args[0].__class__.__name__, f.__name__)
+        else:
+            key = f.__name__
 
-        	cumulative_data[f.__name__] = []
-        	method_names[f.__name__] = name
+        if key not in cumulative_data:
+        	cumulative_data[key] = []
 
-        cumulative_data[f.__name__].append(end-start)
+        cumulative_data[key].append(end-start)
 
         return result
 
@@ -51,15 +48,16 @@ def log_digest():
         logging.info("       \tSUM\tMEAN\tMEDIAN\tMIN\tMAX\tCOUNT\tDESC")
         logging.info("=========================================================================================")
 
-    for entry in list(cumulative_data.items()):
+    for entry in sorted(list(cumulative_data.items()), key=lambda i: i[0]):
         key = entry[0]
         vals = entry[1]
         #logging.info("Total time spent on '{}': {:.3f}s".format(method_names[key], vals))
-        logging.info("Profile\t{:.3f}s\t{:.3f}s\t{:.3f}s\t{:.3f}s\t{:.3f}s\t{}\t{}".format(sum(vals), stats.mean(vals), stats.median(vals), min(vals), max(vals), len(vals), method_names[key]))
+        logging.info("Profile\t{:.3f}s\t{:.3f}s\t{:.3f}s\t{:.3f}s\t{:.3f}s\t{}\t{}".format(sum(vals), stats.mean(vals), stats.median(vals), min(vals), max(vals), len(vals), key))
 
 class ChunkProfiler(object):
     def __init__(self, desc):
         self.desc = desc
+        self.key = "chunk-{}".format(self.desc)
 
     def __enter__(self):
         self.start = time.time()
@@ -67,8 +65,7 @@ class ChunkProfiler(object):
     def __exit__(self, type, value, traceback):
         duration = time.time() - self.start
 
-        if self.desc not in cumulative_data:
-            cumulative_data[self.desc] = []
-            method_names[self.desc] = "chunk-{}".format(self.desc)
+        if self.key not in cumulative_data:
+            cumulative_data[self.key] = []
 
-        cumulative_data[self.desc].append(duration)
+        cumulative_data[self.key].append(duration)
