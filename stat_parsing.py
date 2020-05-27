@@ -178,26 +178,49 @@ def init():
 	# apply stat whitelist
 	trans_data = list(filter(is_whitelisted, trans_data))
 
-	# Construct a Trie regex out of all the translation strings
-	# This is a very very long, very very fast regex that will match any of the sub strings we feed it
-	# We will use this later to efficiently find areas of interest in item text
+	'''
+	Construct a Trie regex out of all the translation strings
+	This is a very very long, very very fast regex that will match any of the sub strings we feed it
+	We will use this later to efficiently find areas of interest in item text
+
+	Also construct a dict that will allow us to map the Trie search results
+	back to any relevant specific stats that we should search for
+	This will save us from having to perform every single regex on the item's mods
+	'''
+	global trie_stat_map
+	trie_stat_map = {}
 	trie = Trie()
 	longest_substr = re.compile('[^(){}]+')
+
 	for translation_group in trans_data:
 		variations = translation_group['English']
 
 		for variation in variations:
 			# For each variation, find the longest plain-text string (ie doesn't contain any special elements)
-			tweaked = re.sub(r'{\d}', '{}', variation['string'])
-			m = re.search(longest_substr, tweaked)
-			#logging.info("{}\n\t{}".format(variation['string'], m.group(0)))
-			trie.add(m.group(0))
+			#tweaked = re.sub(r'{\d}', '{}', variation['string'])
+			m = re.findall(longest_substr, variation['string'])
+			m = sorted(m, key=lambda ss: len(ss))
+			substr = m.pop(len(m)-1)
 
+			trie.add(substr)
+
+			key = substr.lower()
+
+			# two stats could have the same plain text substr, so map the substr to a set of indices
+			if key not in trie_stat_map:
+				trie_stat_map[key] = set()
+
+			trie_stat_map[key].add(trans_data.index(translation_group))
+			#logging.info("Mapped '{}' to translation group #{}.".format(substr, trans_data.index(translation_group)))
+
+	# make two regexes
+	# the first just matches to any substr
 	global trans_trie_regex
 	trans_trie_regex = re.compile(trie.pattern(), re.IGNORECASE)
-
-	#logging.info("Trie complete.")
-
+	# the second is a forward-looking capture that can be used to match ALL substrings (even if those substrings overlap)
+	# this is used in conjustion with trie_stat_map to retrieve all relevant translation groups
+	global trans_trie_regex_all
+	trans_trie_regex_all = re.compile("(?=({}))".format(trie.pattern()), re.IGNORECASE)
 
 	'''
 	with open('whitelist_example.json', 'w') as f:
@@ -268,27 +291,43 @@ class combined_stats_t:
 		if trans_str is not None:
 			self.parse_str(trans_str)
 		else:
-			for key, value in list(stats_dict.items()):
-				self.add(stat_t(None, {key: value}))
+			with ChunkProfiler('combined_stats_t.__init__-1'):
+				for key, value in list(stats_dict.items()):
+					self.add(stat_t(None, {key: value}))
 
 	def add(self, stat):
 		self.stats.append(stat)
 		self.cache_valid = False
 
+	@profile_cumulative
 	def parse_str(self, trans_block, item=1, passive=None):
 		global trans_data
 
 		# pad with new lines so we can easily detect each mod
 		trans_block = "\n{}\n".format(trans_block)
 
-
 		with ChunkProfiler('parse_str-0'):
 			# Use Trie Regex as an extremely quick first pass to see if there is anything of interest in the item's mods
-			if not re.search(trans_trie_regex, trans_block):
+			m = re.search(trans_trie_regex, trans_block)
+
+			if not m:
 				return
 
-		for translation_group in trans_data:
+			# Find all trie matches so we know what specifically to parse
+			matches = re.findall(trans_trie_regex_all, trans_block)
+
+			trans_group_indices = set()
+
+			for match in matches:
+				trans_group_indices.update(trie_stat_map[match.lower()])
+
+		#logging.info(trans_block)
+
+		for tg_idx in trans_group_indices:
+			translation_group = trans_data[tg_idx]
 			ids = translation_group['ids']
+
+			#logging.info(ids)
 
 			if 'dummy_stat_display_nothing' in ids:
 				continue
