@@ -9,6 +9,8 @@ import logger
 import copy
 import passive_skill_tree
 
+# TODO: Convert to cached properties
+
 # load in a function to aid garbage collection
 def init():
 	with open('data/cluster_jewels.json', 'r') as f:

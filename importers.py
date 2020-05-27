@@ -17,6 +17,15 @@ from atomicwrites import atomic_write
 import util
 import pob_party
 
+class ImporterEncoder(json.JSONEncoder):
+	def default(self, obj):
+		if isinstance(obj, ImporterBase):
+			return {
+				'key': obj.key,
+				'class': type(obj).__name__
+			}
+		return json.JSONEncoder.default(self, obj)
+
 class ImporterBase(object):
 	def is_blacklisted(self):
 		if not self.initialized:
