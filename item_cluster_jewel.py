@@ -449,9 +449,9 @@ class cluster_jewel_t(item_t):
 			if self.skill:
 				break
 
-		if self.skill:
-			logging.debug("{} skill is {} ({})".format(self, self.skill['name'], self.skill['id']))
-		else:
+		#if self.skill:
+		#	logging.info("{} skill is {} ({})".format(self, self.skill['name'], self.skill['id']))
+		if not self.skill:
 			log_level = logging.DEBUG if self.rarity == "UNIQUE" else logging.WARNING
 			logging.log(log_level, "{} has no skill".format(self))
 
