@@ -45,6 +45,8 @@ def init():
 					# spaghet
 					if stat_id == "physical_damage_+%":
 						stat_str = "{0}% increased Physical Damage".format(value)
+					elif stat_id == "critical_strike_chance_+%":
+						stat_str = "{0}% increased Critical Strike Chance".format(value)
 
 					skill_data['enchant'].append("Added Small Passive Skills grant: {}".format(stat_str))
 					del stat
