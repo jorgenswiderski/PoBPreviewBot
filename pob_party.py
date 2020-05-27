@@ -27,12 +27,12 @@ except IOError:
 	hashmap = {}
 	pass
 
-def get_url(pastebin):
-	hash = md5(pastebin.contents()).hexdigest()
+def get_url(pobparty):
+	hash = md5(pobparty.contents()).hexdigest()
 	
 	if hash not in hashmap:
 		# FIXME: Figure out proper way to determine the version number
-		r = requests.post(endpoint.format('latest'), data=pastebin.contents(), headers=headers)
+		r = requests.post(endpoint.format('latest'), data=pobparty.contents(), headers=headers)
 		
 		if r.status_code != 200:
 			raise PoBPartyException('Request failed: {}'.format(r.status_code))
@@ -42,7 +42,7 @@ def get_url(pastebin):
 		if 'url' not in rj:
 			raise PoBPartyException('Response json did not contain URL token.')
 		
-		logging.debug("{}'s pob.party token is {}.".format(pastebin, rj['url']))
+		logging.debug("{}'s pob.party token is {}.".format(pobparty, rj['url']))
 		
 		hashmap[hash] = rj['url']
 		
