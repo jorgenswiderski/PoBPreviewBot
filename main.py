@@ -16,7 +16,6 @@ import threading
 import praw
 import defusedxml.ElementTree as ET
 from retrying import retry
-import git
 
 # Self
 from config import config_helper as config
@@ -108,6 +107,7 @@ class bot_t:
 
 	def get_git_sha(self):
 		try:
+			import git
 			repo = git.Repo(search_parent_directories=True)
 			sha = repo.head.object.hexsha
 
