@@ -61,6 +61,10 @@ class ImporterBase(object):
 			except (zlib.error, TypeError, etree.ElementTree.ParseError, ValueError, UnicodeEncodeError) as e:
 				logging.info("{} does not decode to XML data.".format(self))
 				logging.exception(e)
+
+				if "Error -3 while decompressing data: incorrect header check" in str(e):
+					logging.info("The above error is symptomatic of a \"Possible Spam Detected\" flag on the pastebin.")
+
 				self.blacklist()
 				return None
 		else:
