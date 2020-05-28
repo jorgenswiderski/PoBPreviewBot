@@ -5,7 +5,6 @@ import logging
 # Self
 from item_base import item_t
 import item_cluster_jewel
-from profile_tools import profile_cumulative, profile, ChunkProfiler
 
 def init():
 	item_cluster_jewel.init()
