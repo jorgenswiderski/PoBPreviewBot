@@ -58,7 +58,7 @@ class ImporterBase(object):
 		if self.contents is not None:
 			try:	
 				return self.decode(self.contents)
-			except (zlib.error, TypeError, etree.ElementTree.ParseError) as e:
+			except (zlib.error, TypeError, etree.ElementTree.ParseError, ValueError, UnicodeEncodeError) as e:
 				logging.info("{} does not decode to XML data.".format(self))
 				logging.exception(e)
 				self.blacklist()
