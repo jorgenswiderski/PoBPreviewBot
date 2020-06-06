@@ -495,6 +495,7 @@ class aggressive_maintainer_t(threading.Thread):
 		except BaseException:
 			logging.exception("Fatal error occurred in ACMThread.")
 			_thread.interrupt_main()
+			os._exit(1)
 			raise
 		
 class maintain_list_t:

@@ -101,6 +101,7 @@ class stream_thread_t(threading.Thread):
 		except BaseException:
 			logging.exception("Fatal error occurred in {} thread.".format(self.type))
 			_thread.interrupt_main()
+			os._exit(1)
 			raise
 			
 	def main(self):
