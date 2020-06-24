@@ -14,8 +14,11 @@ import passive_skill_tree
 import util
 from trie import Trie
 
+# TODO: Restructure mod parsing to properly handle mod domains
+
 '''
-This will ONLY parse mods whose stat translations are present in the following files:
+This will ONLY parse mods whose stat translations are present in the
+following files:
  - RePoE/stat_translations.json
  - RePoE/stat_translations/passive_skill.json
 
@@ -24,6 +27,51 @@ To add additional files, just drop them in the stat translations folder.
 See here for more info:
 https://github.com/brather1ng/RePoE/blob/master/docs/stat_translations.md
 '''
+
+# ========================================================================
+
+'''
+This map associates mod domains with the appropriate file that
+should be used to translate the associated stats.
+
+For example, a Blue Pearl Amulet has the domain "item":
+(excerpt from RePoE/data/base_items.json)
+
+  "Metadata/Items/Amulet/AmuletAtlas1": {
+    "domain": "item", ...
+
+A Blue Pearl Amulet's stats would therefore be translated using
+the file associated to the "item" domain. If a domain is absent in this
+map, the default is 'stat_descriptions.txt'. Which is the case here.
+
+Passive skills don't seem to have a domain, that translation is hardcoded
+in the game files to be 'passive_skill_stat_descriptions.txt'
+
+Relevant discussion here:
+https://discordapp.com/channels/174993814845521922/175290321695932416/715289022640947221
+
+Thanks to chuanhsing for explaining.
+'''
+
+domain_translation_map = {
+	# MOD_DOMAIN.MONSTER
+	'monster': 'monster_stat_descriptions.txt',
+	# MOD_DOMAIN.CHEST
+    'chest': 'chest_stat_descriptions.txt',
+    # MOD_DOMAIN.AREA
+    'area': 'map_stat_descriptions.txt',
+    # MOD_DOMAIN.ATLAS
+    'atlas': 'atlas_stat_descriptions.txt',
+    # MOD_DOMAIN.LEAGUESTONE
+    'leaguestone': 'leaguestone_stat_descriptions.txt',
+    # MOD_DOMAIN.DELVE_AREA
+    'delve_area': 'map_stat_descriptions.txt',
+    # MOD_DOMAIN.MAP_DEVICE
+    'map_device': 'map_stat_descriptions.txt',
+    # MOD_DOMAIN.CRAFTED
+    # To properly support zana's innate IIQ
+    'crafted': 'map_stat_descriptions.txt',
+}
 
 def init_support_gem_stat_map(support_gem_ids):
 	global support_gem_map
