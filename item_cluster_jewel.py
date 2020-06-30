@@ -62,6 +62,8 @@ def init():
 		global cluster_keystone_map
 		cluster_keystone_map = {}
 
+		passive_skill_warnings = 0
+
 		for notable in notable_data:
 			# Create sort order entry
 			notable_sort_order[notable['name']] = notable_data.index(notable)
@@ -73,16 +75,34 @@ def init():
 				logging.warning("No passive found for {} ({})".format(notable['name'], notable['jewel_stat']))
 				continue
 
-			assert len(matching_nodes) == 1
+			'''
+			In some cases, multiple nodes are present with the same name (ie "Intensity").
+			To find the cluster jewel ones, we'll filter out nodes that have an assigned 
+			"group" as this relates to their position on the skill tree (which cluster jewel notables do not have).
+			'''
+			filtered_nodes = list(filter(lambda n: 'group' not in n, matching_nodes))
 
-			if 'isKeystone' in matching_nodes[0] and matching_nodes[0]['isKeystone']:
-				cluster_keystone_map[notable['jewel_stat']] = (notable['name'], matching_nodes[0]['skill'])
-			elif 'isNotable' in matching_nodes[0] and matching_nodes[0]['isNotable']:
-				cluster_notable_map[notable['jewel_stat']] = (notable['name'], matching_nodes[0]['skill'])
+			assert len(filtered_nodes) == 1
+
+			if 'isKeystone' in filtered_nodes[0] and filtered_nodes[0]['isKeystone']:
+				cluster_keystone_map[notable['jewel_stat']] = (notable['name'], filtered_nodes[0]['skill'])
 			else:
-				raise RuntimeError("Cluster jewel notable found passive that is neither a notable or a keystone")
+				'''
+				Jun 29 2020
+				The data for the new cluster jewel notables added in patch 3.11 is fucked up and aren't 
+				designated as notables, so with that in mind we'll spew a concise warning and carry on.
+				In a more sane world this would mean something fucky has happened and we should terminate.
+				'''
+				if not ('isNotable' in filtered_nodes[0] and filtered_nodes[0]['isNotable']):
+					logging.debug("Cluster jewel notable '{}' passive is not designated as a keystone or notable.".format(notable['name']))
+					passive_skill_warnings += 1
 
-			#logging.info("'{}' mapped to passive {} ({})".format(notable['jewel_stat'], notable['name'], matching_nodes[0]['skill']))
+				cluster_notable_map[notable['jewel_stat']] = (notable['name'], filtered_nodes[0]['skill'])
+
+			#logging.info("'{}' mapped to passive {} ({})".format(notable['jewel_stat'], notable['name'], filtered_nodes[0]['skill']))
+
+		if passive_skill_warnings > 0:
+			logging.warning("Warning: Found {} cluster jewel notables whose passive is not designated as a keystone or notable.".format(passive_skill_warnings))
 
 	# define bases for constructor selection in item.py
 	global bases
