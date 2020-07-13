@@ -71,6 +71,7 @@ stats_to_parse = [
 			"Cooldown",
 			"ImpaleDPS",
 			"WithImpaleDPS",
+			"WithBleedDPS", # Jul 13 2020: Community fork only
 		],
 	},
 	{
@@ -678,12 +679,24 @@ class build_t:
 		return True
 		
 	def get_bleed_dps(self):
+		# Jul 13 2020
+		# check if this is a community fork PoB: only community fork has "WithBleedDPS" attr
+		# we do not, however, need to use that value for anything
+		if self.get_stat("WithBleedDPS") > 0:
+			# Community fork already accounts for crimson dance and 60/100 mod, so just return that value
+			return self.get_stat('BleedDPS')
+
 		bleed = self.get_stat('BleedDPS')
 		
 		if self.has_keystone("Crimson Dance"):
 			desc = "\n".join(passives.nodes[self.passives_by_name["Crimson Dance"]]['stats'])
 			max_stacks = re.search("You can inflict Bleeding on an Enemy up to (\d+) times", desc).group(1)
 			bleed *= int(max_stacks)
+
+		# Jul 13 2020: Add support for this mod in Openarl version (community fork handles it for us):
+		# 60% chance for Bleeding inflicted with this Weapon to deal 100% more Damage
+		if self.get_stat_total('local_chance_for_bleeding_damage_+100%_final_inflicted_with_this_weapon') >= 0.50:
+			bleed *= 2.0	
 			
 		return bleed
 		
