@@ -151,16 +151,13 @@ def dump_debug_info(praw_object, exc=None, paste_key=None, xml=None, extra_data=
 		if isinstance(xml, ET.ElementTree):
 			xml = xml.getroot()
 		
-		if isinstance(xml, ET.Element):
-			xml_str = ET.tostring(xml);
-				
-			if not isinstance(xml_str, str):
-				raise ValueError("dump_debug_info was passed invalid xml: is not string or coercable to string")
-		
-			with open("{}/{}/pastebin.xml".format(dir, id), "w") as f:
-				f.write( xml_str )
-		else:
-			logging.error("Failed to dump xml to file with type {}".format(type(xml)))
+		xml_str = ET.tostring(xml).decode()
+			
+		if not isinstance(xml_str, str):
+			raise ValueError("dump_debug_info was passed invalid xml: is not string or coercable to string")
+	
+		with open("{}/{}/pastebin.xml".format(dir, id), "w") as f:
+			f.write( xml_str )
 			
 	data = {}
 
@@ -181,6 +178,12 @@ def dump_debug_info(praw_object, exc=None, paste_key=None, xml=None, extra_data=
 	if build is not None:
 		if hasattr(build, 'passives_by_name'):
 			data['passives'] = build.passives_by_name
+
+			for key, val in list(data['passives'].items()):
+				if not isinstance(key, str):
+					logging.warning("WARNING: {} passive key overriden to 'NONE'.".format(key))
+					data['passives']['NONE'] = val
+					del data['passives'][key]
 		
 	data.update(extra_data)
 	
