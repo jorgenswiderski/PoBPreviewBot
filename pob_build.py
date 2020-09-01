@@ -412,6 +412,8 @@ class build_t:
 			dps_config.append("Boss")
 		elif self.__get_config_value__("enemyIsBoss") == "shaper":
 			dps_config.append("Shaper")
+		elif self.__get_config_value__("enemyIsBoss") == "sirus":
+			dps_config.append("Sirus")
 
 		if self.__get_config_value__("conditionEnemyShocked") == "true":
 			val = self.__get_config_value__("conditionShockEffect")
