@@ -10,6 +10,8 @@ import logger
 import copy
 import passive_skill_tree
 
+from _exceptions import EligibilityException
+
 # TODO: Convert to cached properties
 
 # load in a function to aid garbage collection
@@ -215,7 +217,7 @@ class cluster_small_node_t(cluster_node_t):
 		if self.jewel.skill:
 			self.jewel.skill['name']
 		else:
-			raise RuntimeError("{} has no skill".format(self.jewel))
+			raise EligibilityException("Cluster jewel with name '{}' doesn't grant a recognisable passive effect. Check the enchant/implicit text and make sure it is recognized by Path of Building.".format(self.jewel))
 
 class cluster_data_node_t(cluster_node_t):
 	def __init__(self, subgraph, passive_id):
