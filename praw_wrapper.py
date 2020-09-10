@@ -37,6 +37,10 @@ class praw_object_wrapper_t():
 	# Override praw reply() to return a wrapped object
 	def reply(self, *args, **kwargs):
 		return praw_object_wrapper_t(self.bot, self.object.reply(*args, **kwargs))
+
+	@property
+	def subreddit(self):
+		return self.object.subreddit
 		
 	def is_comment(self):
 		return isinstance(self.object, praw.models.Comment)
@@ -90,17 +94,24 @@ class praw_object_wrapper_t():
 			raise exc
 	
 		response = None
+		log = True
 		
 		try:
 			# get response text
 			response = self.bot.get_response( self )
+
+			if response:
+				logging.info("Found matching {}.".format(self))
 		except (EligibilityException, ImporterLimitException) as e:
 			logging.info(str(e))
+
+			if self.subreddit.display_name in config.always_provide_reason_subreddits:
+				response = config.RESPONSE_PROVIDE_REASON.format(str(self), "", "* {}".format(str(e)))
+				log = False
+				logging.info("Providing reason for {}.".format(self))
 			
 		if response is None:
 			return False
-			
-		logging.info("Found matching {}.".format(self))
 		
 		# post reply
 		if config.username == "PoBPreviewBot" or "pathofexile" not in config.subreddits:

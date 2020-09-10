@@ -8,8 +8,10 @@
 		"subreddits": ["test", "pobPreviewTest"]
 	},
 	"shared": {
+		"RESPONSE_PROVIDE_REASON": "The {} was not responded to for the following reason{}:\n\n{}",
 		"BOT_FOOTER": "[^(Path of Building)](https://github.com/Openarl/PathOfBuilding) ^| ^[Feedback](https://www.reddit.com/r/PoBPreviewBot/) ^| ^This ^reply ^updates ^automatically.",
 		"BOT_INTRO": "Hi there! I'm a bot that replies to [Path of Building](https://github.com/Openarl/PathOfBuilding) builds with a short summary of the build [like this](https://i.imgur.com/Ee9Sbo1.png)! Just include a link to any Path of Building pastebin or [pob.party](https://pob.party/) link in your comment or submission and I'll automatically respond.",
+		"always_provide_reason_subreddits": ["PoBPreviewSandbox"],
 		"backlog_time_limit": 259200,
 		"deletion_check_interval_rng": 0.01,
 		"praw_error_wait_time": 5,
