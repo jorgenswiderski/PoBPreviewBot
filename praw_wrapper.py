@@ -115,7 +115,7 @@ class praw_object_wrapper_t():
 		
 		# post reply
 		if config.username == "PoBPreviewBot" or "pathofexile" not in config.subreddits:
-			reply_queue.reply(self, response)
+			reply_queue.reply(self, response, log = log)
 		else:
 			logging.debug("Reply body:\n" + response)
 			
