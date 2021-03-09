@@ -208,6 +208,7 @@ a[href$="Awakened_Swift_Affliction_Support#support-gem-green"]:hover:before { co
 a[href$="Trap_Support#support-gem-green"]:hover:before { content: "Trap"; }
 a[href$="Trap_and_Mine_Damage_Support#support-gem-green"]:hover:before { content: "Trap and Mine Damage"; }
 a[href$="Advanced_Traps_Support#support-gem-green"]:hover:before { content: "Advanced Traps"; }
+a[href$="Trinity_Support#support-gem-blue"]:hover:before { content: "Trinity"; }
 a[href$="Awakened_Unbound_Ailments_Support#support-gem-blue"]:hover:before { content: "Awakened Unbound Ailments"; }
 a[href$="Awakened_Unleash_Support#support-gem-blue"]:hover:before { content: "Awakened Unleash"; }
 a[href$="Urgent_Orders_Support#support-gem-red"]:hover:before { content: "Urgent Orders"; }
