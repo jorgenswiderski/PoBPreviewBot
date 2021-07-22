@@ -146,8 +146,7 @@ class bot_t:
 		'''
 			 
 		if len(self.reply_queue) > 0:
-			reply_time = min( next_update_time, self.reply_queue.throttled_until() )
-			return reply_time - time.time()
+			return self.reply_queue.throttled_until() - time.time()
 		
 		return 1e6
 		
