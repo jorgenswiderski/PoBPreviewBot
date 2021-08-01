@@ -645,6 +645,11 @@ class build_t:
 		# Account for items that grant additional totems
 		# eg '+1 to maximum number of Summoned Totems'
 		tl += self.get_stat_total('base_number_of_totems_allowed')
+
+		# Jul 31 2021: In same cases, the above stat has been replaced by this new version:
+		tl += self.get_stat_total('number_of_additional_totems_allowed')
+
+		logging.info("number_of_additional_totems_allowed: {}".format(self.get_stat_total('number_of_additional_totems_allowed')))
 			
 		return tl
 		
