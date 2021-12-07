@@ -291,8 +291,8 @@ class build_t:
 		
 		ver = b[0] * 16777216 + b[1] * 65536 + b[2] * 256 + b[3]
 		
-		if ver > 4:
-			raise Exception("The build's passive skill tree link uses an unknown version (number '{:s}').".format(ver))
+		if ver > 6:
+			raise Exception("The build's passive skill tree link uses an unknown version (number '{}').".format(ver))
 			
 		#nodes = b.replace(ver >= 4 and chr(8) or chr(7), chr(-1))
 		nodes = b
